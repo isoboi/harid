@@ -8,8 +8,12 @@ import { phone9 } from '../../core/phone';
 
 const DEFAULT_RETURN = '/me/orders';
 
-/** Куда вернуть после входа: только внутренний путь (без внешних адресов и «//»). */
-const safeReturn = (v: string): string => (v.startsWith('/') && !v.startsWith('//') ? v : DEFAULT_RETURN);
+/**
+ * Куда вернуть после входа: только внутренний путь. Отсекаем «//evil» и «/\evil»:
+ * браузер считает обратный слеш за прямой, и такой путь уводит на внешний сайт.
+ */
+const SAFE_PATH = /^\/(?![\/\\])/;
+const safeReturn = (v: string): string => (SAFE_PATH.test(v) ? v : DEFAULT_RETURN);
 
 @Component({
   selector: 'app-login',

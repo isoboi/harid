@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, effect, inject, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../../core/api-error';
@@ -57,7 +58,14 @@ export class MyOrdersComponent {
         }
         this.api.myOrders().subscribe({
           next: (o) => this.orders.set(o),
-          error: (e) => this.error.set(apiErrorMessage(e)),
+          error: (e) => {
+            // 401: интерцептор уже вышел из аккаунта — отправляем на вход, а не показываем ошибку.
+            if (e instanceof HttpErrorResponse && e.status === 401) {
+              this.router.navigate(['/login'], { queryParams: { return: '/me/orders' } });
+              return;
+            }
+            this.error.set(apiErrorMessage(e));
+          },
         });
       });
     });

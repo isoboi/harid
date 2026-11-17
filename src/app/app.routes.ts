@@ -1,10 +1,8 @@
 import { Routes } from '@angular/router';
 import { NotFoundComponent } from './pages/not-found/not-found.component';
 
-const stub = () => import('./pages/not-found/not-found.component').then((m) => m.NotFoundComponent);
-
 /**
- * Публичные и личные страницы подключены; «sell» пока ведёт на заглушку (подключается в своей задаче).
+ * Все страницы подключены, включая «sell» (открытие лавки по SMS-коду).
  * Пути из app.routes.server.ts обязаны существовать и здесь, иначе сборка падает.
  */
 export const routes: Routes = [
@@ -19,6 +17,6 @@ export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent) },
   { path: 'me/orders', loadComponent: () => import('./pages/my-orders/my-orders.component').then((m) => m.MyOrdersComponent) },
   { path: 'favorites', loadComponent: () => import('./pages/favorites/favorites.component').then((m) => m.FavoritesComponent) },
-  { path: 'sell', loadComponent: stub },
+  { path: 'sell', loadComponent: () => import('./pages/sell/sell.component').then((m) => m.SellComponent) },
   { path: '**', component: NotFoundComponent },
 ];

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { of, Subject } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { of, Subject, throwError } from 'rxjs';
 import { MyOrdersComponent } from './my-orders.component';
 import { MarketApi } from '../../core/market-api.service';
 import { AuthService } from '../../core/auth.service';
@@ -44,6 +45,18 @@ describe('MyOrdersComponent', () => {
     const href = (f.nativeElement.querySelector('a.row') as HTMLAnchorElement).getAttribute('href');
     expect(href).toContain('/order/R-1');
     expect(href).toContain('phone=931110002');
+  });
+
+  it('401 от заказов — на /login с return, без текста ошибки', async () => {
+    const myOrders = jest.fn(() => throwError(() => new HttpErrorResponse({ status: 401, error: { error: { message: 'Не авторизован' } } })));
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders } }] }).compileComponents();
+    TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
+    const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(MyOrdersComponent);
+    f.detectChanges();
+    expect(nav).toHaveBeenCalledWith(['/login'], { queryParams: { return: '/me/orders' } });
+    expect(f.componentInstance.error()).toBe('');
+    expect(f.nativeElement.textContent).not.toContain('Не авторизован');
   });
 
   it('не запрашивает заказы повторно при последующих проверках', async () => {

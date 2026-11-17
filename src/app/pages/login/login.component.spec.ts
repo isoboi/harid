@@ -47,6 +47,25 @@ describe('LoginComponent', () => {
     expect(nav).toHaveBeenCalledWith('/me/orders');
   });
 
+  it.each([
+    ['//evil.com', '/me/orders'],
+    ['/\\evil', '/me/orders'],
+    ['/cart', '/cart'],
+  ])('return «%s» → переход на %s', async (ret, expected) => {
+    const api = { sendCode: jest.fn(), verify: jest.fn(() => of({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false })) };
+    await TestBed.configureTestingModule({ imports: [LoginComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+    TestBed.inject(AuthService).hydrate();
+    const f = TestBed.createComponent(LoginComponent);
+    f.componentRef.setInput('return', ret);
+    f.detectChanges();
+    const nav = jest.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    f.componentInstance.phone.set('931110002');
+    f.componentInstance.step.set('code');
+    f.componentInstance.code.set('000000');
+    f.componentInstance.verify();
+    expect(nav).toHaveBeenCalledWith(expected);
+  });
+
   it('ошибка кода показывается, сессии нет', async () => {
     const api = { sendCode: jest.fn(), verify: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 400, error: { error: { message: 'Код неверный' } } }))) };
     await TestBed.configureTestingModule({ imports: [LoginComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
