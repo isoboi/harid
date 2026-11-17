@@ -1,0 +1,30 @@
+import { TestBed } from '@angular/core/testing';
+import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { authInterceptor } from './auth.interceptor';
+import { AuthService } from './auth.service';
+
+describe('authInterceptor', () => {
+  let http: HttpClient; let ctl: HttpTestingController; let auth: AuthService;
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([authInterceptor])), provideHttpClientTesting()] });
+    http = TestBed.inject(HttpClient); ctl = TestBed.inject(HttpTestingController); auth = TestBed.inject(AuthService);
+    auth.setSession({ token: 'tok', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
+  });
+  it('Bearer к /market/me и POST /market/orders', () => {
+    http.get('http://x/api/market/me').subscribe();
+    expect(ctl.expectOne('http://x/api/market/me').request.headers.get('Authorization')).toBe('Bearer tok');
+    http.post('http://x/api/market/orders', {}).subscribe();
+    expect(ctl.expectOne('http://x/api/market/orders').request.headers.get('Authorization')).toBe('Bearer tok');
+  });
+  it('без Bearer к каталогу', () => {
+    http.get('http://x/api/market/products').subscribe();
+    expect(ctl.expectOne('http://x/api/market/products').request.headers.has('Authorization')).toBe(false);
+  });
+  it('401 на /market/me — выход', () => {
+    http.get('http://x/api/market/me').subscribe({ error: () => undefined });
+    ctl.expectOne('http://x/api/market/me').flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(auth.loggedIn()).toBe(false);
+  });
+});

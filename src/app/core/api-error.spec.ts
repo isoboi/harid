@@ -10,6 +10,14 @@ describe('apiErrorMessage', () => {
     const e = new HttpErrorResponse({ status: 422, error: { error: { message: 'Validation failed', errors: { phone: ['Неверный номер'] } } } });
     expect(apiErrorMessage(e)).toBe('Неверный номер');
   });
+  it('422 без полей — русский общий текст, а не английский «Validation failed»', () => {
+    const e = new HttpErrorResponse({ status: 422, error: { error: { message: 'Validation failed', errors: [] } } });
+    expect(apiErrorMessage(e)).toBe('Проверьте введённые данные');
+  });
+  it('error.error.message массивом — первая строка', () => {
+    const e = new HttpErrorResponse({ status: 400, error: { error: { message: ['Выберите размер', 'Другое'] } } });
+    expect(apiErrorMessage(e)).toBe('Выберите размер');
+  });
   it('нет сети — понятный текст', () => {
     expect(apiErrorMessage(new HttpErrorResponse({ status: 0 }))).toBe('Нет связи с сервером. Проверьте интернет.');
   });
