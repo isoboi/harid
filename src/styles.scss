@@ -1,0 +1,9 @@
+:root { --bg:#fff; --surface:#f6f6f4; --text:#141414; --muted:#6b6b6b; --accent:#e8432e; --line:#e7e7e3; --radius:14px; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; color:var(--text); background:var(--bg); }
+button { font:inherit; cursor:pointer; }
+.btn { padding:12px 20px; border-radius:999px; border:0; background:var(--text); color:#fff; }
+.btn:disabled { opacity:.4; cursor:default; }
+.btn--ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
+.error { color:#b3261e; }
+.muted { color:var(--muted); }
