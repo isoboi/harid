@@ -27,4 +27,16 @@ describe('authInterceptor', () => {
     ctl.expectOne('http://x/api/market/me').flush({}, { status: 401, statusText: 'Unauthorized' });
     expect(auth.loggedIn()).toBe(false);
   });
+  it('401 на /market/menu — не выход (граница пути как у needsToken)', () => {
+    http.get('http://x/api/market/menu').subscribe({ error: () => undefined });
+    ctl.expectOne('http://x/api/market/menu').flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(auth.loggedIn()).toBe(true);
+  });
+  it('401 без отправленного токена — сессия не трогается', () => {
+    auth.logout();
+    auth.setSession({ token: 'tok', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
+    http.get('http://x/api/market/products').subscribe({ error: () => undefined });
+    ctl.expectOne('http://x/api/market/products').flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(auth.loggedIn()).toBe(true);
+  });
 });

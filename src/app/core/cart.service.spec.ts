@@ -30,10 +30,32 @@ describe('CartService', () => {
     cart.setQty('1', null, 0);
     expect(cart.toOrderLines()).toEqual([{ product_id: 2, size: 'M', qty: 2 }]);
   });
-  it('сохраняется в localStorage и читается новым экземпляром', () => {
+  it('сохраняется в localStorage и после hydrate() читается новым экземпляром', () => {
     cart.add(p('1', 'a', 100), null, 3);
-    TestBed.flushEffects();
     TestBed.resetTestingModule(); TestBed.configureTestingModule({});
-    expect(TestBed.inject(CartService).count()).toBe(3);
+    const fresh = TestBed.inject(CartService);
+    fresh.hydrate();
+    expect(fresh.count()).toBe(3);
+  });
+  it('до hydrate() новый экземпляр пуст, даже если в хранилище есть данные', () => {
+    cart.add(p('1', 'a', 100), null, 3);
+    TestBed.resetTestingModule(); TestBed.configureTestingModule({});
+    expect(TestBed.inject(CartService).count()).toBe(0);
+  });
+  it('hydrate() дважды не дублирует строки', () => {
+    cart.add(p('1', 'a', 100), null, 3);
+    TestBed.resetTestingModule(); TestBed.configureTestingModule({});
+    const fresh = TestBed.inject(CartService);
+    fresh.hydrate();
+    fresh.hydrate();
+    expect(fresh.items().length).toBe(1);
+    expect(fresh.count()).toBe(3);
+  });
+  it('повреждённая запись корзины — пустая корзина без исключения', () => {
+    localStorage.setItem('harid.cart', '"x"');
+    TestBed.resetTestingModule(); TestBed.configureTestingModule({});
+    const fresh = TestBed.inject(CartService);
+    expect(() => fresh.hydrate()).not.toThrow();
+    expect(fresh.items()).toEqual([]);
   });
 });
