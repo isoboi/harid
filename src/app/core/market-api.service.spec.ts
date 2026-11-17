@@ -26,21 +26,29 @@ describe('MarketApi', () => {
     http.expectOne(`${B}/shops/a.b`).flush({});
   });
   it('order: телефон в query', () => {
-    api.order('R-1', '931110002').subscribe();
+    api.order('R-1', { phone: '931110002' }).subscribe();
     const r = http.expectOne((req) => req.url === `${B}/orders/R-1`);
     expect(r.request.params.get('phone')).toBe('931110002');
+    expect(r.request.params.has('token')).toBe(false);
     r.flush({});
   });
-  it('order без телефона: query без phone (трекинг по Bearer)', () => {
-    api.order('R-1').subscribe();
+  it('order: токен заказа в query', () => {
+    api.order('R-1', { token: 'abc' }).subscribe();
     const r = http.expectOne((req) => req.url === `${B}/orders/R-1`);
+    expect(r.request.params.get('token')).toBe('abc');
     expect(r.request.params.has('phone')).toBe(false);
     r.flush({});
   });
-  it('order с пустым телефоном: query без phone', () => {
-    api.order('R-1', '').subscribe();
+  it('order без телефона и токена: пустой query (трекинг по Bearer)', () => {
+    api.order('R-1', {}).subscribe();
     const r = http.expectOne((req) => req.url === `${B}/orders/R-1`);
-    expect(r.request.params.has('phone')).toBe(false);
+    expect(r.request.params.keys()).toEqual([]);
+    r.flush({});
+  });
+  it('order с пустыми значениями: они не уходят в query', () => {
+    api.order('R-1', { phone: '', token: '' }).subscribe();
+    const r = http.expectOne((req) => req.url === `${B}/orders/R-1`);
+    expect(r.request.params.keys()).toEqual([]);
     r.flush({});
   });
   it('placeOrder: POST тела как есть', () => {

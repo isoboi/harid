@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Component } from '@angular/core';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { AppComponent } from './app.component';
 import { CartService } from './core/cart.service';
@@ -45,5 +46,21 @@ describe('AppComponent', () => {
     f.detectChanges();
     await f.whenStable();
     expect(TestBed.inject(CartService).count()).toBe(3);
+  });
+
+  it('на /checkout без отступа под нижнюю панель, на других страницах — с ним', async () => {
+    @Component({ standalone: true, template: '' }) class Blank {}
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [provideRouter([{ path: '**', component: Blank }]), provideHttpClient()],
+    }).compileComponents();
+    const f = TestBed.createComponent(AppComponent);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/checkout');
+    f.detectChanges();
+    expect((f.nativeElement as HTMLElement).classList).toContain('no-tabbar');
+    await router.navigateByUrl('/cart');
+    f.detectChanges();
+    expect((f.nativeElement as HTMLElement).classList).not.toContain('no-tabbar');
   });
 });

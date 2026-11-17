@@ -32,7 +32,7 @@ describe('MyOrdersComponent', () => {
     expect(myOrders).not.toHaveBeenCalled();
   });
 
-  it('список заказов со ссылками и телефоном в query', async () => {
+  it('список заказов со ссылками без телефона в адресе (владелец — по Bearer)', async () => {
     const myOrders = jest.fn(() => of([ORDER]));
     await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders } }] }).compileComponents();
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
@@ -44,7 +44,7 @@ describe('MyOrdersComponent', () => {
     expect(t).toContain('Доставлен');
     const href = (f.nativeElement.querySelector('a.row') as HTMLAnchorElement).getAttribute('href');
     expect(href).toContain('/order/R-1');
-    expect(href).toContain('phone=931110002');
+    expect(href).toBe('/order/R-1');
   });
 
   it('401 от заказов — на /login с return, без текста ошибки', async () => {

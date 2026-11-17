@@ -7,3 +7,18 @@ button { font:inherit; cursor:pointer; }
 .btn--ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
 .error { color:#b3261e; }
 .muted { color:var(--muted); }
+
+/* Поля форм (оформление заказа, поиск заказа). 16px у полей обязательно: с меньшим шрифтом iOS Safari увеличивает страницу при фокусе */
+.field { display:flex; flex-direction:column; gap:6px; font-size:14px }
+.field-control { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); font:inherit; font-size:16px; color:var(--text) }
+.field-control:focus-visible { outline:2px solid var(--text); outline-offset:1px }
+.field-control[aria-invalid="true"] { border-color:#b3261e }
+/* Телефон: «+992» стоит внутри рамки поля и не редактируется, вводятся только 9 цифр */
+.tel { display:flex; align-items:center; min-height:44px; border:1px solid var(--line); border-radius:10px; background:var(--bg) }
+.tel:focus-within { outline:2px solid var(--text); outline-offset:1px }
+.tel:has([aria-invalid="true"]) { border-color:#b3261e }
+.tel-prefix { padding:0 4px 0 12px; font-size:16px; color:var(--muted); font-variant-numeric:tabular-nums; user-select:none }
+.tel .field-control { min-height:42px; border:0; padding-left:4px; background:transparent; font-variant-numeric:tabular-nums }
+.tel .field-control:focus-visible { outline:none }
+.field-hint { margin:0; color:var(--muted); font-size:13px; line-height:1.4 }
+.field-error { margin:0; color:#b3261e; font-size:13px; line-height:1.4 }

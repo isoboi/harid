@@ -44,7 +44,10 @@ import { NotFoundComponent } from '../not-found/not-found.component';
             <button type="button" class="btn btn--ghost" (click)="fav.toggle(p.id)">{{ fav.has(p.id) ? 'В избранном' : 'В избранное' }}</button>
           </div>
           @if (limitError()) { <p class="error" data-test="limit">В корзине уже 30 позиций — оформите заказ или уберите лишнее</p> }
-          <p class="desc">{{ p.description }}</p>
+          <!-- Подпись из Instagram — сырой текст лавки: свёрнута, чтобы не теснить цену и кнопку. Телефоны из неё вычищает бэкенд -->
+          @if (p.description.trim()) {
+            <details class="desc"><summary>Описание из Instagram</summary><p>{{ p.description }}</p></details>
+          }
         </div>
       </div>
       @if (more().length) { <h2>Ещё в лавке</h2><div class="grid">@for (m of more(); track m.id) { <app-product-card [product]="m" /> }</div> }
@@ -57,7 +60,12 @@ import { NotFoundComponent } from '../not-found/not-found.component';
     .thumbs { display:flex; gap:8px; margin-top:8px; overflow-x:auto } .thumbs button { padding:0; border:2px solid transparent; border-radius:10px; overflow:hidden; width:64px; height:64px; background:none } .thumbs button.on { border-color:var(--text) } .thumbs img { width:100%; height:100%; object-fit:cover }
     .price { display:flex; gap:10px; align-items:baseline; font-size:24px } .price s { font-size:16px; color:var(--muted) }
     .sizes { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 } .size { padding:8px 14px; border:1px solid var(--line); border-radius:999px; background:none } .size.on { background:var(--text); color:#fff }
-    .actions { display:flex; gap:12px; margin:16px 0 } .desc { white-space:pre-line }
+    .actions { display:flex; gap:12px; margin:16px 0 }
+    .desc { margin-top:8px; border-top:1px solid var(--line) }
+    /* summary остаётся list-item, чтобы браузер рисовал треугольник раскрытия; 12px сверху и снизу — цель ≥44px */
+    .desc summary { padding:12px 0; cursor:pointer; font-weight:600; line-height:20px }
+    .desc summary:focus-visible { outline:2px solid var(--text); outline-offset:2px; border-radius:6px }
+    .desc p { margin:0 0 12px; white-space:pre-line; line-height:1.5; max-width:65ch; overflow-wrap:anywhere }
     /* Обещание оплаты у цены: поверхность и акцентная купюра — единственный акцент на странице */
     .cash { display:flex; gap:10px; align-items:flex-start; margin-top:16px; padding:12px 14px; border-radius:12px; background:var(--surface); font-size:14px; line-height:1.4 } .cash app-icon { color:var(--accent-strong); margin-top:-1px }
     .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:16px }

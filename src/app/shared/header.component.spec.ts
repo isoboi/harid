@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Component } from '@angular/core';
+import { provideRouter, Router } from '@angular/router';
 import { HeaderComponent } from './header.component';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
@@ -59,5 +60,25 @@ describe('HeaderComponent', () => {
   it('пустая корзина — без бейджа', async () => {
     const f = await setup();
     expect((f.nativeElement as HTMLElement).querySelector('.badge')).toBeNull();
+  });
+
+  describe('нижняя панель на оформлении заказа', () => {
+    @Component({ standalone: true, template: '' }) class Blank {}
+    async function at(url: string) {
+      await TestBed.configureTestingModule({ imports: [HeaderComponent], providers: [provideRouter([{ path: '**', component: Blank }])] }).compileComponents();
+      const f = TestBed.createComponent(HeaderComponent);
+      await TestBed.inject(Router).navigateByUrl(url);
+      f.detectChanges();
+      return (f.nativeElement as HTMLElement).querySelector('nav')!;
+    }
+    it('на /checkout навигация получает nav--hidden', async () => {
+      expect((await at('/checkout')).classList).toContain('nav--hidden');
+    });
+    it('на /checkout с query — тоже скрыта', async () => {
+      expect((await at('/checkout?x=1')).classList).toContain('nav--hidden');
+    });
+    it.each(['/cart', '/checkout-help'])('на %s навигация видна', async (url) => {
+      expect((await at(url)).classList).not.toContain('nav--hidden');
+    });
   });
 });

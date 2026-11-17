@@ -20,9 +20,14 @@ export class MarketApi {
   }
   product(id: string): Observable<Product> { return this.http.get<Product>(`${this.base}/products/${encodeURIComponent(id)}`); }
   placeOrder(body: CreateOrderInput): Observable<Order> { return this.http.post<Order>(`${this.base}/orders`, body); }
-  /** Телефон необязателен: для покупателя с Bearer бэкенд узнаёт заказ по токену. */
-  order(number: string, phone?: string): Observable<Order> {
-    const params: Record<string, string> = phone ? { phone } : {};
+  /**
+   * Заказ по номеру: токен из ссылки после оформления, телефон из формы «Найти заказ»,
+   * или ничего — тогда бэкенд узнаёт владельца по Bearer. Пустые значения в query не уходят.
+   */
+  order(number: string, opts: { phone?: string; token?: string } = {}): Observable<Order> {
+    const params: Record<string, string> = {};
+    if (opts.token) params['token'] = opts.token;
+    if (opts.phone) params['phone'] = opts.phone;
     return this.http.get<Order>(`${this.base}/orders/${encodeURIComponent(number)}`, { params });
   }
   sendCode(phone: string) { return this.http.post(`${this.base}/auth/send-code`, { phone }); }

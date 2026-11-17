@@ -7,7 +7,8 @@ export interface OrderCustomer { name: string; phone: string; district: string; 
 export interface OrderLineInput { product_id: number; size?: string; qty: number }
 export interface CreateOrderInput { customer: OrderCustomer; slot: string; payment: 'cash'; lines: OrderLineInput[] }
 export interface OrderLine { product_id: string; shop_handle: string; title: string; price: number; image: string; size: string | null; qty: number }
-export interface Order { number: string; created_at: string; customer: OrderCustomer; slot: string; payment: 'cash'; stage: OrderStage; items_total: number; delivery_total: number; lines: OrderLine[]; shops: { shop_handle: string; status: string }[] }
+/** access_token приходит только в ответе POST /market/orders: им открывают заказ по ссылке без телефона. */
+export interface Order { number: string; access_token?: string; created_at: string; customer: OrderCustomer; slot: string; payment: 'cash'; stage: OrderStage; items_total: number; delivery_total: number; lines: OrderLine[]; shops: { shop_handle: string; status: string }[] }
 /** Покупатель как его отдаёт бэкенд (mapBuyer): name может быть пустым. */
 export interface Buyer { id: number; phone: string; name: string | null }
 export interface VerifyResult { token: string; buyer: Buyer; is_new: boolean }

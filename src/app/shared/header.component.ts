@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
+import { injectUrl, isCheckoutUrl } from '../core/route-url';
 import { IconComponent } from './icon.component';
 
 /**
@@ -10,6 +11,8 @@ import { IconComponent } from './icon.component';
  * На десктопе ссылки стоят в строке шапки; на телефоне (≤640px) та же навигация
  * становится закреплённой нижней панелью в зоне большого пальца — разметка одна, меняется только CSS,
  * поэтому серверный рендер и первый рендер клиента совпадают.
+ * На /checkout нижняя панель скрыта (nav--hidden), чтобы не перекрывать кнопку «Заказать».
+ * /checkout рендерится только в браузере (RenderMode.Client), так что расхождения при гидратации нет.
  */
 @Component({
   selector: 'app-header',
@@ -22,7 +25,7 @@ import { IconComponent } from './icon.component';
         <app-icon class="search-icon" name="search" [size]="18" />
         <input name="q" type="search" enterkeyhint="search" [(ngModel)]="q" placeholder="Поиск по товарам" aria-label="Поиск по товарам" />
       </form>
-      <nav class="nav" aria-label="Основное меню">
+      <nav class="nav" [class.nav--hidden]="hideNav()" aria-label="Основное меню">
         <a routerLink="/favorites"><app-icon name="heart" [size]="22" /><span class="lbl">Избранное</span></a>
         @if (auth.loggedIn()) {
           <a routerLink="/me/orders"><app-icon [name]="ordersIcon()" [size]="22" /><span class="lbl">Мои заказы</span></a>
@@ -68,6 +71,7 @@ import { IconComponent } from './icon.component';
       .nav a { flex:1 1 0; min-width:0; min-height:52px; flex-direction:column; gap:3px; padding:4px 2px; border-radius:12px; font-size:12px; line-height:1.15 }
       .cart .ico { margin-right:0 }
       .lbl { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+      .nav--hidden { display:none }
     }
   `,
 })
@@ -75,6 +79,9 @@ export class HeaderComponent {
   private readonly router = inject(Router);
   readonly cart = inject(CartService);
   readonly auth = inject(AuthService);
+  private readonly url = injectUrl();
+  /** На оформлении заказа нижняя панель на телефоне не нужна: путь один — к кнопке «Заказать». */
+  readonly hideNav = computed(() => isCheckoutUrl(this.url()));
   /** Вошедшему — коробка «Мои заказы», гостю — человечек «Войти». */
   readonly ordersIcon = computed(() => (this.auth.loggedIn() ? 'package' : 'user'));
   /** Счётчик корзины: больше 99 не помещается в бейдж — показываем «99+». */

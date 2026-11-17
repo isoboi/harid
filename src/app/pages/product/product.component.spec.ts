@@ -37,6 +37,20 @@ describe('ProductComponent', () => {
     expect(price.compareDocumentPosition(promise!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(promise!.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+  it('описание свёрнуто под «Описание из Instagram» и закрыто по умолчанию', async () => {
+    const f = await render(prod({ description: 'Строка 1\nСтрока 2' }));
+    const d = (f.nativeElement as HTMLElement).querySelector('details.desc') as HTMLDetailsElement;
+    expect(d).not.toBeNull();
+    expect(d.open).toBe(false);
+    expect(d.querySelector('summary')?.textContent?.trim()).toBe('Описание из Instagram');
+    expect(d.textContent).toContain('Строка 1\nСтрока 2');
+  });
+  it.each(['', '   \n '])('пустое описание (%j) — блока нет', async (description) => {
+    const f = await render(prod({ description }));
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('details')).toBeNull();
+    expect(el.textContent).not.toContain('Описание из Instagram');
+  });
   it('несколько вариантов — кнопка недоступна до выбора', async () => {
     const f = await render(prod({ sizes: ['128 ГБ', '256 ГБ'] }));
     const btn: HTMLButtonElement = f.nativeElement.querySelector('[data-test="add"]');

@@ -7,7 +7,6 @@ import { AuthService } from '../../core/auth.service';
 import { STAGE_LABEL } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
 import { Order } from '../../core/models';
-import { phone9 } from '../../core/phone';
 import { MoneyPipe } from '../../shared/money.pipe';
 
 @Component({
@@ -20,7 +19,8 @@ import { MoneyPipe } from '../../shared/money.pipe';
     @else {
       @if (error()) { <p class="error">{{ error() }}</p> }
       @for (o of orders(); track o.number) {
-        <a class="row" [routerLink]="['/order', o.number]" [queryParams]="{ phone: phone9(o.customer.phone) }">
+        <!-- Без телефона в адресе: страница заказа узнаёт владельца по Bearer -->
+        <a class="row" [routerLink]="['/order', o.number]">
           <b>{{ o.number }}</b><span class="muted">{{ o.created_at | date: 'dd.MM.yyyy' }}</span>
           <span>{{ label[o.stage] }}</span><b>{{ o.items_total + o.delivery_total | money }}</b>
         </a>
@@ -42,7 +42,6 @@ export class MyOrdersComponent {
   readonly orders = signal<Order[]>([]);
   readonly error = signal('');
   readonly label = STAGE_LABEL;
-  readonly phone9 = phone9;
   private requested = false;
 
   constructor() {

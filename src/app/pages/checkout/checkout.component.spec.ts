@@ -6,12 +6,17 @@ import { CheckoutComponent } from './checkout.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
 import { AuthService } from '../../core/auth.service';
+import { CLOCK } from '../../core/clock';
+
+// 04:00Z = 09:00 в Душанбе: все слоты доступны; 13:00Z = 18:00 — вечерний на сегодня уже скрыт
+const MORNING = new Date('2026-11-17T04:00:00Z');
+const EVENING = new Date('2026-11-17T13:00:00Z');
 
 const product = { id: '16', shop_handle: 'technomir.tj', title: 'Наушники', price: 320, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' };
 
-async function setup(placeOrder: jest.Mock) {
+async function setup(placeOrder: jest.Mock, now = MORNING) {
   localStorage.clear();
-  await TestBed.configureTestingModule({ imports: [CheckoutComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder } }] }).compileComponents();
+  await TestBed.configureTestingModule({ imports: [CheckoutComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder } }, { provide: CLOCK, useValue: () => now }] }).compileComponents();
   TestBed.inject(CartService).hydrate();
   TestBed.inject(AuthService).hydrate();
   TestBed.inject(CartService).add(product, null, 2);
@@ -28,7 +33,7 @@ describe('CheckoutComponent', () => {
     expect(c.total()).toBe(655);
   });
   it('отправляет заказ с наличными и строками корзины, очищает корзину и идёт на трекинг', async () => {
-    const placeOrder = jest.fn(() => of({ number: 'R-221526' }));
+    const placeOrder = jest.fn(() => of({ number: 'R-221526', access_token: 'tok-1' }));
     const { c } = await setup(placeOrder);
     const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     c.submit();
@@ -37,7 +42,105 @@ describe('CheckoutComponent', () => {
       slot: 'Сегодня, 18:00–21:00', payment: 'cash', lines: [{ product_id: 16, qty: 2 }],
     });
     expect(TestBed.inject(CartService).count()).toBe(0);
+    // В адресе токен заказа, а не телефон
+    expect(nav).toHaveBeenCalledWith(['/order', 'R-221526'], { queryParams: { t: 'tok-1', fresh: 1 } });
+  });
+  it('старый бэкенд без access_token — переход с телефоном, как раньше', async () => {
+    const { c } = await setup(jest.fn(() => of({ number: 'R-221526' })));
+    const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    c.submit();
     expect(nav).toHaveBeenCalledWith(['/order', 'R-221526'], { queryParams: { phone: '931110002', fresh: 1 } });
+  });
+  it('телефон: type=tel, autocomplete=tel и неизменяемый префикс +992 в поле', async () => {
+    const { f } = await setup(jest.fn());
+    const el: HTMLElement = f.nativeElement;
+    const input = el.querySelector('input[formControlName="phone"]')!;
+    expect(input.getAttribute('type')).toBe('tel');
+    expect(input.getAttribute('inputmode')).toBe('tel');
+    expect(input.getAttribute('autocomplete')).toBe('tel');
+    const prefix = input.parentElement!.querySelector('.tel-prefix');
+    expect(prefix?.textContent?.trim()).toBe('+992');
+    expect(prefix?.tagName).not.toBe('INPUT');
+  });
+  it('autocomplete имени и адреса', async () => {
+    const { f } = await setup(jest.fn());
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('input[formControlName="name"]')?.getAttribute('autocomplete')).toBe('name');
+    expect(el.querySelector('input[formControlName="address"]')?.getAttribute('autocomplete')).toBe('street-address');
+  });
+  it('поля в двух группах: «Кто получит» и «Куда и когда»', async () => {
+    const { f } = await setup(jest.fn());
+    const sets = Array.from((f.nativeElement as HTMLElement).querySelectorAll('fieldset'));
+    expect(sets.map((s) => s.querySelector('legend')?.textContent?.trim())).toEqual(['Кто получит', 'Куда и когда']);
+    const names = (s: Element) => Array.from(s.querySelectorAll('[formControlName]')).map((n) => n.getAttribute('formControlName'));
+    expect(names(sets[0])).toEqual(['name', 'phone']);
+    expect(names(sets[1])).toEqual(['district', 'address', 'slot', 'comment']);
+  });
+  it('у района объяснена цена доставки', async () => {
+    const { f } = await setup(jest.fn());
+    const select = (f.nativeElement as HTMLElement).querySelector('select[formControlName="district"]')!;
+    const hint = (f.nativeElement as HTMLElement).querySelector('#' + select.getAttribute('aria-describedby'));
+    expect(hint?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Доставка 15 смн, в Вахдат и Ҳисор — 25 смн');
+  });
+  it('кнопка доступна и при пустой форме; отправка показывает ошибки и ставит фокус на первое неверное поле', async () => {
+    const placeOrder = jest.fn();
+    const { f, c } = await setup(placeOrder);
+    c.form.patchValue({ name: '', phone: '93 11', address: '' });
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    document.body.appendChild(el);
+    const btn: HTMLButtonElement = el.querySelector('button[type="submit"]')!;
+    expect(btn.disabled).toBe(false);
+    btn.click();
+    f.detectChanges();
+    expect(placeOrder).not.toHaveBeenCalled();
+    const t = el.textContent!;
+    expect(t).toContain('Укажите имя');
+    expect(t).toContain('Нужен номер из 9 цифр');
+    expect(t).toContain('Укажите адрес');
+    expect(document.activeElement).toBe(el.querySelector('input[formControlName="name"]'));
+    expect(el.querySelector('input[formControlName="phone"]')?.getAttribute('aria-invalid')).toBe('true');
+    el.remove();
+  });
+  it('фокус уходит на первое неверное поле, даже если оно не первое', async () => {
+    const { f, c } = await setup(jest.fn());
+    c.form.patchValue({ phone: '123' });
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    document.body.appendChild(el);
+    c.submit();
+    f.detectChanges();
+    expect(document.activeElement).toBe(el.querySelector('input[formControlName="phone"]'));
+    el.remove();
+  });
+  it('до отправки ошибки не показываются', async () => {
+    const { f, c } = await setup(jest.fn());
+    c.form.patchValue({ name: '' });
+    f.detectChanges();
+    expect((f.nativeElement as HTMLElement).textContent).not.toContain('Укажите имя');
+  });
+  it('утром по Душанбе — все слоты, по умолчанию «Сегодня»', async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [CheckoutComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder: jest.fn() } }, { provide: CLOCK, useValue: () => MORNING }] }).compileComponents();
+    TestBed.inject(CartService).hydrate();
+    TestBed.inject(CartService).add(product, null, 1);
+    const f = TestBed.createComponent(CheckoutComponent);
+    f.detectChanges();
+    f.detectChanges();
+    expect(f.componentInstance.slots()).toContain('Сегодня, 18:00–21:00');
+    expect(f.componentInstance.form.getRawValue().slot).toBe('Сегодня, 18:00–21:00');
+  });
+  it('вечером по Душанбе «Сегодня» скрыт, и форма не держит скрытый слот', async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [CheckoutComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder: jest.fn() } }, { provide: CLOCK, useValue: () => EVENING }] }).compileComponents();
+    TestBed.inject(CartService).hydrate();
+    TestBed.inject(CartService).add(product, null, 1);
+    const f = TestBed.createComponent(CheckoutComponent);
+    f.detectChanges();
+    f.detectChanges();
+    const opts = Array.from((f.nativeElement as HTMLElement).querySelectorAll('select[formControlName="slot"] option')).map((o) => o.textContent?.trim());
+    expect(opts).not.toContain('Сегодня, 18:00–21:00');
+    expect(f.componentInstance.form.getRawValue().slot).toBe('Завтра, 10:00–14:00');
   });
   it('кнопка называет сумму и способ оплаты', async () => {
     const { f } = await setup(jest.fn());
