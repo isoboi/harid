@@ -1,4 +1,5 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { CartService } from '../../core/cart.service';
@@ -16,6 +17,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
   imports: [RouterLink, MoneyPipe, ProductCardComponent, NotFoundComponent],
   template: `
     @if (missing()) { <app-not-found /> }
+    @else if (failed()) { <p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p> }
     @else { @if (product(); as p) {
       <div class="wrap">
         <div class="gallery">
@@ -74,19 +76,25 @@ export class ProductComponent {
   readonly canAdd = computed(() => { const p = this.product(); return !!p && p.in_stock && (p.sizes.length <= 1 || !!this.size()); });
   readonly addLabel = computed(() => (!this.product()?.in_stock ? 'Нет в наличии' : this.added() ? 'Добавлено в корзину' : 'В корзину'));
 
+  readonly failed = signal(false);
+  private readonly money = new MoneyPipe();
+
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const id = this.id();
-      this.missing.set(false); this.photo.set(0); this.size.set(null); this.added.set(false);
-      this.api.product(id).subscribe({
+      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false);
+      this.product.set(null); this.more.set([]);
+      let nested: { unsubscribe(): void } | null = null;
+      const sub = untracked(() => this.api.product(id).subscribe({
         next: (p) => {
           this.product.set(p);
           if (p.sizes.length === 1) this.size.set(p.sizes[0]);
-          this.seo.set({ title: `${p.title} — ${p.price} смн · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: p.image || undefined });
-          this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8)));
+          this.seo.set({ title: `${p.title} — ${this.money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined });
+          nested = this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8)));
         },
-        error: () => this.missing.set(true),
-      });
+        error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
+      }));
+      onCleanup(() => { sub.unsubscribe(); nested?.unsubscribe(); });
     });
   }
 

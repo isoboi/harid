@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, effect, untracked, inject, input, signal } from '@angular/core';
 import { catchError, of } from 'rxjs';
 import { MarketApi } from '../../core/market-api.service';
 import { Product } from '../../core/models';
@@ -10,7 +10,7 @@ import { ProductCardComponent } from '../../shared/product-card.component';
   standalone: true,
   imports: [ProductCardComponent],
   template: `
-    @if (!q()) { <p class="muted">Введите запрос</p> }
+    @if (!q().trim()) { <p class="muted">Введите запрос</p> }
     @else {
       <h1>Поиск: «{{ q() }}»</h1>
       @if (products().length) { <div class="grid">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
@@ -25,11 +25,12 @@ export class SearchComponent {
   readonly products = signal<Product[]>([]);
   constructor() {
     const seo = inject(SeoService);
-    effect(() => {
+    effect((onCleanup) => {
       const q = (this.q() ?? '').trim();
       seo.set({ title: q ? `«${q}» — поиск на Хариде` : 'Поиск — Харид', description: 'Поиск по товарам Instagram-лавок Душанбе' });
       if (!q) return this.products.set([]);
-      this.api.products({ q }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p));
+      const sub = untracked(() => this.api.products({ q }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p)));
+      onCleanup(() => sub.unsubscribe());
     });
   }
 }

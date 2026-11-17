@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
 import { MarketApi } from '../../core/market-api.service';
@@ -25,9 +25,11 @@ export class CategoryComponent {
   private readonly categories = toSignal(this.api.categories().pipe(catchError(() => of([]))), { initialValue: [] });
   readonly name = computed(() => this.categories().find((c) => c.slug === this.slug())?.name ?? 'Категория');
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const slug = this.slug();
-      this.api.products({ category: slug }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p));
+      this.products.set([]);
+      const sub = untracked(() => this.api.products({ category: slug }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p)));
+      onCleanup(() => sub.unsubscribe());
     });
     effect(() => this.seo.set({ title: `${this.name()} — Харид`, description: `${this.name()} в Instagram-лавках Душанбе` }));
   }

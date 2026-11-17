@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
@@ -41,5 +42,35 @@ describe('ProductComponent', () => {
     const btn: HTMLButtonElement = f.nativeElement.querySelector('[data-test="add"]');
     expect(btn.textContent).toContain('Нет в наличии');
     expect(btn.disabled).toBe(true);
+  });
+  it('смена id: ответ устаревшего запроса не показывается', async () => {
+    const s1 = new Subject<Product>(); const s2 = new Subject<Product>();
+    const api = { product: jest.fn((id: string) => (id === '1' ? s1 : s2)), products: jest.fn(() => of([])) };
+    await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+    const f = TestBed.createComponent(ProductComponent);
+    f.componentRef.setInput('id', '1'); f.detectChanges();
+    f.componentRef.setInput('id', '2'); f.detectChanges();
+    s2.next(prod({ id: '2', title: 'Второй' })); s2.complete();
+    s1.next(prod({ id: '1', title: 'Первый' })); s1.complete();
+    f.detectChanges();
+    const text = (f.nativeElement as HTMLElement).textContent;
+    expect(text).toContain('Второй');
+    expect(text).not.toContain('Первый');
+  });
+  it('500 — не 404, а сообщение об ошибке', async () => {
+    const api = { product: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 500 }))), products: jest.fn(() => of([])) };
+    await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+    const f = TestBed.createComponent(ProductComponent);
+    f.componentRef.setInput('id', '1'); f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.textContent).toContain('Не удалось загрузить');
+    expect(el.querySelector('app-not-found')).toBeNull();
+  });
+  it('404 — страница не найдена', async () => {
+    const api = { product: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))), products: jest.fn(() => of([])) };
+    await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+    const f = TestBed.createComponent(ProductComponent);
+    f.componentRef.setInput('id', '1'); f.detectChanges();
+    expect((f.nativeElement as HTMLElement).querySelector('app-not-found')).not.toBeNull();
   });
 });

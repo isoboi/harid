@@ -1,4 +1,5 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, effect, inject, input, signal, untracked } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Shop } from '../../core/models';
@@ -12,6 +13,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
   imports: [ProductCardComponent, NotFoundComponent],
   template: `
     @if (missing()) { <app-not-found /> }
+    @else if (failed()) { <p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p> }
     @else { @if (shop(); as s) {
       <header class="head">
         <span class="ava" [style.background]="s.avatar_color">{{ s.handle.charAt(0).toUpperCase() }}</span>
@@ -36,15 +38,19 @@ export class ShopComponent {
   readonly shop = signal<Shop | null>(null);
   readonly products = signal<Product[]>([]);
   readonly missing = signal(false);
+  readonly failed = signal(false);
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const h = this.handle();
-      this.missing.set(false);
-      this.api.shop(h).subscribe({
-        next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде` }); },
-        error: () => this.missing.set(true),
-      });
-      this.api.products({ shop: h }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p));
+      this.missing.set(false); this.failed.set(false); this.shop.set(null); this.products.set([]);
+      const subs = untracked(() => [
+        this.api.shop(h).subscribe({
+          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде` }); },
+          error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
+        }),
+        this.api.products({ shop: h }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p)),
+      ]);
+      onCleanup(() => subs.forEach((x) => x.unsubscribe()));
     });
   }
 }

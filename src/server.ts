@@ -7,7 +7,13 @@ const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
 
 const app = express();
-const angularApp = new AngularNodeAppEngine();
+/** Разрешённые Host: localhost + NG_ALLOWED_HOSTS (через запятую, например harid.tj,www.harid.tj). */
+const allowedHosts = [
+  'localhost',
+  '127.0.0.1',
+  ...(process.env['NG_ALLOWED_HOSTS'] ?? '').split(',').map((h) => h.trim()).filter(Boolean),
+];
+const angularApp = new AngularNodeAppEngine({ allowedHosts });
 
 /** Статика из /browser. */
 app.use(
