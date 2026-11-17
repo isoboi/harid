@@ -4,7 +4,11 @@ import { catchError, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
 const ME = /\/market\/me(\/|$|\?)/;
-const needsToken = (url: string, method: string) => ME.test(url) || (method === 'POST' && /\/market\/orders$/.test(url));
+const ORDERS = /\/market\/orders$/;
+/** Заказ по номеру: GET /market/orders/<номер> (без вложенных путей). */
+const ORDER_ONE = /\/market\/orders\/[^/?#]+$/;
+const needsToken = (url: string, method: string) =>
+  ME.test(url) || (method === 'POST' && ORDERS.test(url)) || (method === 'GET' && ORDER_ONE.test(url));
 
 /** Bearer покупателя для личных запросов; 401 на /me при отправленном токене — выход. */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {

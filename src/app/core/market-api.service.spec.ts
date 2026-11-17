@@ -31,6 +31,18 @@ describe('MarketApi', () => {
     expect(r.request.params.get('phone')).toBe('931110002');
     r.flush({});
   });
+  it('order без телефона: query без phone (трекинг по Bearer)', () => {
+    api.order('R-1').subscribe();
+    const r = http.expectOne((req) => req.url === `${B}/orders/R-1`);
+    expect(r.request.params.has('phone')).toBe(false);
+    r.flush({});
+  });
+  it('order с пустым телефоном: query без phone', () => {
+    api.order('R-1', '').subscribe();
+    const r = http.expectOne((req) => req.url === `${B}/orders/R-1`);
+    expect(r.request.params.has('phone')).toBe(false);
+    r.flush({});
+  });
   it('placeOrder: POST тела как есть', () => {
     const body = { customer: { name: 'А', phone: '931110002', district: 'Сино', address: 'ул' }, slot: 'Сегодня, 18:00–21:00', payment: 'cash' as const, lines: [{ product_id: 16, qty: 1 }] };
     api.placeOrder(body).subscribe();

@@ -18,6 +18,16 @@ describe('authInterceptor', () => {
     http.post('http://x/api/market/orders', {}).subscribe();
     expect(ctl.expectOne('http://x/api/market/orders').request.headers.get('Authorization')).toBe('Bearer tok');
   });
+  it('Bearer к GET заказа по номеру (трекинг покупателя без телефона)', () => {
+    http.get('http://x/api/market/orders/R-1').subscribe();
+    expect(ctl.expectOne('http://x/api/market/orders/R-1').request.headers.get('Authorization')).toBe('Bearer tok');
+  });
+  it('без Bearer к списку заказов и каталогу', () => {
+    http.get('http://x/api/market/orders').subscribe();
+    expect(ctl.expectOne('http://x/api/market/orders').request.headers.has('Authorization')).toBe(false);
+    http.get('http://x/api/market/products').subscribe();
+    expect(ctl.expectOne('http://x/api/market/products').request.headers.has('Authorization')).toBe(false);
+  });
   it('без Bearer к каталогу', () => {
     http.get('http://x/api/market/products').subscribe();
     expect(ctl.expectOne('http://x/api/market/products').request.headers.has('Authorization')).toBe(false);

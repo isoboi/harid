@@ -1,6 +1,8 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { apiErrorMessage } from '../../core/api-error';
+import { AuthService } from '../../core/auth.service';
 import { STAGE_LABEL } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
 import { Order, OrderStage } from '../../core/models';
@@ -15,6 +17,7 @@ const STEPS: OrderStage[] = ['placed', 'assembling', 'in_delivery', 'delivered']
   template: `
     @if (error()) { <p class="error">{{ error() }}</p><a routerLink="/">На главную</a> }
     @else {
+      @if (!order()) { <p class="muted">Загрузка…</p> }
       @if (order(); as o) {
         <h1>Заказ {{ o.number }}</h1>
         <p class="stage">{{ label(o.stage) }}</p>
@@ -38,6 +41,7 @@ const STEPS: OrderStage[] = ['placed', 'assembling', 'in_delivery', 'delivered']
 })
 export class OrderComponent {
   private readonly api = inject(MarketApi);
+  private readonly auth = inject(AuthService);
   readonly number = input.required<string>();
   readonly phone = input<string>('');
   readonly order = signal<Order | null>(null);
@@ -46,11 +50,22 @@ export class OrderComponent {
   label(s: OrderStage): string { return STAGE_LABEL[s]; }
   reached(cur: OrderStage, s: OrderStage): boolean { return STEPS.indexOf(cur) >= STEPS.indexOf(s); }
   constructor() {
-    effect(() => {
-      this.api.order(this.number(), this.phone() ?? '').subscribe({
-        next: (o) => this.order.set(o),
-        error: (e) => this.error.set(apiErrorMessage(e)),
-      });
+    // Ждём гидратацию auth: токен нужен покупателю при перезагрузке. Смена номера/телефона отменяет прежний запрос.
+    effect((onCleanup) => {
+      if (!this.auth.ready()) return;
+      const number = this.number();
+      const phone = this.phone();
+      const sub = untracked(() => this.load(number, phone));
+      onCleanup(() => sub.unsubscribe());
+    });
+  }
+
+  private load(number: string, phone: string): Subscription {
+    this.order.set(null);
+    this.error.set('');
+    return this.api.order(number, phone).subscribe({
+      next: (o) => this.order.set(o),
+      error: (e) => this.error.set(apiErrorMessage(e)),
     });
   }
 }

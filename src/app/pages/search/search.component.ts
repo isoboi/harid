@@ -10,7 +10,7 @@ import { ProductCardComponent } from '../../shared/product-card.component';
   standalone: true,
   imports: [ProductCardComponent],
   template: `
-    @if (!(q() ?? '').trim()) { <p class="muted">Введите запрос</p> }
+    @if (!q()) { <p class="muted">Введите запрос</p> }
     @else {
       <h1>Поиск: «{{ q() }}»</h1>
       @if (products().length) { <div class="grid">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
@@ -21,12 +21,13 @@ import { ProductCardComponent } from '../../shared/product-card.component';
 })
 export class SearchComponent {
   private readonly api = inject(MarketApi);
-  readonly q = input<string>('');
+  /** Запрос уже без пробелов по краям; undefined из query приводится к пустой строке. */
+  readonly q = input('', { transform: (v: string | undefined) => (v ?? '').trim() });
   readonly products = signal<Product[]>([]);
   constructor() {
     const seo = inject(SeoService);
     effect((onCleanup) => {
-      const q = (this.q() ?? '').trim();
+      const q = this.q();
       seo.set({ title: q ? `«${q}» — поиск на Хариде` : 'Поиск — Харид', description: 'Поиск по товарам Instagram-лавок Душанбе' });
       if (!q) return this.products.set([]);
       const sub = untracked(() => this.api.products({ q }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p)));

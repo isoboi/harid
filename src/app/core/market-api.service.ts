@@ -20,8 +20,10 @@ export class MarketApi {
   }
   product(id: string): Observable<Product> { return this.http.get<Product>(`${this.base}/products/${encodeURIComponent(id)}`); }
   placeOrder(body: CreateOrderInput): Observable<Order> { return this.http.post<Order>(`${this.base}/orders`, body); }
-  order(number: string, phone: string): Observable<Order> {
-    return this.http.get<Order>(`${this.base}/orders/${encodeURIComponent(number)}`, { params: { phone } });
+  /** Телефон необязателен: для покупателя с Bearer бэкенд узнаёт заказ по токену. */
+  order(number: string, phone?: string): Observable<Order> {
+    const params: Record<string, string> = phone ? { phone } : {};
+    return this.http.get<Order>(`${this.base}/orders/${encodeURIComponent(number)}`, { params });
   }
   sendCode(phone: string) { return this.http.post(`${this.base}/auth/send-code`, { phone }); }
   verify(phone: string, code: string): Observable<VerifyResult> { return this.http.post<VerifyResult>(`${this.base}/auth/verify`, { phone, code }); }
