@@ -21,6 +21,18 @@ describe('AppComponent', () => {
     }
   });
 
+  it('в шапке 4 иконки в навигации и 1 в поиске', async () => {
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [provideRouter([]), provideHttpClient()],
+    }).compileComponents();
+    const f = TestBed.createComponent(AppComponent);
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelectorAll('nav svg').length).toBe(4);
+    expect(el.querySelectorAll('form.search svg').length).toBe(1);
+  });
+
   it('после первого рендера загружает корзину из хранилища', async () => {
     const p = { id: '1', shop_handle: 'a', title: 'T', price: 100, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' } as Product;
     localStorage.setItem('harid.cart', JSON.stringify([{ product: p, size: null, qty: 3 }]));
