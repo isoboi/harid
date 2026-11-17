@@ -12,5 +12,6 @@ describe('ProductCardComponent', () => {
     expect(el.querySelector('a')?.getAttribute('href')).toBe('/product/16');
     expect(el.textContent).toContain('1 250 смн');
     expect(el.textContent).toContain('@technomir.tj');
+    expect(el.querySelector('[data-test="cod"]')?.textContent?.trim()).toBe('Оплата при получении');
   });
 });

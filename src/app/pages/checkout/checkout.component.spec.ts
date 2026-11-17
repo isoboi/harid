@@ -37,7 +37,22 @@ describe('CheckoutComponent', () => {
       slot: 'Сегодня, 18:00–21:00', payment: 'cash', lines: [{ product_id: 16, qty: 2 }],
     });
     expect(TestBed.inject(CartService).count()).toBe(0);
-    expect(nav).toHaveBeenCalledWith(['/order', 'R-221526'], { queryParams: { phone: '931110002' } });
+    expect(nav).toHaveBeenCalledWith(['/order', 'R-221526'], { queryParams: { phone: '931110002', fresh: 1 } });
+  });
+  it('кнопка называет сумму и способ оплаты', async () => {
+    const { f } = await setup(jest.fn());
+    f.detectChanges();
+    const btn: HTMLButtonElement = f.nativeElement.querySelector('button[type="submit"]');
+    expect(btn.textContent?.replace(/\s+/g, ' ').trim()).toBe('Заказать — 655 смн наличными курьеру');
+  });
+  it('обещание оплаты стоит над кнопкой', async () => {
+    const { f } = await setup(jest.fn());
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    const promise = el.querySelector('[data-test="cash-promise"]');
+    const btn = el.querySelector('button[type="submit"]');
+    expect(promise?.textContent).toContain('без предоплаты');
+    expect(promise && btn && promise.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
   it('ошибка бэкенда показывается как есть, корзина не очищается', async () => {
     const err = new HttpErrorResponse({ status: 400, error: { error: { message: 'Товар уже снят с продажи — обновите корзину', errors: [] } } });

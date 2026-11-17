@@ -1,12 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CartService, MAX_QTY } from '../../core/cart.service';
+import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 
 @Component({
   selector: 'app-cart',
   standalone: true,
-  imports: [RouterLink, MoneyPipe],
+  imports: [RouterLink, MoneyPipe, IconComponent],
   template: `
     <h1>Корзина</h1>
     @if (!cart.ready()) { <p class="muted">Загрузка…</p> }
@@ -30,7 +31,8 @@ import { MoneyPipe } from '../../shared/money.pipe';
         </section>
       }
       <div class="sum"><span>Товары</span><b>{{ cart.itemsTotal() | money }}</b></div>
-      <p class="muted small">Доставка — {{ cart.groups().length > 1 ? 'за каждую лавку, ' : '' }}посчитаем на следующем шаге. Оплата наличными курьеру.</p>
+      <p class="muted small">Доставка — {{ cart.groups().length > 1 ? 'за каждую лавку, ' : '' }}посчитаем на следующем шаге.</p>
+      <div class="cash" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></div>
       <a class="btn" routerLink="/checkout">Оформить заказ</a>
     }
   `,
@@ -38,7 +40,9 @@ import { MoneyPipe } from '../../shared/money.pipe';
     .group { border:1px solid var(--line); border-radius:var(--radius); padding:12px 16px; margin-bottom:12px } .group h2 { font-size:16px; margin:0 0 8px }
     .row { display:grid; grid-template-columns:1fr auto auto auto; gap:12px; align-items:center; padding:8px 0 } .t { color:inherit; text-decoration:none }
     .qty { display:flex; gap:8px; align-items:center } .qty button, .x { border:1px solid var(--line); background:none; border-radius:8px; width:28px; height:28px }
-    .sum { display:flex; justify-content:space-between; font-size:18px; margin:16px 0 4px } .small { font-size:13px } a.btn { display:inline-block; text-decoration:none; margin-top:12px }
+    .sum { display:flex; justify-content:space-between; font-size:18px; margin:16px 0 4px } .small { font-size:13px; margin:0 } a.btn { display:inline-block; text-decoration:none; margin-top:12px }
+    /* Обещание оплаты над кнопкой — там, где покупатель решается */
+    .cash { display:flex; gap:10px; align-items:flex-start; max-width:520px; margin-top:16px; padding:12px 14px; border-radius:12px; background:var(--surface); font-size:14px; line-height:1.4 } .cash app-icon { color:var(--accent-strong); margin-top:-1px }
   `,
 })
 export class CartComponent {

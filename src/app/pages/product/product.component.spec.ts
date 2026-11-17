@@ -27,6 +27,16 @@ describe('ProductComponent', () => {
     expect(el.textContent).toContain('600 смн');
     expect(el.querySelectorAll('[data-test="thumb"]').length).toBe(2);
   });
+  it('обещание оплаты наличными стоит под ценой и над кнопками', async () => {
+    const f = await render(prod());
+    const el: HTMLElement = f.nativeElement;
+    const promise = el.querySelector('[data-test="cash-promise"]');
+    expect(promise?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Оплата наличными курьеру · без предоплаты · проверяете товар при курьере');
+    const price = el.querySelector('.price')!;
+    const add = el.querySelector('[data-test="add"]')!;
+    expect(price.compareDocumentPosition(promise!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(promise!.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
   it('несколько вариантов — кнопка недоступна до выбора', async () => {
     const f = await render(prod({ sizes: ['128 ГБ', '256 ГБ'] }));
     const btn: HTMLButtonElement = f.nativeElement.querySelector('[data-test="add"]');

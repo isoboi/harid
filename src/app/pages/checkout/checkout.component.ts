@@ -9,13 +9,14 @@ import { CartService } from '../../core/cart.service';
 import { DISTRICTS, SLOTS } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
 import { PHONE_PATTERN, phone9 } from '../../core/phone';
+import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { plural } from '../../shared/plural';
 
 @Component({
   selector: 'app-checkout',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, MoneyPipe],
+  imports: [ReactiveFormsModule, RouterLink, MoneyPipe, IconComponent],
   template: `
     <h1>Оформление заказа</h1>
     @if (!cart.ready()) { <p class="muted">Загрузка…</p> }
@@ -33,16 +34,19 @@ import { plural } from '../../shared/plural';
           <div><span>Доставка{{ cart.groups().length > 1 ? ' (' + cart.groups().length + ' ' + plural(cart.groups().length, shopForms) + ')' : '' }}</span><b>{{ delivery() | money }}</b></div>
           <div class="total"><span>Итого наличными курьеру</span><b>{{ total() | money }}</b></div>
         </div>
+        <div class="cash" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></div>
         @if (error()) { <p class="error">{{ error() }}</p> }
-        <button class="btn" type="submit" [disabled]="form.invalid || busy()">{{ busy() ? 'Отправляем…' : 'Заказать' }}</button>
-        <p class="muted small">Без предоплаты. Проверяете заказ при курьере и платите наличными.</p>
+        <button class="btn" type="submit" [disabled]="form.invalid || busy()">@if (busy()) { Отправляем… } @else { Заказать — {{ total() | money }} наличными курьеру }</button>
       </form>
     }
   `,
   styles: `
     .form { display:flex; flex-direction:column; gap:12px; max-width:520px } label { display:flex; flex-direction:column; gap:4px; font-size:14px }
     input, select, textarea { padding:10px 12px; border:1px solid var(--line); border-radius:10px; font:inherit }
-    .sum { border-top:1px solid var(--line); padding-top:12px } .sum div { display:flex; justify-content:space-between; margin:4px 0 } .total { font-size:18px } .small { font-size:13px }
+    .sum { border-top:1px solid var(--line); padding-top:12px } .sum div { display:flex; justify-content:space-between; margin:4px 0 } .total { font-size:18px }
+    /* Обещание оплаты над кнопкой, а не мелкой сноской под ней */
+    .cash { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:12px; background:var(--surface); font-size:14px; line-height:1.4 } .cash app-icon { color:var(--accent-strong); margin-top:-1px }
+    .btn { text-wrap:balance }
   `,
 })
 export class CheckoutComponent {
@@ -99,7 +103,8 @@ export class CheckoutComponent {
         this.cart.clear();
         this.store.set('harid.lastPhone', phone);
         this.busy.set(false);
-        this.router.navigate(['/order', o.number], { queryParams: { phone } });
+        // fresh=1 — страница заказа покажет благодарность и следующие шаги; переживает перезагрузку
+        this.router.navigate(['/order', o.number], { queryParams: { phone, fresh: 1 } });
       },
       error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
     });

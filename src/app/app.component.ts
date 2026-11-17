@@ -11,7 +11,12 @@ import { FavoritesService } from './core/favorites.service';
   standalone: true,
   imports: [RouterOutlet, HeaderComponent, FooterComponent],
   template: `<app-header /><main class="page"><router-outlet /></main><app-footer />`,
-  styles: `.page { max-width: 1200px; margin: 0 auto; padding: 16px }`,
+  styles: `
+    :host { display:block }
+    .page { max-width: 1200px; margin: 0 auto; padding: 16px }
+    /* Телефон: снизу закреплена панель навигации (~61px + безопасная зона) — контент и подвал не прячутся под ней */
+    @media (max-width: 640px) { :host { padding-bottom: calc(64px + env(safe-area-inset-bottom)) } }
+  `,
 })
 export class AppComponent {
   constructor() {

@@ -34,6 +34,16 @@ describe('CartComponent', () => {
     expect(t).toContain('Наушники');
     expect(t).toContain('640 смн');
   });
+  it('обещание оплаты наличными — блоком над кнопкой оформления', async () => {
+    const f = await setup();
+    TestBed.inject(CartService).add(product, null, 1);
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    const promise = el.querySelector('[data-test="cash-promise"]');
+    const btn = el.querySelector('a.btn')!;
+    expect(promise?.textContent).toContain('Оплата наличными курьеру');
+    expect(promise!.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
   it('«+» отключён при 20 штуках', async () => {
     const f = await setup();
     TestBed.inject(CartService).add(product, null, 20);

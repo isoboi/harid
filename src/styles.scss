@@ -1,4 +1,4 @@
-:root { --bg:#fff; --surface:#f6f6f4; --text:#141414; --muted:#6b6b6b; --accent:#e8432e; --line:#e7e7e3; --radius:14px; }
+:root { --bg:#fff; --surface:#f6f6f4; --text:#141414; --muted:#6b6b6b; --accent:#e8432e; --accent-strong:#c9341f; --line:#e7e7e3; --radius:14px; }
 * { box-sizing: border-box; }
 body { margin:0; font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; color:var(--text); background:var(--bg); }
 button { font:inherit; cursor:pointer; }

@@ -10,7 +10,7 @@ describe('IconComponent', () => {
     return f.nativeElement as HTMLElement;
   }
 
-  for (const name of ['search', 'store', 'heart', 'user', 'bag']) {
+  for (const name of ['search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check']) {
     it(`иконка «${name}» рисует svg с фигурами`, async () => {
       const el = await render(name);
       const svg = el.querySelector('svg');
@@ -22,6 +22,19 @@ describe('IconComponent', () => {
       expect(svg?.querySelector('path, circle')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
     });
   }
+
+  it('«package» — коробка Lucide из четырёх путей', async () => {
+    const el = await render('package');
+    const paths = el.querySelectorAll('svg path');
+    expect(paths.length).toBe(4);
+    expect(paths[1].getAttribute('d')).toBe('M12 22V12');
+  });
+
+  it('«banknote» — купюра: прямоугольник и кружок', async () => {
+    const el = await render('banknote');
+    expect(el.querySelector('svg rect')).not.toBeNull();
+    expect(el.querySelector('svg circle')?.getAttribute('r')).toBe('2');
+  });
 
   it('неизвестное имя не рисует svg', async () => {
     const el = await render('unknown');

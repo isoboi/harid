@@ -7,6 +7,7 @@ import { FavoritesService } from '../../core/favorites.service';
 import { MarketApi } from '../../core/market-api.service';
 import { Product } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
+import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
@@ -14,7 +15,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, MoneyPipe, ProductCardComponent, NotFoundComponent],
+  imports: [RouterLink, MoneyPipe, ProductCardComponent, NotFoundComponent, IconComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p> }
@@ -37,12 +38,12 @@ import { NotFoundComponent } from '../not-found/not-found.component';
               <button type="button" data-test="size" class="size" [class.on]="size() === s" (click)="size.set(s)">{{ s }}</button>
             }</div>
           }
+          <div class="cash" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></div>
           <div class="actions">
             <button type="button" class="btn" data-test="add" [disabled]="!canAdd()" (click)="add(p)">{{ addLabel() }}</button>
             <button type="button" class="btn btn--ghost" (click)="fav.toggle(p.id)">{{ fav.has(p.id) ? 'В избранном' : 'В избранное' }}</button>
           </div>
           @if (limitError()) { <p class="error" data-test="limit">В корзине уже 30 позиций — оформите заказ или уберите лишнее</p> }
-          <p class="muted small">Оплата наличными курьеру. Проверяете заказ при курьере.</p>
           <p class="desc">{{ p.description }}</p>
         </div>
       </div>
@@ -56,7 +57,9 @@ import { NotFoundComponent } from '../not-found/not-found.component';
     .thumbs { display:flex; gap:8px; margin-top:8px; overflow-x:auto } .thumbs button { padding:0; border:2px solid transparent; border-radius:10px; overflow:hidden; width:64px; height:64px; background:none } .thumbs button.on { border-color:var(--text) } .thumbs img { width:100%; height:100%; object-fit:cover }
     .price { display:flex; gap:10px; align-items:baseline; font-size:24px } .price s { font-size:16px; color:var(--muted) }
     .sizes { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 } .size { padding:8px 14px; border:1px solid var(--line); border-radius:999px; background:none } .size.on { background:var(--text); color:#fff }
-    .actions { display:flex; gap:12px; margin:16px 0 } .desc { white-space:pre-line } .small { font-size:13px }
+    .actions { display:flex; gap:12px; margin:16px 0 } .desc { white-space:pre-line }
+    /* Обещание оплаты у цены: поверхность и акцентная купюра — единственный акцент на странице */
+    .cash { display:flex; gap:10px; align-items:flex-start; margin-top:16px; padding:12px 14px; border-radius:12px; background:var(--surface); font-size:14px; line-height:1.4 } .cash app-icon { color:var(--accent-strong); margin-top:-1px }
     .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:16px }
   `,
 })

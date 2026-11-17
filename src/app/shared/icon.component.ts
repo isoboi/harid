@@ -1,9 +1,9 @@
 import { Component, computed, input } from '@angular/core';
 
-/** Имена иконок, доступных в шапке витрины. */
-export type IconName = 'search' | 'store' | 'heart' | 'user' | 'bag';
+/** Имена иконок витрины. */
+export type IconName = 'search' | 'store' | 'heart' | 'user' | 'bag' | 'package' | 'banknote' | 'circle-check';
 
-const ICON_NAMES: readonly string[] = ['search', 'store', 'heart', 'user', 'bag'];
+const ICON_NAMES: readonly string[] = ['search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check'];
 
 /**
  * Инлайн-SVG иконка без внешних библиотек и шрифтов.
@@ -49,6 +49,21 @@ const ICON_NAMES: readonly string[] = ['search', 'store', 'heart', 'user', 'bag'
             <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
             <path d="M3 6h18" />
             <path d="M16 10a4 4 0 0 1-8 0" />
+          }
+          @case ('package') {
+            <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+            <path d="M12 22V12" />
+            <path d="m3.3 7 7.61 4.4a2 2 0 0 0 2.18 0L20.7 7" />
+            <path d="m7.5 4.27 9 5.15" />
+          }
+          @case ('banknote') {
+            <rect width="20" height="12" x="2" y="6" rx="2" />
+            <circle cx="12" cy="12" r="2" />
+            <path d="M6 12h.01M18 12h.01" />
+          }
+          @case ('circle-check') {
+            <circle cx="12" cy="12" r="10" />
+            <path d="m9 12 2 2 4-4" />
           }
         }
       </svg>
