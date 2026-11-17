@@ -31,4 +31,27 @@ describe('SellComponent', () => {
     c.sendCode(); c.code.set('000000'); c.apply(); f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Этот ник уже занят другой лавкой');
   });
+  it('ник с пробелами проходит проверку и уходит обрезанным', async () => {
+    const api = { sellerSendCode: jest.fn(() => of({})), sellerApply: jest.fn(() => of({ id: 2, handle: 'zebo.style', status: 'active' })) };
+    const { f, c } = await setup(api);
+    c.form.setValue({ handle: ' @zebo.style ', owner_name: 'Рустам', phone: '93 111 00 01' });
+    f.detectChanges();
+    const btn = f.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    c.sendCode();
+    expect(c.step()).toBe('code');
+    c.code.set('000000'); c.apply();
+    expect(api.sellerApply).toHaveBeenCalledWith({ handle: '@zebo.style', owner_name: 'Рустам', phone: '931110001', code: '000000' });
+  });
+  it('«Изменить данные» сбрасывает код и ошибку', async () => {
+    const err = new HttpErrorResponse({ status: 400, error: { error: { message: 'Код неверный', errors: [] } } });
+    const { f, c } = await setup({ sellerSendCode: jest.fn(() => of({})), sellerApply: jest.fn(() => throwError(() => err)) });
+    c.form.setValue({ handle: 'zebo', owner_name: 'Рустам', phone: '931110001' });
+    c.sendCode(); c.code.set('111111'); c.apply(); f.detectChanges();
+    expect(c.error()).toBe('Код неверный');
+    c.back(); f.detectChanges();
+    expect(c.step()).toBe('form');
+    expect(c.code()).toBe('');
+    expect(c.error()).toBe('');
+  });
 });

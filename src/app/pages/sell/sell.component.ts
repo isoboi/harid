@@ -3,7 +3,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { environment } from '../../../environments/environment';
 import { apiErrorMessage } from '../../core/api-error';
 import { MarketApi } from '../../core/market-api.service';
-import { phone9 } from '../../core/phone';
+import { PHONE_PATTERN, phone9 } from '../../core/phone';
 
 /** Открытие лавки: ник, имя, телефон → SMS-код → лавка и кабинет в админке. */
 @Component({
@@ -27,7 +27,7 @@ import { phone9 } from '../../core/phone';
           <p class="muted">Код отправлен на +992 {{ phone9(form.getRawValue().phone) }}</p>
           <label>Код из SMS<input [ngModel]="code()" (ngModelChange)="code.set($event)" inputmode="numeric" maxlength="6" /></label>
           <button class="btn" type="button" [disabled]="busy() || code().length !== 6" (click)="apply()">Открыть лавку</button>
-          <button class="btn btn--ghost" type="button" (click)="step.set('form')">Изменить данные</button>
+          <button class="btn btn--ghost" type="button" (click)="back()">Изменить данные</button>
         }
         @case ('done') {
           <h2>Лавка открыта</h2>
@@ -50,10 +50,15 @@ export class SellComponent {
   readonly busy = signal(false);
   readonly error = signal('');
   readonly form = inject(FormBuilder).nonNullable.group({
-    handle: ['', [Validators.required, Validators.pattern(/^@?[A-Za-z0-9._]{1,30}$/)]],
+    handle: ['', [Validators.required, Validators.pattern(/^\s*@?[A-Za-z0-9._]{1,30}\s*$/)]],
     owner_name: ['', [Validators.required, Validators.minLength(2)]],
-    phone: ['', [Validators.required, Validators.pattern(/^\D*(\d\D*){9,12}$/)]],
+    phone: ['', [Validators.required, Validators.pattern(PHONE_PATTERN)]],
   });
+
+  /** Возврат к форме: код и ошибка сбрасываются, чтобы не остались от прошлой попытки. */
+  back(): void {
+    this.step.set('form'); this.code.set(''); this.error.set('');
+  }
 
   sendCode(): void {
     if (this.form.invalid) return;

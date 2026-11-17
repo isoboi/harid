@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { MarketApi } from '../../core/market-api.service';
-import { phone9 } from '../../core/phone';
+import { isPhone, phone9 } from '../../core/phone';
 
 const DEFAULT_RETURN = '/me/orders';
 
@@ -24,7 +24,7 @@ const safeReturn = (v: string): string => (SAFE_PATH.test(v) ? v : DEFAULT_RETUR
       <h1>Вход по номеру телефона</h1>
       @if (step() === 'phone') {
         <label>Номер телефона<input [ngModel]="phone()" (ngModelChange)="phone.set($event)" inputmode="tel" placeholder="93 123 45 67" /></label>
-        <button class="btn" type="button" [disabled]="busy() || phone9(phone()).length !== 9" (click)="sendCode()">Получить код</button>
+        <button class="btn" type="button" [disabled]="busy() || !isPhone(phone())" (click)="sendCode()">Получить код</button>
       } @else {
         <p class="muted">Код отправлен на +992 {{ phone9(phone()) }}</p>
         <label>Код из SMS<input [ngModel]="code()" (ngModelChange)="code.set($event)" inputmode="numeric" maxlength="6" /></label>
@@ -52,6 +52,7 @@ export class LoginComponent {
   readonly busy = signal(false);
   readonly error = signal('');
   readonly phone9 = phone9;
+  readonly isPhone = isPhone;
 
   sendCode(): void {
     this.busy.set(true);

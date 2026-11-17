@@ -8,7 +8,7 @@ import { BrowserStorage } from '../../core/browser-storage.service';
 import { CartService } from '../../core/cart.service';
 import { DISTRICTS, SLOTS } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
-import { phone9 } from '../../core/phone';
+import { PHONE_PATTERN, phone9 } from '../../core/phone';
 import { MoneyPipe } from '../../shared/money.pipe';
 
 @Component({
@@ -56,7 +56,7 @@ export class CheckoutComponent {
   readonly error = signal('');
   readonly form = inject(FormBuilder).nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2)]],
-    phone: ['', [Validators.required, Validators.pattern(/^\D*(\d\D*){9,12}$/)]],
+    phone: ['', [Validators.required, Validators.pattern(PHONE_PATTERN)]],
     district: [DISTRICTS[0], Validators.required],
     address: ['', [Validators.required, Validators.minLength(3)]],
     comment: [''],
