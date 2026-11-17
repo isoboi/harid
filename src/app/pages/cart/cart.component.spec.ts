@@ -34,4 +34,11 @@ describe('CartComponent', () => {
     expect(t).toContain('Наушники');
     expect(t).toContain('640 смн');
   });
+  it('«+» отключён при 20 штуках', async () => {
+    const f = await setup();
+    TestBed.inject(CartService).add(product, null, 20);
+    f.detectChanges();
+    const plus = f.nativeElement.querySelector('button[aria-label="Больше"]') as HTMLButtonElement;
+    expect(plus.disabled).toBe(true);
+  });
 });

@@ -6,6 +6,9 @@ import { OrderLineInput, Product } from './models';
 export interface CartItem { product: Product; size: string | null; qty: number }
 export interface CartGroup { shop_handle: string; items: CartItem[]; subtotal: number }
 
+/** Лимиты бэкенда: qty строки 1..20, строк в заказе не больше 30. */
+export const MAX_QTY = 20;
+export const MAX_LINES = 30;
 const KEY = 'harid.cart';
 const same = (i: CartItem, id: string, size: string | null) => i.product.id === id && i.size === size;
 
@@ -14,7 +17,7 @@ const isCartItem = (v: unknown): v is CartItem => {
   if (!v || typeof v !== 'object') return false;
   const i = v as Record<string, unknown>;
   const p = i['product'] as Record<string, unknown> | null;
-  return !!p && typeof p === 'object' && typeof p['id'] === 'string' && typeof p['shop_handle'] === 'string'
+  return !!p && typeof p === 'object' && typeof p['id'] === 'string' && typeof p['shop_handle'] === 'string' && typeof p['price'] === 'number'
     && Number.isInteger(i['qty']) && (i['qty'] as number) > 0
     && (i['size'] === null || typeof i['size'] === 'string');
 };
@@ -45,17 +48,23 @@ export class CartService {
     this.readyState.set(true);
   }
 
-  add(product: Product, size: string | null, qty = 1): void {
+  /** false — корзина уже на лимите строк, новая не добавлена. Количество строки режется до MAX_QTY. */
+  add(product: Product, size: string | null, qty = 1): boolean {
     this.hydrate();
-    this.state.update((list) => list.some((i) => same(i, product.id, size))
-      ? list.map((i) => (same(i, product.id, size) ? { ...i, qty: i.qty + qty, product } : i))
-      : [...list, { product, size, qty }]);
+    const list = this.state();
+    const exists = list.some((i) => same(i, product.id, size));
+    if (!exists && list.length >= MAX_LINES) return false;
+    this.state.set(exists
+      ? list.map((i) => (same(i, product.id, size) ? { ...i, qty: Math.min(MAX_QTY, i.qty + qty), product } : i))
+      : [...list, { product, size, qty: Math.min(MAX_QTY, qty) }]);
     this.save();
+    return true;
   }
   setQty(id: string, size: string | null, qty: number): void {
     this.hydrate();
     if (qty <= 0) return this.remove(id, size);
-    this.state.update((list) => list.map((i) => (same(i, id, size) ? { ...i, qty } : i)));
+    const next = Math.min(MAX_QTY, qty);
+    this.state.update((list) => list.map((i) => (same(i, id, size) ? { ...i, qty: next } : i)));
     this.save();
   }
   remove(id: string, size: string | null): void {

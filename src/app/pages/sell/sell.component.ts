@@ -3,6 +3,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { environment } from '../../../environments/environment';
 import { apiErrorMessage } from '../../core/api-error';
 import { MarketApi } from '../../core/market-api.service';
+import { CodeResend } from '../../core/code-resend';
 import { PHONE_PATTERN, phone9 } from '../../core/phone';
 
 /** Открытие лавки: ник, имя, телефон → SMS-код → лавка и кабинет в админке. */
@@ -17,8 +18,8 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
       @switch (step()) {
         @case ('form') {
           <form [formGroup]="form" (ngSubmit)="sendCode()" class="form">
-            <label>Ник в Instagram<input formControlName="handle" placeholder="@my.shop" autocapitalize="none" /></label>
-            <label>Ваше имя<input formControlName="owner_name" /></label>
+            <label>Ник в Instagram<input formControlName="handle" placeholder="@my.shop" autocapitalize="none" maxlength="31" /></label>
+            <label>Ваше имя<input formControlName="owner_name" maxlength="150" /></label>
             <label>Телефон<input formControlName="phone" inputmode="tel" placeholder="93 123 45 67" /></label>
             <button class="btn" type="submit" [disabled]="form.invalid || busy()">Получить код</button>
           </form>
@@ -26,6 +27,8 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
         @case ('code') {
           <p class="muted">Код отправлен на +992 {{ phone9(form.getRawValue().phone) }}</p>
           <label>Код из SMS<input [ngModel]="code()" (ngModelChange)="code.set($event)" inputmode="numeric" maxlength="6" /></label>
+          @if (resend.left() > 0) { <p class="muted" data-test="countdown">Отправить код ещё раз через {{ resend.left() }} с</p> }
+          @else { <button class="btn btn--ghost" type="button" data-test="resend" [disabled]="busy()" (click)="send()">Отправить код ещё раз</button> }
           <button class="btn" type="button" [disabled]="busy() || code().length !== 6" (click)="apply()">Открыть лавку</button>
           <button class="btn btn--ghost" type="button" (click)="back()">Изменить данные</button>
         }
@@ -43,6 +46,8 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
 export class SellComponent {
   private readonly api = inject(MarketApi);
   readonly cabinetUrl = environment.cabinetUrl;
+  /** Последняя успешная отправка кода и обратный отсчёт повтора. */
+  readonly resend = new CodeResend();
   readonly phone9 = phone9;
   readonly step = signal<'form' | 'code' | 'done'>('form');
   readonly code = signal('');
@@ -60,11 +65,19 @@ export class SellComponent {
     this.step.set('form'); this.code.set(''); this.error.set('');
   }
 
+  /** «Получить код»: если на этот номер код ушёл меньше минуты назад — сразу к вводу кода. */
   sendCode(): void {
     if (this.form.invalid) return;
+    if (this.resend.isRecent(phone9(this.form.getRawValue().phone))) { this.error.set(''); this.step.set('code'); return; }
+    this.send();
+  }
+
+  /** Реальная отправка кода (и повторная по кнопке); успех перезапускает отсчёт. */
+  send(): void {
+    const p = phone9(this.form.getRawValue().phone);
     this.busy.set(true); this.error.set('');
-    this.api.sellerSendCode(phone9(this.form.getRawValue().phone)).subscribe({
-      next: () => { this.busy.set(false); this.step.set('code'); },
+    this.api.sellerSendCode(p).subscribe({
+      next: () => { this.busy.set(false); this.resend.markSent(p); this.step.set('code'); },
       error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
     });
   }

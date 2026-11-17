@@ -84,4 +84,31 @@ describe('CartService', () => {
     expect(fresh.items().length).toBe(1);
     expect(fresh.count()).toBe(2);
   });
+  it('add: количество не больше 20, сумма с имеющимся тоже режется', () => {
+    expect(cart.add(p('1', 'a', 100), null, 50)).toBe(true);
+    expect(cart.items()[0].qty).toBe(20);
+    cart.add(p('2', 'a', 100), null, 15);
+    expect(cart.add(p('2', 'a', 100), null, 10)).toBe(true);
+    expect(cart.items()[1].qty).toBe(20);
+  });
+  it('setQty режет до 20', () => {
+    cart.add(p('1', 'a', 100), null);
+    cart.setQty('1', null, 99);
+    expect(cart.items()[0].qty).toBe(20);
+  });
+  it('30 разных строк — новая не добавляется и add возвращает false, существующая растёт', () => {
+    for (let n = 1; n <= 30; n++) expect(cart.add(p(String(n), 'a', 10), null)).toBe(true);
+    expect(cart.add(p('31', 'a', 10), null)).toBe(false);
+    expect(cart.items().length).toBe(30);
+    expect(cart.add(p('5', 'a', 10), null, 2)).toBe(true);
+    expect(cart.items().find((i) => i.product.id === '5')?.qty).toBe(3);
+  });
+  it('hydrate отбрасывает строку с нечисловой ценой', () => {
+    const good = { product: p('1', 'a', 100), size: null, qty: 2 };
+    const bad = { product: { ...p('2', 'a', 100), price: '100' }, size: null, qty: 1 };
+    localStorage.setItem('harid.cart', JSON.stringify([good, bad]));
+    const fresh = reopen();
+    fresh.hydrate();
+    expect(fresh.items().map((i) => i.product.id)).toEqual(['1']);
+  });
 });

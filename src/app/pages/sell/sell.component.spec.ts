@@ -54,4 +54,39 @@ describe('SellComponent', () => {
     expect(c.code()).toBe('');
     expect(c.error()).toBe('');
   });
+
+  describe('повторная отправка кода', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('назад и тот же номер в течение 60 с — send-code не вызывается повторно', async () => {
+      const api = { sellerSendCode: jest.fn(() => of({})), sellerApply: jest.fn() };
+      const { c } = await setup(api);
+      c.form.setValue({ handle: 'zebo', owner_name: 'Рустам', phone: '93 111 00 01' });
+      c.sendCode();
+      c.back();
+      jest.advanceTimersByTime(20_000);
+      c.sendCode();
+      expect(api.sellerSendCode).toHaveBeenCalledTimes(1);
+      expect(c.step()).toBe('code');
+    });
+    it('отсчёт доходит до нуля, кнопка «ещё раз» зовёт API', async () => {
+      const api = { sellerSendCode: jest.fn(() => of({})), sellerApply: jest.fn() };
+      const { f, c } = await setup(api);
+      c.form.setValue({ handle: 'zebo', owner_name: 'Рустам', phone: '931110001' });
+      c.sendCode(); f.detectChanges();
+      const el: HTMLElement = f.nativeElement;
+      expect(el.querySelector('[data-test="countdown"]')?.textContent).toContain('через 60 с');
+      jest.advanceTimersByTime(60_000); f.detectChanges();
+      (el.querySelector('[data-test="resend"]') as HTMLButtonElement).click();
+      expect(api.sellerSendCode).toHaveBeenCalledTimes(2);
+      expect(c.resend.left()).toBe(60);
+    });
+  });
+  it('поля ограничены лимитами бэкенда', async () => {
+    const { f } = await setup({});
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('input[formControlName="handle"]')?.getAttribute('maxlength')).toBe('31');
+    expect(el.querySelector('input[formControlName="owner_name"]')?.getAttribute('maxlength')).toBe('150');
+  });
 });

@@ -23,4 +23,4 @@ node dist/harid/server/server.mjs
 
 По умолчанию сервер слушает порт из переменной окружения `PORT` (или 4000).
 
-Сервер принимает запросы только с разрешённых Host: `localhost` и `127.0.0.1` разрешены всегда, остальные задаются переменной `NG_ALLOWED_HOSTS` (через запятую). Продакшн: `NG_ALLOWED_HOSTS=harid.tj,www.harid.tj node dist/harid/server/server.mjs`.
+Сервер принимает запросы только с разрешённых Host: `localhost` и `127.0.0.1` разрешены всегда, остальные задаются переменной `NG_ALLOWED_HOSTS` (через запятую). **Это обязательная переменная деплоя:** если боевого домена в ней нет, SSR-сервер отвечает HTTP 400 на ВСЕ страницы. При `NODE_ENV=production` и пустой переменной при старте выводится предупреждение. Продакшн: `NG_ALLOWED_HOSTS=harid.tj,www.harid.tj node dist/harid/server/server.mjs`.

@@ -13,6 +13,10 @@ const allowedHosts = [
   '127.0.0.1',
   ...(process.env['NG_ALLOWED_HOSTS'] ?? '').split(',').map((h) => h.trim()).filter(Boolean),
 ];
+// Без боевого домена в NG_ALLOWED_HOSTS SSR отвечает HTTP 400 на все страницы
+if (process.env['NODE_ENV'] === 'production' && !(process.env['NG_ALLOWED_HOSTS'] ?? '').trim()) {
+  console.warn('[harid] NG_ALLOWED_HOSTS пуст: сервер ответит HTTP 400 на все страницы, кроме localhost. Укажите боевой домен.');
+}
 const angularApp = new AngularNodeAppEngine({ allowedHosts });
 
 /** Статика из /browser. */

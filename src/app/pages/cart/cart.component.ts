@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CartService } from '../../core/cart.service';
+import { CartService, MAX_QTY } from '../../core/cart.service';
 import { MoneyPipe } from '../../shared/money.pipe';
 
 @Component({
@@ -21,7 +21,7 @@ import { MoneyPipe } from '../../shared/money.pipe';
               <div class="qty">
                 <button type="button" (click)="cart.setQty(i.product.id, i.size, i.qty - 1)" aria-label="Меньше">−</button>
                 <span>{{ i.qty }}</span>
-                <button type="button" (click)="cart.setQty(i.product.id, i.size, i.qty + 1)" aria-label="Больше">+</button>
+                <button type="button" [disabled]="i.qty >= maxQty" (click)="cart.setQty(i.product.id, i.size, i.qty + 1)" aria-label="Больше">+</button>
               </div>
               <b>{{ i.product.price * i.qty | money }}</b>
               <button type="button" class="x" (click)="cart.remove(i.product.id, i.size)" aria-label="Убрать">×</button>
@@ -43,4 +43,5 @@ import { MoneyPipe } from '../../shared/money.pipe';
 })
 export class CartComponent {
   readonly cart = inject(CartService);
+  readonly maxQty = MAX_QTY;
 }

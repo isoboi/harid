@@ -41,6 +41,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
             <button type="button" class="btn" data-test="add" [disabled]="!canAdd()" (click)="add(p)">{{ addLabel() }}</button>
             <button type="button" class="btn btn--ghost" (click)="fav.toggle(p.id)">{{ fav.has(p.id) ? 'В избранном' : 'В избранное' }}</button>
           </div>
+          @if (limitError()) { <p class="error" data-test="limit">В корзине уже 30 позиций — оформите заказ или уберите лишнее</p> }
           <p class="muted small">Оплата наличными курьеру. Проверяете заказ при курьере.</p>
           <p class="desc">{{ p.description }}</p>
         </div>
@@ -71,6 +72,8 @@ export class ProductComponent {
   readonly photo = signal(0);
   readonly size = signal<string | null>(null);
   readonly added = signal(false);
+  /** Корзина упёрлась в лимит строк бэкенда. */
+  readonly limitError = signal(false);
   readonly photos = computed(() => { const p = this.product(); return p ? (p.images?.length ? p.images : p.image ? [p.image] : []) : []; });
   readonly current = computed(() => this.photos()[this.photo()] ?? '');
   readonly canAdd = computed(() => { const p = this.product(); return !!p && p.in_stock && (p.sizes.length <= 1 || !!this.size()); });
@@ -82,7 +85,7 @@ export class ProductComponent {
   constructor() {
     effect((onCleanup) => {
       const id = this.id();
-      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false);
+      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false);
       this.product.set(null); this.more.set([]);
       let nested: { unsubscribe(): void } | null = null;
       const sub = untracked(() => this.api.product(id).subscribe({
@@ -92,7 +95,8 @@ export class ProductComponent {
           this.seo.set({ title: `${p.title} — ${this.money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined });
           nested = this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8)));
         },
-        error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
+        // 400 — нечисловой id отклонён валидацией бэкенда: для покупателя это тоже «нет такого товара»
+        error: (e) => { if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) this.missing.set(true); else this.failed.set(true); },
       }));
       onCleanup(() => { sub.unsubscribe(); nested?.unsubscribe(); });
     });
@@ -100,7 +104,8 @@ export class ProductComponent {
 
   add(p: Product): void {
     if (!this.canAdd()) return;
-    this.cart.add(p, p.sizes.length ? this.size() : null);
-    this.added.set(true);
+    const ok = this.cart.add(p, p.sizes.length ? this.size() : null);
+    this.limitError.set(!ok);
+    this.added.set(ok);
   }
 }

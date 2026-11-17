@@ -80,4 +80,60 @@ describe('LoginComponent', () => {
     expect(c.error()).toBe('Код неверный');
     expect(TestBed.inject(AuthService).loggedIn()).toBe(false);
   });
+
+  describe('повторная отправка кода', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+    const setup = async () => {
+      const api = { sendCode: jest.fn(() => of({})), verify: jest.fn() };
+      await TestBed.configureTestingModule({ imports: [LoginComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+      TestBed.inject(AuthService).hydrate();
+      const f = TestBed.createComponent(LoginComponent);
+      f.detectChanges();
+      return { api, f, c: f.componentInstance };
+    };
+
+    it('назад и тот же номер в течение 60 с — send-code не вызывается повторно', async () => {
+      const { api, c } = await setup();
+      c.phone.set('93 111 00 02');
+      c.sendCode();
+      c.step.set('phone');
+      jest.advanceTimersByTime(30_000);
+      c.sendCode();
+      expect(api.sendCode).toHaveBeenCalledTimes(1);
+      expect(c.step()).toBe('code');
+    });
+    it('другой номер или прошло 60 с — код отправляется снова', async () => {
+      const { api, c } = await setup();
+      c.phone.set('931110002');
+      c.sendCode();
+      c.step.set('phone');
+      c.phone.set('931110003');
+      c.sendCode();
+      expect(api.sendCode).toHaveBeenCalledTimes(2);
+      c.step.set('phone');
+      jest.advanceTimersByTime(60_000);
+      c.sendCode();
+      expect(api.sendCode).toHaveBeenCalledTimes(3);
+    });
+    it('отсчёт доходит до нуля, кнопка «ещё раз» зовёт API и перезапускает отсчёт', async () => {
+      const { api, f, c } = await setup();
+      c.phone.set('931110002');
+      c.sendCode();
+      f.detectChanges();
+      const el: HTMLElement = f.nativeElement;
+      expect(el.querySelector('[data-test="countdown"]')?.textContent).toContain('через 60 с');
+      expect(el.querySelector('[data-test="resend"]')).toBeNull();
+      jest.advanceTimersByTime(60_000);
+      f.detectChanges();
+      expect(c.resend.left()).toBe(0);
+      const btn = el.querySelector('[data-test="resend"]') as HTMLButtonElement;
+      expect(btn.textContent).toContain('Отправить код ещё раз');
+      btn.click();
+      expect(api.sendCode).toHaveBeenCalledTimes(2);
+      f.detectChanges();
+      expect(c.resend.left()).toBe(60);
+      expect(el.querySelector('[data-test="resend"]')).toBeNull();
+    });
+  });
 });

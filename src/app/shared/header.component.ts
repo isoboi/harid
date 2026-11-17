@@ -30,10 +30,16 @@ import { CartService } from '../core/cart.service';
   styles: `
     .hdr { display:flex; gap:16px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:10 }
     .logo { font-weight:800; font-size:22px; color:var(--text); text-decoration:none }
-    .search { flex:1 } .search input { width:100%; padding:10px 14px; border:1px solid var(--line); border-radius:999px; background:var(--surface) }
+    .search { flex:1; min-width:0 } .search input { width:100%; padding:10px 14px; border:1px solid var(--line); border-radius:999px; background:var(--surface) }
     .nav { display:flex; gap:14px } .nav a { color:var(--text); text-decoration:none; font-size:14px }
     .badge { display:inline-block; min-width:18px; padding:0 5px; margin-left:4px; border-radius:999px; background:var(--text); color:var(--bg); font-size:12px; line-height:18px; text-align:center }
-    @media (max-width: 640px) { .nav a:not(.cart) { display:none } }
+    /* Телефон: ссылки не прячем, а переносим второй строкой под логотип и поиск, компактно */
+    @media (max-width: 640px) {
+      .hdr { flex-wrap:wrap; gap:8px 12px; padding:8px 12px }
+      .logo { font-size:20px }
+      .nav { order:3; flex:0 0 100%; justify-content:space-between; gap:8px; flex-wrap:wrap }
+      .nav a { font-size:13px }
+    }
   `,
 })
 export class HeaderComponent {

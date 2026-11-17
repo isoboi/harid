@@ -5,6 +5,7 @@ import { catchError, of } from 'rxjs';
 import { MarketApi } from '../../core/market-api.service';
 import { SeoService } from '../../core/seo.service';
 import { ProductCardComponent } from '../../shared/product-card.component';
+import { plural } from '../../shared/plural';
 import { ShopStripComponent } from '../../shared/shop-strip.component';
 
 @Component({
@@ -15,7 +16,7 @@ import { ShopStripComponent } from '../../shared/shop-strip.component';
     <app-shop-strip [shops]="shops()" />
     <section class="hero">
       <h1>Покупайте в Instagram-магазинах Душанбе без предоплаты</h1>
-      <p class="muted">{{ shops().length }} лавок уже здесь. Платите наличными курьеру, когда заказ у вас в руках.</p>
+      <p class="muted">{{ shops().length }} {{ plural(shops().length, shopForms) }} уже здесь. Платите наличными курьеру, когда заказ у вас в руках.</p>
       <div class="cta"><a class="btn" href="#new">Смотреть товары</a><a class="btn btn--ghost" routerLink="/sell">У меня Instagram-магазин</a></div>
     </section>
     <h2 id="new">Новое в лавках</h2>
@@ -41,6 +42,8 @@ import { ShopStripComponent } from '../../shared/shop-strip.component';
   `,
 })
 export class HomeComponent {
+  readonly plural = plural;
+  readonly shopForms: [string, string, string] = ['лавка', 'лавки', 'лавок'];
   private readonly api = inject(MarketApi);
   readonly shops = toSignal(this.api.shops().pipe(catchError(() => of([]))), { initialValue: [] });
   readonly categories = toSignal(this.api.categories().pipe(catchError(() => of([]))), { initialValue: [] });

@@ -67,7 +67,45 @@ describe('CheckoutComponent', () => {
     const c = f.componentInstance;
     c.form.controls.name.markAsDirty();
     c.form.controls.name.setValue('Иван');
+    c.form.controls.phone.markAsDirty();
+    c.form.controls.phone.setValue('935550000');
     f.detectChanges();
-    expect(c.form.getRawValue()).toMatchObject({ name: 'Иван', phone: '931110002' });
+    expect(c.form.getRawValue()).toMatchObject({ name: 'Иван', phone: '935550000' });
+  });
+  it('телефон вошедшего покупателя важнее последнего номера, но не трогает введённый вручную', async () => {
+    localStorage.clear();
+    localStorage.setItem('harid.buyer', JSON.stringify({ id: 1, phone: '+992927000000', name: 'Фаррух' }));
+    localStorage.setItem('harid.lastPhone', JSON.stringify('931110002'));
+    await TestBed.configureTestingModule({ imports: [CheckoutComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder: jest.fn() } }] }).compileComponents();
+    TestBed.inject(CartService).hydrate();
+    TestBed.inject(AuthService).hydrate();
+    TestBed.inject(CartService).add(product, null, 1);
+    const f = TestBed.createComponent(CheckoutComponent);
+    f.detectChanges();
+    expect(f.componentInstance.form.getRawValue().phone).toBe('927000000');
+  });
+  it('поля ограничены лимитами бэкенда', async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [CheckoutComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder: jest.fn() } }] }).compileComponents();
+    TestBed.inject(CartService).hydrate();
+    TestBed.inject(AuthService).hydrate();
+    TestBed.inject(CartService).add(product, null, 1);
+    const f = TestBed.createComponent(CheckoutComponent);
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('input[formControlName="name"]')?.getAttribute('maxlength')).toBe('100');
+    expect(el.querySelector('input[formControlName="address"]')?.getAttribute('maxlength')).toBe('255');
+    expect(el.querySelector('textarea[formControlName="comment"]')?.getAttribute('maxlength')).toBe('500');
+  });
+  it('без покупателя телефон берётся из последнего заказа', async () => {
+    localStorage.clear();
+    localStorage.setItem('harid.lastPhone', JSON.stringify('931110002'));
+    await TestBed.configureTestingModule({ imports: [CheckoutComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder: jest.fn() } }] }).compileComponents();
+    TestBed.inject(CartService).hydrate();
+    TestBed.inject(AuthService).hydrate();
+    TestBed.inject(CartService).add(product, null, 1);
+    const f = TestBed.createComponent(CheckoutComponent);
+    f.detectChanges();
+    expect(f.componentInstance.form.getRawValue().phone).toBe('931110002');
   });
 });
