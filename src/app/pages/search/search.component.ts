@@ -10,7 +10,7 @@ import { ProductCardComponent } from '../../shared/product-card.component';
   standalone: true,
   imports: [ProductCardComponent],
   template: `
-    @if (!q().trim()) { <p class="muted">Введите запрос</p> }
+    @if (!(q() ?? '').trim()) { <p class="muted">Введите запрос</p> }
     @else {
       <h1>Поиск: «{{ q() }}»</h1>
       @if (products().length) { <div class="grid">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
