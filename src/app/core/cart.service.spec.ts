@@ -5,6 +5,8 @@ import { Product } from './models';
 const p = (id: string, shop: string, price: number, sizes: string[] = []): Product =>
   ({ id, shop_handle: shop, title: 'T' + id, price, old_price: null, image: '', category: null, description: '', sizes, in_stock: true, posted_at: '' });
 
+const reopen = () => { TestBed.resetTestingModule(); TestBed.configureTestingModule({}); return TestBed.inject(CartService); };
+
 describe('CartService', () => {
   let cart: CartService;
   beforeEach(() => { localStorage.clear(); TestBed.configureTestingModule({}); cart = TestBed.inject(CartService); });
@@ -32,20 +34,17 @@ describe('CartService', () => {
   });
   it('сохраняется в localStorage и после hydrate() читается новым экземпляром', () => {
     cart.add(p('1', 'a', 100), null, 3);
-    TestBed.resetTestingModule(); TestBed.configureTestingModule({});
-    const fresh = TestBed.inject(CartService);
+    const fresh = reopen();
     fresh.hydrate();
     expect(fresh.count()).toBe(3);
   });
   it('до hydrate() новый экземпляр пуст, даже если в хранилище есть данные', () => {
     cart.add(p('1', 'a', 100), null, 3);
-    TestBed.resetTestingModule(); TestBed.configureTestingModule({});
-    expect(TestBed.inject(CartService).count()).toBe(0);
+    expect(reopen().count()).toBe(0);
   });
   it('hydrate() дважды не дублирует строки', () => {
     cart.add(p('1', 'a', 100), null, 3);
-    TestBed.resetTestingModule(); TestBed.configureTestingModule({});
-    const fresh = TestBed.inject(CartService);
+    const fresh = reopen();
     fresh.hydrate();
     fresh.hydrate();
     expect(fresh.items().length).toBe(1);
@@ -53,9 +52,36 @@ describe('CartService', () => {
   });
   it('повреждённая запись корзины — пустая корзина без исключения', () => {
     localStorage.setItem('harid.cart', '"x"');
-    TestBed.resetTestingModule(); TestBed.configureTestingModule({});
-    const fresh = TestBed.inject(CartService);
+    const fresh = reopen();
     expect(() => fresh.hydrate()).not.toThrow();
     expect(fresh.items()).toEqual([]);
+  });
+  it('ready: false до hydrate(), true после', () => {
+    const fresh = reopen();
+    expect(fresh.ready()).toBe(false);
+    fresh.hydrate();
+    expect(fresh.ready()).toBe(true);
+  });
+  it('add до hydrate() сохраняет сохранённую строку A и добавляет B', () => {
+    cart.add(p('1', 'a', 100), null, 1);
+    const fresh = reopen();
+    fresh.add(p('2', 'b', 50), null, 1);
+    expect(fresh.items().map((i) => i.product.id)).toEqual(['1', '2']);
+    expect(fresh.count()).toBe(2);
+  });
+  it('невалидные строки отбрасываются: [{}] — пустая корзина без исключения', () => {
+    localStorage.setItem('harid.cart', JSON.stringify([{}]));
+    const fresh = reopen();
+    expect(() => fresh.hydrate()).not.toThrow();
+    expect(fresh.items()).toEqual([]);
+    expect(fresh.count()).toBe(0);
+  });
+  it('невалидные строки отбрасываются, валидные остаются (qty 0 и size не строка)', () => {
+    const good = { product: p('1', 'a', 100), size: null, qty: 2 };
+    localStorage.setItem('harid.cart', JSON.stringify([good, { ...good, qty: 0 }, { ...good, size: 5 }]));
+    const fresh = reopen();
+    fresh.hydrate();
+    expect(fresh.items().length).toBe(1);
+    expect(fresh.count()).toBe(2);
   });
 });

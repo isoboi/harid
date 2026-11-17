@@ -21,4 +21,23 @@ describe('AuthService', () => {
     expect(localStorage.getItem('harid.token')).toBeNull();
     expect(localStorage.getItem('harid.buyer')).toBeNull();
   });
+  it('ready: false до hydrate(), true после', () => {
+    const a = TestBed.inject(AuthService);
+    expect(a.ready()).toBe(false);
+    a.hydrate();
+    expect(a.ready()).toBe(true);
+  });
+  it('покупатель не объект-массив: сохранённый [] даёт null', () => {
+    localStorage.setItem('harid.token', JSON.stringify('tok'));
+    localStorage.setItem('harid.buyer', JSON.stringify([]));
+    const a = TestBed.inject(AuthService);
+    a.hydrate();
+    expect(a.buyer()).toBeNull();
+  });
+  it('покупатель без числового id отбрасывается', () => {
+    localStorage.setItem('harid.buyer', JSON.stringify({ id: 'x', phone: '1', name: null }));
+    const a = TestBed.inject(AuthService);
+    a.hydrate();
+    expect(a.buyer()).toBeNull();
+  });
 });

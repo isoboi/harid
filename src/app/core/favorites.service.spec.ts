@@ -22,4 +22,16 @@ describe('FavoritesService', () => {
     expect(() => fresh.hydrate()).not.toThrow();
     expect(fresh.ids()).toEqual([]);
   });
+  it('ready: false до hydrate(), true после', () => {
+    const f = TestBed.inject(FavoritesService);
+    expect(f.ready()).toBe(false);
+    f.hydrate();
+    expect(f.ready()).toBe(true);
+  });
+  it('toggle до hydrate() сохраняет сохранённые id', () => {
+    localStorage.setItem('harid.fav', JSON.stringify(['1']));
+    const f = TestBed.inject(FavoritesService);
+    f.toggle('2');
+    expect(f.ids()).toEqual(['1', '2']);
+  });
 });
