@@ -28,6 +28,16 @@ describe('authInterceptor', () => {
     http.get('http://x/api/market/me/reviewable').subscribe();
     expect(ctl.expectOne('http://x/api/market/me/reviewable').request.headers.get('Authorization')).toBe('Bearer tok');
   });
+  it('Bearer к возвратам: POST /market/returns, отмена и списки /me/returns, /me/returnable', () => {
+    http.post('http://x/api/market/returns', { order_id: 40 }).subscribe();
+    expect(ctl.expectOne('http://x/api/market/returns').request.headers.get('Authorization')).toBe('Bearer tok');
+    http.post('http://x/api/market/returns/9/cancel', {}).subscribe();
+    expect(ctl.expectOne('http://x/api/market/returns/9/cancel').request.headers.get('Authorization')).toBe('Bearer tok');
+    http.get('http://x/api/market/me/returns').subscribe();
+    expect(ctl.expectOne('http://x/api/market/me/returns').request.headers.get('Authorization')).toBe('Bearer tok');
+    http.get('http://x/api/market/me/returnable').subscribe();
+    expect(ctl.expectOne('http://x/api/market/me/returnable').request.headers.get('Authorization')).toBe('Bearer tok');
+  });
   it('без Bearer к публичному списку отзывов (GET /market/reviews)', () => {
     http.get('http://x/api/market/reviews?product=16').subscribe();
     expect(ctl.expectOne('http://x/api/market/reviews?product=16').request.headers.has('Authorization')).toBe(false);

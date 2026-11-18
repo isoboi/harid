@@ -9,9 +9,11 @@ const ORDERS = /\/market\/orders$/;
 const ORDER_ONE = /\/market\/orders\/[^/?#]+$/;
 /** Отзыв оставляет только покупатель: POST /market/reviews. GET того же пути публичный — без токена. */
 const REVIEWS = /\/market\/reviews$/;
-/** GET /market/me/reviewable покрыт ME. */
+/** Возврат запрашивает и отменяет только покупатель: POST /market/returns и /market/returns/<id>/cancel. */
+const RETURNS = /\/market\/returns(\/\d+\/cancel)?$/;
+/** GET /market/me/reviewable, /me/returnable и /me/returns покрыты ME. */
 const needsToken = (url: string, method: string) =>
-  ME.test(url) || (method === 'POST' && (ORDERS.test(url) || REVIEWS.test(url))) || (method === 'GET' && ORDER_ONE.test(url));
+  ME.test(url) || (method === 'POST' && (ORDERS.test(url) || REVIEWS.test(url) || RETURNS.test(url))) || (method === 'GET' && ORDER_ONE.test(url));
 
 /** Bearer покупателя для личных запросов; 401 на /me при отправленном токене — выход. */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
