@@ -37,7 +37,7 @@ const money = new MoneyPipe();
           </div>
           <div class="info">
             <a class="seller" [routerLink]="['/shop', p.shop_handle]">
-              <app-shop-avatar [name]="shop()?.name || p.shop_handle" [color]="shop()?.avatar_color || ''" [fresh]="!!shop()?.has_fresh" [size]="44" />
+              <app-shop-avatar [name]="shop()?.name || p.shop_handle" [color]="shop()?.avatar_color || ''" [fresh]="!!shop()?.has_fresh" [avatarUrl]="shop()?.avatar_url" [handle]="p.shop_handle" [size]="44" />
               <span class="seller-t">
                 <span class="seller-name">{{ shop()?.name || p.shop_handle }}</span>
                 <span class="seller-h">&#64;{{ p.shop_handle }}

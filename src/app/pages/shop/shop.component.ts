@@ -6,13 +6,11 @@ import { MarketApi } from '../../core/market-api.service';
 import { Product, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
 import { IconComponent } from '../../shared/icon.component';
+import { followersCount, followersLabel } from '../../shared/followers';
 import { plural } from '../../shared/plural';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
-
-/** 48200 → «48,2 тыс.», 950 → «950». */
-const followers = (n: number): string => (n >= 1000 ? `${(Math.round(n / 100) / 10).toString().replace('.', ',')} тыс.` : String(n));
 
 @Component({
   selector: 'app-shop',
@@ -25,7 +23,7 @@ const followers = (n: number): string => (n >= 1000 ? `${(Math.round(n / 100) / 
       @if (shop(); as s) {
         <div class="wrap page-top">
           <header class="head">
-            <app-shop-avatar [name]="s.name || s.handle" [color]="s.avatar_color" [fresh]="s.has_fresh" [size]="112" />
+            <app-shop-avatar [name]="s.name || s.handle" [color]="s.avatar_color" [fresh]="s.has_fresh" [avatarUrl]="s.avatar_url" [handle]="s.handle" [size]="112" />
             <div class="who">
               <h1 class="name">{{ s.name || s.handle }}</h1>
               <a class="ig" [href]="'https://instagram.com/' + s.handle" target="_blank" rel="noopener">
@@ -38,7 +36,7 @@ const followers = (n: number): string => (n >= 1000 ? `${(Math.round(n / 100) / 
                 <div><dt>Оценка</dt><dd class="rating"><app-icon class="star" name="star" [size]="17" [filled]="true" />{{ rating(s.rating) }}</dd></div>
               }
               <div><dt>Доставлено</dt><dd>{{ s.delivered_orders }}</dd></div>
-              @if (s.followers > 0) { <div><dt>В Instagram</dt><dd>{{ followers(s.followers) }}</dd></div> }
+              @if (s.followers > 0) { <div data-test="followers"><dt>В Instagram</dt><dd>{{ followersCount(s.followers) }} {{ followersLabel(s.followers) }}</dd></div> }
             </dl>
           </header>
           <p class="meta">
@@ -89,7 +87,8 @@ export class ShopComponent {
   private readonly api = inject(MarketApi);
   private readonly seo = inject(SeoService);
   readonly plural = plural;
-  readonly followers = followers;
+  readonly followersCount = followersCount;
+  readonly followersLabel = followersLabel;
   readonly productForms: [string, string, string] = ['товар', 'товара', 'товаров'];
   readonly handle = input.required<string>();
   readonly shop = signal<Shop | null>(null);

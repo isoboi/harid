@@ -1,6 +1,6 @@
 /** Модели публичного API витрины (/market/*). Формы совпадают с ответами бэкенда distributor. */
 export interface Category { slug: string; name: string }
-export interface Shop { handle: string; name: string; bio: string; followers: number; district: string | null; rating: number | null; delivered_orders: number; joined_at: string; avatar_color: string; has_fresh: boolean }
+export interface Shop { handle: string; name: string; bio: string; followers: number; district: string | null; rating: number | null; delivered_orders: number; joined_at: string; avatar_color: string; has_fresh: boolean; avatar_url?: string | null }
 export interface Product { id: string; shop_handle: string; title: string; price: number; old_price: number | null; image: string; category: string | null; description: string; sizes: string[]; in_stock: boolean; posted_at: string; images?: string[] }
 export type OrderStage = 'placed' | 'assembling' | 'in_delivery' | 'delivered' | 'cancelled';
 export interface OrderCustomer { name: string; phone: string; district: string; address: string; comment?: string }

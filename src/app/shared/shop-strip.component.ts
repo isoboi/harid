@@ -14,7 +14,7 @@ import { ShopAvatarComponent } from './shop-avatar.component';
         @for (s of shops(); track s.handle) {
           <li>
             <a class="shop" [routerLink]="['/shop', s.handle]">
-              <app-shop-avatar [name]="s.name || s.handle" [color]="s.avatar_color" [fresh]="s.has_fresh" [size]="72" />
+              <app-shop-avatar [name]="s.name || s.handle" [color]="s.avatar_color" [fresh]="s.has_fresh" [avatarUrl]="s.avatar_url" [handle]="s.handle" [size]="72" />
               <span class="h">{{ s.handle }}</span>
             </a>
           </li>
