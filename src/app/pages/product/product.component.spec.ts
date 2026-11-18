@@ -47,6 +47,29 @@ describe('ProductComponent', () => {
     expect(el.textContent).toContain('600 смн');
     expect(el.querySelectorAll('[data-test="thumb"]').length).toBe(2);
   });
+  it('видео — последний слайд галереи: по нажатию миниатюры вместо фото плеер без предзагрузки', async () => {
+    const f = await render(prod({ video: 'v.mp4' }));
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('[data-test="video"]')).toBeNull();
+    expect(el.querySelectorAll('[data-test="thumb"]').length).toBe(2);
+    (el.querySelector('[data-test="thumb-video"]') as HTMLButtonElement).click();
+    f.detectChanges();
+    const video = el.querySelector('[data-test="video"]') as HTMLVideoElement;
+    expect(video.getAttribute('src')).toBe('v.mp4');
+    expect(video.getAttribute('preload')).toBe('none');
+    expect(video.getAttribute('poster')).toBe('a.jpg');
+    expect(el.querySelector('.main img')).toBeNull();
+    (el.querySelector('[data-test="thumb"]') as HTMLButtonElement).click();
+    f.detectChanges();
+    expect(el.querySelector('[data-test="video"]')).toBeNull();
+  });
+  it('одно фото и видео — миниатюры показаны; без видео миниатюры видео нет', async () => {
+    const f = await render(prod({ images: ['a.jpg'], video: 'v.mp4' }));
+    expect((f.nativeElement as HTMLElement).querySelectorAll('.thumbs button').length).toBe(2);
+    TestBed.resetTestingModule();
+    const g = await render(prod({ video: null }));
+    expect((g.nativeElement as HTMLElement).querySelector('[data-test="thumb-video"]')).toBeNull();
+  });
   it('обещание оплаты наличными стоит под ценой и над кнопками', async () => {
     const f = await render(prod());
     const el: HTMLElement = f.nativeElement;

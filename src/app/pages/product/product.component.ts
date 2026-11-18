@@ -48,10 +48,20 @@ export function buyBarVisible(e: ButtonView): boolean {
       <div class="wrap top">
         <div class="layout">
           <div class="gallery">
-            <div class="main">@if (current()) { <img [src]="current()" [alt]="p.title" /> } @else { <span class="muted">Нет фото</span> }</div>
-            @if (photos().length > 1) {
+            <div class="main" [class.video]="videoOn()">
+              @if (videoOn()) { <video data-test="video" [src]="video()" [poster]="photos()[0] || ''" controls playsinline preload="none" [attr.aria-label]="'Видео: ' + p.title"></video> }
+              @else if (current()) { <img [src]="current()" [alt]="p.title" /> }
+              @else { <span class="muted">Нет фото</span> }
+            </div>
+            @if (photos().length + (video() ? 1 : 0) > 1) {
               <div class="thumbs">@for (src of photos(); track src; let i = $index) {
                 <button type="button" data-test="thumb" [class.on]="i === photo()" [attr.aria-label]="'Фото ' + (i + 1)" [attr.aria-pressed]="i === photo()" (click)="photo.set(i)"><img [src]="src" alt="" /></button>
+              }
+              @if (video()) {
+                <button type="button" class="play" data-test="thumb-video" [class.on]="videoOn()" aria-label="Видео" [attr.aria-pressed]="videoOn()" (click)="photo.set(photos().length)">
+                  @if (photos()[0]) { <img [src]="photos()[0]" alt="" /> }
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg>
+                </button>
               }</div>
             }
           </div>
@@ -124,6 +134,11 @@ export function buyBarVisible(e: ButtonView): boolean {
     .thumbs button { flex: none; width: 64px; height: 64px; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 10px; background: var(--color-mist) }
     .thumbs button.on { border-color: var(--color-ink) }
     .thumbs img { width: 100%; height: 100%; object-fit: cover }
+    .main.video { background: var(--color-ink) }
+    .main video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain }
+    .thumbs .play { position: relative; display: grid; place-items: center; color: #fff }
+    .thumbs .play img { position: absolute; inset: 0; filter: brightness(.6) }
+    .thumbs .play svg { position: relative; width: 26px; height: 26px }
     .seller { display: inline-flex; align-items: center; gap: 12px; padding: 4px 12px 4px 0; border-radius: 12px }
     @media (hover: hover) { .seller:hover { background: var(--color-mist) } }
     .seller-t { line-height: 1.25 }
@@ -194,6 +209,9 @@ export class ProductComponent {
   private readonly sizesRef = viewChild<ElementRef<HTMLElement>>('sizes');
   readonly photos = computed(() => { const p = this.product(); return p ? (p.images?.length ? p.images : p.image ? [p.image] : []) : []; });
   readonly current = computed(() => this.photos()[this.photo()] ?? '');
+  /** Видео товара — последний слайд галереи, после всех фото. */
+  readonly video = computed(() => this.product()?.video || '');
+  readonly videoOn = computed(() => !!this.video() && this.photo() === this.photos().length);
   readonly canAdd = computed(() => { const p = this.product(); return !!p && p.in_stock && (p.sizes.length <= 1 || !!this.size()); });
   readonly addLabel = computed(() => (!this.product()?.in_stock ? 'Нет в наличии' : this.added() ? 'Добавлено в корзину' : 'Добавить в корзину'));
   /** Цены доставки из той же deliveryFor, что считает итог на оформлении. */
