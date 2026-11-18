@@ -19,7 +19,7 @@ import { StarsComponent } from './stars.component';
         <div class="head">
           <h2 id="reviews-title" class="title">Отзывы</h2>
           @if (count() > 0) {
-            <p class="summary" data-test="summary">
+            <p class="rating-sum" data-test="summary">
               @if (rating() !== null) { <app-stars [rating]="rating()!" /><b>{{ num(rating()!) }}</b> }
               {{ countText() }}
             </p>
@@ -47,8 +47,9 @@ import { StarsComponent } from './stars.component';
     :host { display: block }
     .head { display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: 24px; row-gap: 8px }
     .title { font-size: 22px; font-weight: 700 }
-    .summary { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--color-ink-soft) }
-    .summary b { font-weight: 600; color: var(--color-ink) }
+    /* Не .summary: так называется глобальная карточка итогов корзины (фон и отступы) */
+    .rating-sum { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--color-ink-soft) }
+    .rating-sum b { font-weight: 600; color: var(--color-ink) }
     .note { margin-top: 4px; font-size: 14px; color: var(--color-ink-soft) }
     .list { margin-top: 24px; display: grid; column-gap: 40px }
     @media (min-width: 768px) { .list { grid-template-columns: 1fr 1fr } }

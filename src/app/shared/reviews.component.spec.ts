@@ -31,6 +31,8 @@ describe('ReviewsComponent', () => {
     expect(items[1].textContent).toContain('22 октября');
     expect(el.querySelector('[data-test="summary"]')?.textContent).toContain('4,5');
     expect(el.querySelector('[data-test="summary"]')?.textContent).toContain('2 отзыва');
+    // Глобальный .summary — карточка итогов корзины: с этим классом сводка получала её фон и отступы
+    expect(el.querySelector('[data-test="summary"]')?.classList.contains('summary')).toBe(false);
   });
   it('пустой список — «Отзывов пока нет…» без сводки', async () => {
     const f = await render({ reviews: [], rating: null, count: 0 });
