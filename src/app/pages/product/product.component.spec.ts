@@ -144,11 +144,43 @@ describe('ProductComponent', () => {
     const bar = (f: { nativeElement: unknown }) => (f.nativeElement as HTMLElement).querySelector('[data-test="buybar"]') as HTMLElement;
     const barBtn = (f: { nativeElement: unknown }) => bar(f).querySelector('.bar-btn') as HTMLButtonElement;
 
-    it('видна, только когда основная кнопка ушла вверх за экран', () => {
-      const root = { top: 0 };
-      expect(buyBarVisible({ isIntersecting: true, boundingClientRect: { bottom: 300 }, rootBounds: root })).toBe(false);
-      expect(buyBarVisible({ isIntersecting: false, boundingClientRect: { bottom: 1400 }, rootBounds: root })).toBe(false);
-      expect(buyBarVisible({ isIntersecting: false, boundingClientRect: { bottom: -20 }, rootBounds: root })).toBe(true);
+    it('видна, пока основная кнопка не на экране целиком; скрыта, только когда кнопка видна полностью', () => {
+      // выше экрана или ниже первого экрана / под вкладками — пересечения нет
+      expect(buyBarVisible({ isIntersecting: false, intersectionRatio: 0 })).toBe(true);
+      // кнопку наполовину закрывает панель вкладок
+      expect(buyBarVisible({ isIntersecting: true, intersectionRatio: 0.5 })).toBe(true);
+      expect(buyBarVisible({ isIntersecting: true, intersectionRatio: 1 })).toBe(false);
+    });
+
+    describe('наблюдение за основной кнопкой', () => {
+      let calls: { cb: IntersectionObserverCallback; opts?: IntersectionObserverInit; el?: Element }[];
+      const original = (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
+      beforeEach(() => {
+        calls = [];
+        (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = class {
+          private readonly rec: (typeof calls)[number];
+          constructor(cb: IntersectionObserverCallback, opts?: IntersectionObserverInit) { this.rec = { cb, opts }; calls.push(this.rec); }
+          observe(el: Element) { this.rec.el = el; }
+          disconnect() {}
+        };
+      });
+      afterEach(() => { (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = original; });
+
+      it('поле наблюдения поднято над вкладками и панелью; кнопка ниже первого экрана — панель видна сразу', async () => {
+        const f = await render(prod());
+        f.detectChanges();
+        const rec = calls[calls.length - 1];
+        expect(rec.el).toBe((f.nativeElement as HTMLElement).querySelector('.actions'));
+        expect(rec.opts).toEqual({ rootMargin: '0px 0px -128px 0px', threshold: 1 });
+        // первый кадр — панель скрыта, как на сервере
+        expect(bar(f).classList).not.toContain('on');
+        rec.cb([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], {} as IntersectionObserver);
+        f.detectChanges();
+        expect(bar(f).classList).toContain('on');
+        rec.cb([{ isIntersecting: true, intersectionRatio: 1 } as IntersectionObserverEntry], {} as IntersectionObserver);
+        f.detectChanges();
+        expect(bar(f).classList).not.toContain('on');
+      });
     });
 
     it('в первом кадре скрыта; с ценой и «Добавить в корзину», добавление → «Перейти в корзину»', async () => {

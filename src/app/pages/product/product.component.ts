@@ -21,14 +21,20 @@ import { NotFoundComponent } from '../not-found/not-found.component';
 const money = new MoneyPipe();
 
 /** Видимая часть наблюдения IntersectionObserver — чтобы функцию можно было проверить без браузера. */
-export interface ButtonView { isIntersecting: boolean; boundingClientRect: { bottom: number }; rootBounds: { top: number } | null }
+export interface ButtonView { isIntersecting: boolean; intersectionRatio: number }
 
 /**
- * Липкая кнопка покупки нужна, когда основная кнопка ушла вверх за край экрана.
- * Пока кнопка ещё ниже (страница только открыта) — панели нет, покупатель сначала видит товар.
+ * Нижний край области наблюдения поднят на высоту вкладок (60px) и самой панели (68px):
+ * кнопка «видна», только если целиком стоит над ними. Значения — как --tabbar-h и --buybar-h в styles.scss.
+ */
+export const BUY_BAR_ROOT_MARGIN = '0px 0px -128px 0px';
+
+/**
+ * Липкая кнопка покупки нужна, пока основная кнопка не видна на экране целиком:
+ * ушла вверх, ещё ниже первого экрана или спряталась под панелью вкладок — в том числе сразу после открытия.
  */
 export function buyBarVisible(e: ButtonView): boolean {
-  return !e.isIntersecting && e.boundingClientRect.bottom <= (e.rootBounds?.top ?? 0);
+  return !e.isIntersecting || e.intersectionRatio < 1;
 }
 
 @Component({
@@ -229,9 +235,9 @@ export class ProductComponent {
     effect((onCleanup) => {
       const el = this.actionsRef()?.nativeElement;
       if (!this.browser || !el || typeof IntersectionObserver === 'undefined') return;
-      // Низ корня растянут далеко вниз: «не пересекается» значит ровно «ушла за верхний край».
-      // Так прыжок прокрутки снизу сразу выше кнопки (якорь, быстрый свайп) тоже меняет состояние и не теряется
-      const io = new IntersectionObserver(([e]) => this.barShown.set(buyBarVisible(e)), { rootMargin: '0px 0px 100000px 0px' });
+      // Порог 1: событие приходит, когда кнопка становится видна целиком и когда перестаёт.
+      // Первое наблюдение приходит сразу после подписки — панель появляется и при открытии, если кнопки не видно
+      const io = new IntersectionObserver(([e]) => this.barShown.set(buyBarVisible(e)), { rootMargin: BUY_BAR_ROOT_MARGIN, threshold: 1 });
       io.observe(el);
       onCleanup(() => io.disconnect());
     });
