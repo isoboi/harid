@@ -59,6 +59,27 @@ describe('MarketApi', () => {
     expect(r.request.body).toEqual(body);
     r.flush({});
   });
+  it('reviews: по товару или по лавке, пустые параметры не уходят', () => {
+    api.reviews({ product: '16' }).subscribe();
+    const a = http.expectOne((req) => req.url === `${B}/reviews`);
+    expect(a.request.params.get('product')).toBe('16');
+    expect(a.request.params.has('shop')).toBe(false);
+    a.flush([]);
+    api.reviews({ shop: 'zebo.style' }).subscribe();
+    const b = http.expectOne((req) => req.url === `${B}/reviews`);
+    expect(b.request.params.get('shop')).toBe('zebo.style');
+    expect(b.request.params.has('product')).toBe(false);
+    b.flush([]);
+  });
+  it('reviewable: GET /me/reviewable; postReview: POST /reviews с телом как есть', () => {
+    api.reviewable().subscribe();
+    expect(http.expectOne(`${B}/me/reviewable`).request.method).toBe('GET');
+    api.postReview({ product_id: 16, rating: 5, text: 'Хорошо' }).subscribe();
+    const r = http.expectOne(`${B}/reviews`);
+    expect(r.request.method).toBe('POST');
+    expect(r.request.body).toEqual({ product_id: 16, rating: 5, text: 'Хорошо' });
+    r.flush({});
+  });
   it('sellerApply и sellerSendCode — свои маршруты', () => {
     api.sellerSendCode('931110001').subscribe();
     http.expectOne(`${B}/sellers/apply/send-code`).flush({});

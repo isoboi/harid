@@ -3,19 +3,21 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
 import { dayMonth } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
-import { Product, Shop } from '../../core/models';
+import { Product, Review, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
 import { IconComponent } from '../../shared/icon.component';
 import { followersCount, followersLabel } from '../../shared/followers';
 import { plural } from '../../shared/plural';
 import { ProductCardComponent } from '../../shared/product-card.component';
+import { ratingNumber, reviewsCount } from '../../shared/rating';
+import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
 @Component({
   selector: 'app-shop',
   standalone: true,
-  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent],
+  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -33,7 +35,10 @@ import { NotFoundComponent } from '../not-found/not-found.component';
             </div>
             <dl class="stats">
               @if (s.rating !== null) {
-                <div><dt>Оценка</dt><dd class="rating"><app-icon class="star" name="star" [size]="17" [filled]="true" />{{ rating(s.rating) }}</dd></div>
+                <div data-test="shop-rating">
+                  <dt>Оценка</dt><dd class="rating"><app-icon class="star" name="star" [size]="17" [filled]="true" />{{ rating(s.rating) }}</dd>
+                  @if (s.reviews_count) { <dd class="count">{{ reviewsCount(s.reviews_count) }}</dd> }
+                </div>
               }
               <div><dt>Доставлено</dt><dd>{{ s.delivered_orders }}</dd></div>
               @if (s.followers > 0) { <div data-test="followers"><dt>В Instagram</dt><dd>{{ followersCount(s.followers) }} {{ followersLabel(s.followers) }}</dd></div> }
@@ -49,6 +54,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
             @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
             @else { <p class="muted">Пока пусто</p> }
           </section>
+          <app-reviews class="reviews" [reviews]="reviews()" [rating]="s.rating" [count]="s.reviews_count ?? 0" [showProduct]="true" />
         </div>
       } @else {
         <!-- Заглушка загрузки, как в прототипе: кружок-строки и сетка серых квадратов -->
@@ -76,6 +82,8 @@ import { NotFoundComponent } from '../not-found/not-found.component';
     dt { font-size: 13px; color: var(--color-ink-soft) }
     dd { margin-top: 2px; font-size: 20px; font-weight: 700 }
     .rating { display: flex; align-items: center; gap: 4px }
+    .count { margin-top: 0; font-size: 13px; font-weight: 400; color: var(--color-ink-soft) }
+    .reviews { margin-top: 64px }
     .star { color: var(--color-saffron) }
     .meta { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 20px; row-gap: 4px; font-size: 14px; color: var(--color-ink-soft) }
     .pin { display: inline-flex; align-items: center; gap: 6px }
@@ -96,17 +104,21 @@ export class ShopComponent {
   readonly missing = signal(false);
   readonly failed = signal(false);
   readonly joined = computed(() => dayMonth(this.shop()?.joined_at ?? ''));
-  rating(r: number): string { return r.toFixed(1).replace('.', ','); }
+  /** Отзывы о товарах лавки; null — не загрузились, раздел скрыт. */
+  readonly reviews = signal<Review[] | null>(null);
+  readonly reviewsCount = reviewsCount;
+  rating(r: number): string { return ratingNumber(r); }
   constructor() {
     effect((onCleanup) => {
       const h = this.handle();
-      this.missing.set(false); this.failed.set(false); this.shop.set(null); this.products.set([]);
+      this.missing.set(false); this.failed.set(false); this.shop.set(null); this.products.set([]); this.reviews.set(null);
       const subs = untracked(() => [
         this.api.shop(h).subscribe({
           next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде` }); },
           error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
         }),
         this.api.products({ shop: h }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p)),
+        this.api.reviews({ shop: h }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),
       ]);
       onCleanup(() => subs.forEach((x) => x.unsubscribe()));
     });

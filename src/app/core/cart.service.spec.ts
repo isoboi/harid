@@ -103,6 +103,25 @@ describe('CartService', () => {
     expect(cart.add(p('5', 'a', 10), null, 2)).toBe(true);
     expect(cart.items().find((i) => i.product.id === '5')?.qty).toBe(3);
   });
+  it('restore возвращает убранную строку на её место с тем же размером и количеством', () => {
+    cart.add(p('1', 'a', 100), null);
+    cart.add(p('2', 'a', 50), 'M', 3);
+    cart.add(p('3', 'b', 10), null);
+    const removed = cart.items()[1];
+    cart.remove('2', 'M');
+    cart.restore(removed, 1);
+    expect(cart.items().map((i) => [i.product.id, i.size, i.qty])).toEqual([['1', null, 1], ['2', 'M', 3], ['3', null, 1]]);
+    expect(JSON.parse(localStorage.getItem('harid.cart')!)[1].qty).toBe(3);
+  });
+  it('restore, если строку уже добавили заново, — складывает количество, а не дублирует', () => {
+    cart.add(p('1', 'a', 100), null, 2);
+    const removed = cart.items()[0];
+    cart.remove('1', null);
+    cart.add(p('1', 'a', 100), null, 1);
+    cart.restore(removed, 0);
+    expect(cart.items().length).toBe(1);
+    expect(cart.items()[0].qty).toBe(3);
+  });
   it('hydrate отбрасывает строку с нечисловой ценой', () => {
     const good = { product: p('1', 'a', 100), size: null, qty: 2 };
     const bad = { product: { ...p('2', 'a', 100), price: '100' }, size: null, qty: 1 };

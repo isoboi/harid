@@ -1,12 +1,15 @@
-import { Component, computed, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Component, computed, DestroyRef, inject, PLATFORM_ID, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CartService, MAX_QTY } from '../../core/cart.service';
+import { CartItem, CartService, MAX_QTY } from '../../core/cart.service';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { plural } from '../../shared/plural';
 
 const money = new MoneyPipe();
+/** Сколько висит плашка «Товар убран · Вернуть». */
+const UNDO_MS = 6000;
 
 /** Корзина как в прототипе: товары по лавкам слева, сводка в серой карточке справа (на десктопе — липкая). */
 @Component({
@@ -16,6 +19,12 @@ const money = new MoneyPipe();
   template: `
     <div class="wrap page-top">
       <h1 class="page-title head">Корзина</h1>
+      <!-- Отмена удаления: живой регион есть всегда, чтобы экранный диктор озвучил появившуюся плашку -->
+      <div class="undo-slot" aria-live="polite">
+        @if (undo()) {
+          <p class="undo" data-test="undo"><span>Товар убран</span><span class="dot" aria-hidden="true">·</span><button type="button" class="undo-btn" (click)="restoreRemoved()">Вернуть</button></p>
+        }
+      </div>
       @if (!cart.ready()) { <p class="muted">Загрузка…</p> }
       @else if (!cart.count()) {
         <div class="empty">
@@ -36,19 +45,19 @@ const money = new MoneyPipe();
                   @for (i of g.items; track i.product.id + (i.size ?? '')) {
                     <li class="row">
                       <a class="thumb" [routerLink]="['/product', i.product.id]" tabindex="-1" aria-hidden="true">
-                        @if (i.product.image) { <img [src]="i.product.image" alt="" loading="lazy" /> }
+                        @if (thumb(i); as src) { <img [src]="src" alt="" loading="lazy" /> }
                       </a>
                       <div class="body">
                         <div class="line">
                           <a class="t" [routerLink]="['/product', i.product.id]">{{ i.product.title }}</a>
-                          <button type="button" class="x" (click)="cart.remove(i.product.id, i.size)" [attr.aria-label]="'Убрать «' + i.product.title + '» из корзины'"><app-icon name="x" [size]="18" /></button>
+                          <button type="button" class="x" (click)="remove(i)" [attr.aria-label]="'Убрать «' + i.product.title + '» из корзины'"><app-icon name="x" [size]="18" /></button>
                         </div>
                         @if (i.size) { <p class="size">Размер: {{ i.size }}</p> }
                         <div class="foot">
                           <div class="qty">
-                            <button type="button" (click)="cart.setQty(i.product.id, i.size, i.qty - 1)" aria-label="Меньше"><app-icon name="minus" [size]="16" /></button>
+                            <button type="button" [disabled]="i.qty <= 1" (click)="changeQty(i, i.qty - 1)" aria-label="Меньше"><app-icon name="minus" [size]="16" /></button>
                             <span class="n">{{ i.qty }}</span>
-                            <button type="button" [disabled]="i.qty >= maxQty" (click)="cart.setQty(i.product.id, i.size, i.qty + 1)" aria-label="Больше"><app-icon name="plus" [size]="16" /></button>
+                            <button type="button" [disabled]="i.qty >= maxQty" (click)="changeQty(i, i.qty + 1)" aria-label="Больше"><app-icon name="plus" [size]="16" /></button>
                           </div>
                           <span class="sum">{{ i.product.price * i.qty | money }}</span>
                         </div>
@@ -75,6 +84,11 @@ const money = new MoneyPipe();
   `,
   styles: `
     .head { margin-bottom: 32px }
+    .undo-slot:empty { display: none }
+    .undo { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; padding-left: 16px; border-radius: 10px; background: var(--color-ink); color: var(--color-paper); font-size: 15px }
+    .dot { opacity: .6 }
+    .undo-btn { min-height: 44px; padding: 0 16px 0 4px; font-weight: 600; color: var(--color-saffron) }
+    @media (hover: hover) { .undo-btn:hover { text-decoration: underline } }
     .empty { max-width: 46ch }
     .empty p { font-size: 18px; line-height: 1.625 }
     .empty .btn { margin-top: 24px }
@@ -97,10 +111,10 @@ const money = new MoneyPipe();
     .size { font-size: 14px; color: var(--color-ink-soft) }
     .foot { margin-top: auto; padding-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px }
     .qty { display: flex; align-items: center; border: 1px solid var(--color-line); border-radius: 10px }
-    .qty button { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 9px }
+    /* Кнопки степпера 44×44 — цель для пальца на любом экране; иконка остаётся 16px */
+    .qty button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 9px }
     @media (hover: hover) { .qty button:hover:not(:disabled) { background: var(--color-mist) } }
     .qty button:disabled { opacity: .4 }
-    @media (max-width: 639.98px) { .qty button { width: 44px; height: 44px } }
     .n { width: 32px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums }
     .sum { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap }
     .promise { margin-top: 20px; font-size: 14px }
@@ -116,4 +130,39 @@ export class CartComponent {
   /** Доставка по Душанбе за каждую лавку; пригород дороже — уточним на оформлении. */
   readonly delivery = computed(() => this.cart.deliveryTotal(DISTRICTS[0]));
   readonly suburbNote = `Доставка в ${SUBURBS.join(' и ')} — ${money.transform(deliveryFor(SUBURBS[0]))} за лавку. Точная сумма будет на следующем шаге.`;
+  /** Последняя убранная строка и её место — для «Вернуть». */
+  readonly undo = signal<{ item: CartItem; index: number } | null>(null);
+  private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+  private timer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.clearTimer());
+  }
+
+  /** Миниатюра из снимка товара в корзине: первое фото галереи, иначе обложка. */
+  thumb(i: CartItem): string { return i.product.images?.[0] ?? i.product.image; }
+
+  changeQty(i: CartItem, qty: number): void {
+    this.dismissUndo();
+    if (qty < 1) return; // «−» на 1 отключён: удаление только крестиком, с возможностью отмены
+    this.cart.setQty(i.product.id, i.size, qty);
+  }
+
+  remove(i: CartItem): void {
+    this.dismissUndo();
+    const index = this.cart.items().findIndex((x) => x.product.id === i.product.id && x.size === i.size);
+    this.cart.remove(i.product.id, i.size);
+    this.undo.set({ item: i, index });
+    // Таймер только в браузере: на сервере удалений не бывает, а висящий таймер задержал бы рендер
+    if (this.browser) this.timer = setTimeout(() => { this.timer = null; this.undo.set(null); }, UNDO_MS);
+  }
+
+  restoreRemoved(): void {
+    const u = this.undo();
+    this.dismissUndo();
+    if (u) this.cart.restore(u.item, u.index);
+  }
+
+  private dismissUndo(): void { this.clearTimer(); this.undo.set(null); }
+  private clearTimer(): void { if (this.timer !== null) { clearTimeout(this.timer); this.timer = null; } }
 }

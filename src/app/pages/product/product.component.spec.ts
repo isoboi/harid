@@ -5,21 +5,41 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
-import { Product } from '../../core/models';
+import { Product, Review } from '../../core/models';
 
 const prod = (over: Partial<Product> = {}): Product => ({ id: '16', shop_handle: 'technomir.tj', title: 'Наушники', price: 540, old_price: 600, image: 'a.jpg', images: ['a.jpg', 'b.jpg'], category: 'gadgets', description: 'Описание', sizes: [], in_stock: true, posted_at: '', ...over });
 
-async function render(p: Product) {
-  const api = { product: jest.fn(() => of(p)), products: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+async function render(p: Product, reviews: Review[] = []) {
+  const api = { product: jest.fn(() => of(p)), products: jest.fn(() => of([])), reviews: jest.fn(() => of(reviews)), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
   await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
   const f = TestBed.createComponent(ProductComponent);
   f.componentRef.setInput('id', p.id);
   f.detectChanges();
-  return f;
+  return Object.assign(f, { api });
 }
 
 describe('ProductComponent', () => {
   beforeEach(() => localStorage.clear());
+  it('оценка под названием: «★ 4,8 · 12 отзывов»; без отзывов — ничего', async () => {
+    const f = await render(prod({ rating: 4.8, reviews_count: 12 }));
+    expect((f.nativeElement as HTMLElement).querySelector('[data-test="rating"]')?.textContent?.trim()).toBe('4,8 · 12 отзывов');
+    TestBed.resetTestingModule();
+    const g = await render(prod({ rating: null, reviews_count: 0 }));
+    expect((g.nativeElement as HTMLElement).querySelector('[data-test="rating"]')).toBeNull();
+  });
+  it('раздел «Отзывы» под описанием: запрос по товару, список и пустое состояние', async () => {
+    const review: Review = { id: 1, product_id: '16', product_title: 'Наушники', shop_handle: 'technomir.tj', author: 'Фарангис', rating: 5, text: 'Отлично', created_at: '2026-11-18T09:00:00Z' };
+    const f = await render(prod({ rating: 5, reviews_count: 1 }), [review]);
+    expect(f.api.reviews).toHaveBeenCalledWith({ product: '16' });
+    const el: HTMLElement = f.nativeElement;
+    const section = el.querySelector('app-reviews')!;
+    expect(section.textContent).toContain('Фарангис');
+    expect(section.textContent).toContain('18 ноября');
+    expect(el.querySelector('details.desc')!.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    TestBed.resetTestingModule();
+    const g = await render(prod());
+    expect((g.nativeElement as HTMLElement).querySelector('[data-test="empty"]')?.textContent).toContain('Отзывов пока нет');
+  });
   it('показывает цену, старую цену и все фото', async () => {
     const f = await render(prod());
     const el: HTMLElement = f.nativeElement;
@@ -69,7 +89,7 @@ describe('ProductComponent', () => {
   });
   it('смена id: ответ устаревшего запроса не показывается', async () => {
     const s1 = new Subject<Product>(); const s2 = new Subject<Product>();
-    const api = { product: jest.fn((id: string) => (id === '1' ? s1 : s2)), products: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+    const api = { product: jest.fn((id: string) => (id === '1' ? s1 : s2)), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
     await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
     const f = TestBed.createComponent(ProductComponent);
     f.componentRef.setInput('id', '1'); f.detectChanges();
@@ -82,7 +102,7 @@ describe('ProductComponent', () => {
     expect(text).not.toContain('Первый');
   });
   it('500 — не 404, а сообщение об ошибке', async () => {
-    const api = { product: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 500 }))), products: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+    const api = { product: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 500 }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
     await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
     const f = TestBed.createComponent(ProductComponent);
     f.componentRef.setInput('id', '1'); f.detectChanges();
@@ -91,14 +111,14 @@ describe('ProductComponent', () => {
     expect(el.querySelector('app-not-found')).toBeNull();
   });
   it('404 — страница не найдена', async () => {
-    const api = { product: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))), products: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+    const api = { product: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
     await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
     const f = TestBed.createComponent(ProductComponent);
     f.componentRef.setInput('id', '1'); f.detectChanges();
     expect((f.nativeElement as HTMLElement).querySelector('app-not-found')).not.toBeNull();
   });
   it('400 (нечисловой id) — тоже страница не найдена, а не ошибка загрузки', async () => {
-    const api = { product: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 400 }))), products: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+    const api = { product: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 400 }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
     await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
     const f = TestBed.createComponent(ProductComponent);
     f.componentRef.setInput('id', 'abc'); f.detectChanges();
@@ -108,7 +128,7 @@ describe('ProductComponent', () => {
   });
   it('корзина на лимите 30 строк — «В корзину» не добавляет и показывает сообщение', async () => {
     localStorage.clear();
-    const api = { product: jest.fn(() => of(prod({ id: '99' }))), products: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+    const api = { product: jest.fn(() => of(prod({ id: '99' }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
     await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
     const cart = TestBed.inject(CartService);
     for (let n = 1; n <= 30; n++) cart.add(prod({ id: String(n) }), null);

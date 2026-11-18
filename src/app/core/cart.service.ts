@@ -72,6 +72,18 @@ export class CartService {
     this.state.update((list) => list.filter((i) => !same(i, id, size)));
     this.save();
   }
+  /**
+   * Отмена удаления: строка возвращается на прежнее место с тем же размером и количеством.
+   * Если ту же строку успели добавить заново — количество складывается, дубля нет.
+   */
+  restore(item: CartItem, index: number): void {
+    this.hydrate();
+    const list = this.state();
+    if (list.some((i) => same(i, item.product.id, item.size))) { this.add(item.product, item.size, item.qty); return; }
+    const at = Math.max(0, Math.min(index, list.length));
+    this.state.set([...list.slice(0, at), item, ...list.slice(at)]);
+    this.save();
+  }
   clear(): void { this.hydrate(); this.state.set([]); this.save(); }
   deliveryTotal(district: string): number { return this.groups().length * deliveryFor(district); }
   toOrderLines(): OrderLineInput[] {

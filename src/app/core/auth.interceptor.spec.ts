@@ -22,6 +22,16 @@ describe('authInterceptor', () => {
     http.get('http://x/api/market/orders/R-1').subscribe();
     expect(ctl.expectOne('http://x/api/market/orders/R-1').request.headers.get('Authorization')).toBe('Bearer tok');
   });
+  it('Bearer к POST /market/reviews и GET /market/me/reviewable', () => {
+    http.post('http://x/api/market/reviews', { product_id: 16, rating: 5 }).subscribe();
+    expect(ctl.expectOne('http://x/api/market/reviews').request.headers.get('Authorization')).toBe('Bearer tok');
+    http.get('http://x/api/market/me/reviewable').subscribe();
+    expect(ctl.expectOne('http://x/api/market/me/reviewable').request.headers.get('Authorization')).toBe('Bearer tok');
+  });
+  it('без Bearer к публичному списку отзывов (GET /market/reviews)', () => {
+    http.get('http://x/api/market/reviews?product=16').subscribe();
+    expect(ctl.expectOne('http://x/api/market/reviews?product=16').request.headers.has('Authorization')).toBe(false);
+  });
   it('без Bearer к списку заказов и каталогу', () => {
     http.get('http://x/api/market/orders').subscribe();
     expect(ctl.expectOne('http://x/api/market/orders').request.headers.has('Authorization')).toBe(false);

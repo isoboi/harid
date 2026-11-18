@@ -4,6 +4,7 @@ import { FavoritesService } from '../core/favorites.service';
 import { Product } from '../core/models';
 import { IconComponent } from './icon.component';
 import { PriceTagComponent } from './price-tag.component';
+import { ratingLabel } from './rating';
 
 /**
  * Карточка товара как в прототипе: квадратное фото с ценником-биркой, сердечко в углу,
@@ -23,6 +24,7 @@ import { PriceTagComponent } from './price-tag.component';
         </div>
         <h3 class="title">{{ p.title }}</h3>
         <p class="shop">&#64;{{ p.shop_handle }}</p>
+        @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="12" [filled]="true" />{{ ratingText() }}</p> }
         <p class="cod" data-test="cod">Оплата при получении</p>
       </a>
       <button type="button" class="fav" [class.on]="faved()" [attr.aria-pressed]="faved()" [attr.aria-label]="favLabel()" (click)="fav.toggle(p.id)">
@@ -40,6 +42,9 @@ import { PriceTagComponent } from './price-tag.component';
     .tag { position: absolute; top: 12px; left: 10px }
     .title { margin-top: 10px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 15px; line-height: 1.375; font-weight: 500 }
     .shop { margin-top: 2px; font-size: 13px; color: var(--color-ink-soft) }
+    /* Оценка товара — той же тихой строкой, что @лавка; звезда шафраном, как в прототипе */
+    .rating { margin-top: 2px; display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--color-ink-soft); font-variant-numeric: tabular-nums }
+    .star { display: inline-flex; color: var(--color-saffron) }
     /* Тихая пометка о наличных: видна в ленте, но не спорит с ценой */
     .cod { margin-top: 2px; font-size: 12px; color: var(--color-ink-soft) }
     @media (hover: hover) {
@@ -56,7 +61,9 @@ import { PriceTagComponent } from './price-tag.component';
 export class ProductCardComponent {
   readonly product = input.required<Product>();
   readonly fav = inject(FavoritesService);
-  protected readonly faved = computed(() => this.fav.ids().includes(this.product().id));
+  /** «4,8 · 12 отзывов»; без отзывов — пусто, строку не выводим. */
+  protected readonly ratingText = computed(() => ratingLabel(this.product().rating, this.product().reviews_count));
+  protected readonly faved =computed(() => this.fav.ids().includes(this.product().id));
   protected readonly favLabel = computed(() => {
     const t = this.product().title;
     return this.faved() ? `Убрать «${t}» из избранного` : `Добавить «${t}» в избранное`;

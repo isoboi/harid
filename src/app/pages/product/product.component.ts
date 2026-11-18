@@ -6,12 +6,14 @@ import { CartService } from '../../core/cart.service';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { FavoritesService } from '../../core/favorites.service';
 import { MarketApi } from '../../core/market-api.service';
-import { Product, Shop } from '../../core/models';
+import { Product, Review, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { PriceTagComponent } from '../../shared/price-tag.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
+import { ratingLabel, ratingNumber } from '../../shared/rating';
+import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
@@ -20,7 +22,7 @@ const money = new MoneyPipe();
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent],
+  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -46,6 +48,7 @@ const money = new MoneyPipe();
               </span>
             </a>
             <h1 class="title">{{ p.title }}</h1>
+            @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="16" [filled]="true" />{{ ratingText() }}</p> }
             <div class="price"><app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" /></div>
             @if (p.sizes.length > 1) {
               <fieldset class="sizes">
@@ -74,6 +77,7 @@ const money = new MoneyPipe();
             }
           </div>
         </div>
+        <app-reviews class="reviews" [reviews]="reviews()" [rating]="p.rating ?? null" [count]="p.reviews_count ?? 0" />
         @if (more().length) {
           <section class="more">
             <h2 class="section-title">Ещё в лавке <a [routerLink]="['/shop', p.shop_handle]">{{ shop()?.name || '@' + p.shop_handle }}</a></h2>
@@ -102,7 +106,12 @@ const money = new MoneyPipe();
     .star { margin-left: 4px; color: var(--color-saffron) }
     .title { margin-top: 20px; max-width: 22ch; font-size: 30px; line-height: 1.12; font-weight: 800; letter-spacing: -0.03em; overflow-wrap: anywhere }
     @media (min-width: 640px) { .title { font-size: 36px } }
+    /* Оценка товара под названием: звезда шафраном и «4,8 · 12 отзывов» */
+    .rating { margin-top: 12px; display: flex; align-items: center; gap: 6px; font-size: 15px; color: var(--color-ink-soft) }
+    .rating .star { margin-left: 0 }
     .price { margin-top: 24px }
+    .rating + .price { margin-top: 16px }
+    .reviews { margin-top: 64px }
     .sizes { margin-top: 28px; border: 0 }
     .sizes legend { font-size: 15px; font-weight: 600 }
     .size-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px }
@@ -158,14 +167,17 @@ export class ProductComponent {
   readonly suburbs = SUBURBS.join(' и ');
 
   readonly failed = signal(false);
+  /** Отзывы о товаре; null — ещё грузятся или не загрузились (раздел скрыт). Запрос идёт и при серверном рендере. */
+  readonly reviews = signal<Review[] | null>(null);
+  readonly ratingText = computed(() => { const p = this.product(); return p ? ratingLabel(p.rating, p.reviews_count) : ''; });
 
-  rating(r: number): string { return r.toFixed(1).replace('.', ','); }
+  rating(r: number): string { return ratingNumber(r); }
 
   constructor() {
     effect((onCleanup) => {
       const id = this.id();
       this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false);
-      this.product.set(null); this.more.set([]); this.shop.set(null);
+      this.product.set(null); this.more.set([]); this.shop.set(null); this.reviews.set(null);
       const nested: { unsubscribe(): void }[] = [];
       const sub = untracked(() => this.api.product(id).subscribe({
         next: (p) => {
@@ -175,6 +187,8 @@ export class ProductComponent {
           nested.push(
             this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8))),
             this.api.shop(p.shop_handle).pipe(catchError(() => of(null))).subscribe((s) => this.shop.set(s)),
+            // Ошибка отзывов не ломает страницу товара: раздел просто не выводится
+            this.api.reviews({ product: p.id }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),
           );
         },
         // 400 — нечисловой id отклонён валидацией бэкенда: для покупателя это тоже «нет такого товара»

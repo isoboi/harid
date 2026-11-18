@@ -6,6 +6,7 @@ import { MyOrdersComponent } from './my-orders.component';
 import { MarketApi } from '../../core/market-api.service';
 import { AuthService } from '../../core/auth.service';
 
+const reviewable = jest.fn(() => of([]));
 const ORDER = { number: 'R-1', stage: 'delivered', items_total: 100, delivery_total: 15, created_at: '2026-11-17T05:08:07Z', customer: { name: 'Ф', phone: '+992 93 111 00 02', district: 'Сино', address: 'ул' }, slot: 'Сегодня', payment: 'cash', lines: [], shops: [] };
 
 describe('MyOrdersComponent', () => {
@@ -13,7 +14,7 @@ describe('MyOrdersComponent', () => {
 
   it('без входа — на /login с return', async () => {
     const myOrders = jest.fn();
-    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders } }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable } }] }).compileComponents();
     TestBed.inject(AuthService).hydrate();
     const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     TestBed.createComponent(MyOrdersComponent).detectChanges();
@@ -23,7 +24,7 @@ describe('MyOrdersComponent', () => {
 
   it('до гидратации auth — «Загрузка…», без перехода и запроса', async () => {
     const myOrders = jest.fn();
-    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders } }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable } }] }).compileComponents();
     const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const f = TestBed.createComponent(MyOrdersComponent);
     f.detectChanges();
@@ -34,7 +35,7 @@ describe('MyOrdersComponent', () => {
 
   it('список заказов со ссылками без телефона в адресе (владелец — по Bearer)', async () => {
     const myOrders = jest.fn(() => of([ORDER]));
-    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders } }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable } }] }).compileComponents();
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
     const f = TestBed.createComponent(MyOrdersComponent);
     f.detectChanges();
@@ -49,7 +50,7 @@ describe('MyOrdersComponent', () => {
 
   it('401 от заказов — на /login с return, без текста ошибки', async () => {
     const myOrders = jest.fn(() => throwError(() => new HttpErrorResponse({ status: 401, error: { error: { message: 'Не авторизован' } } })));
-    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders } }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable } }] }).compileComponents();
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
     const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const f = TestBed.createComponent(MyOrdersComponent);
@@ -62,11 +63,30 @@ describe('MyOrdersComponent', () => {
   it('не запрашивает заказы повторно при последующих проверках', async () => {
     const res = new Subject<never[]>();
     const myOrders = jest.fn(() => res);
-    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders } }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable } }] }).compileComponents();
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
     const f = TestBed.createComponent(MyOrdersComponent);
     f.detectChanges();
     f.detectChanges();
     expect(myOrders).toHaveBeenCalledTimes(1);
+  });
+
+  it('вошедшему — блок «Оцените покупки» из reviewable()', async () => {
+    const myOrders = jest.fn(() => of([ORDER]));
+    const items = jest.fn(() => of([{ product_id: '16', product_title: 'Платье макси', image: '', shop_handle: 'zebo.style', order_number: 'R-1', review: null }]));
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable: items } }] }).compileComponents();
+    TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
+    const f = TestBed.createComponent(MyOrdersComponent);
+    f.detectChanges();
+    expect(items).toHaveBeenCalledTimes(1);
+    expect(f.nativeElement.textContent).toContain('Оцените покупки');
+  });
+  it('без входа reviewable() не вызывается', async () => {
+    const items = jest.fn(() => of([]));
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders: jest.fn(), reviewable: items } }] }).compileComponents();
+    TestBed.inject(AuthService).hydrate();
+    jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    TestBed.createComponent(MyOrdersComponent).detectChanges();
+    expect(items).not.toHaveBeenCalled();
   });
 });

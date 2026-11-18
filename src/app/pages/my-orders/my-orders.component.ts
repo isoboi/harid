@@ -8,11 +8,12 @@ import { STAGE_LABEL } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
 import { Order } from '../../core/models';
 import { MoneyPipe } from '../../shared/money.pipe';
+import { RatePurchasesComponent } from './rate-purchases.component';
 
 @Component({
   selector: 'app-my-orders',
   standalone: true,
-  imports: [RouterLink, MoneyPipe, DatePipe],
+  imports: [RouterLink, MoneyPipe, DatePipe, RatePurchasesComponent],
   template: `
     <div class="wrap page-top">
       <h1 class="page-title head">Мои заказы</h1>
@@ -30,6 +31,8 @@ import { MoneyPipe } from '../../shared/money.pipe';
             @if (!error()) { <p class="muted">Заказов пока нет</p> }
           }
         </div>
+        <!-- Только вошедшему: без сессии страница уже уходит на /login, а reviewable требует Bearer -->
+        @if (auth.loggedIn()) { <app-rate-purchases class="rate" /> }
         <button class="btn btn--ghost out" type="button" (click)="logout()">Выйти</button>
       }
     </div>
@@ -42,6 +45,7 @@ import { MoneyPipe } from '../../shared/money.pipe';
     .num, .sum { font-weight: 600; font-variant-numeric: tabular-nums }
     .stage { color: var(--color-ink-soft) }
     @media (max-width: 639.98px) { .row { grid-template-columns: 1fr auto } .stage { grid-column: 1 } }
+    .rate { margin-top: 48px }
     .out { margin-top: 32px }
   `,
 })

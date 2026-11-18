@@ -7,8 +7,11 @@ const ME = /\/market\/me(\/|$|\?)/;
 const ORDERS = /\/market\/orders$/;
 /** Заказ по номеру: GET /market/orders/<номер> (без вложенных путей). */
 const ORDER_ONE = /\/market\/orders\/[^/?#]+$/;
+/** Отзыв оставляет только покупатель: POST /market/reviews. GET того же пути публичный — без токена. */
+const REVIEWS = /\/market\/reviews$/;
+/** GET /market/me/reviewable покрыт ME. */
 const needsToken = (url: string, method: string) =>
-  ME.test(url) || (method === 'POST' && ORDERS.test(url)) || (method === 'GET' && ORDER_ONE.test(url));
+  ME.test(url) || (method === 'POST' && (ORDERS.test(url) || REVIEWS.test(url))) || (method === 'GET' && ORDER_ONE.test(url));
 
 /** Bearer покупателя для личных запросов; 401 на /me при отправленном токене — выход. */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
