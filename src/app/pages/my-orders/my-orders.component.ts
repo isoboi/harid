@@ -9,11 +9,12 @@ import { MarketApi } from '../../core/market-api.service';
 import { Order } from '../../core/models';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { RatePurchasesComponent } from './rate-purchases.component';
+import { ReturnsComponent } from './returns.component';
 
 @Component({
   selector: 'app-my-orders',
   standalone: true,
-  imports: [RouterLink, MoneyPipe, DatePipe, RatePurchasesComponent],
+  imports: [RouterLink, MoneyPipe, DatePipe, RatePurchasesComponent, ReturnsComponent],
   template: `
     <div class="wrap page-top">
       <h1 class="page-title head">Мои заказы</h1>
@@ -32,7 +33,7 @@ import { RatePurchasesComponent } from './rate-purchases.component';
           }
         </div>
         <!-- Только вошедшему: без сессии страница уже уходит на /login, а reviewable требует Bearer -->
-        @if (auth.loggedIn()) { <app-rate-purchases class="rate" /> }
+        @if (auth.loggedIn()) { <app-returns class="rate" /> <app-rate-purchases class="rate" /> }
         <button class="btn btn--ghost out" type="button" (click)="logout()">Выйти</button>
       }
     </div>

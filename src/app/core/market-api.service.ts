@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Buyer, Category, CreateOrderInput, Order, Product, ProductQuery, Review, Reviewable, ReviewInput, ReviewQuery, Shop, VerifyResult } from './models';
+import { Buyer, Category, CreateOrderInput, MarketReturn, Order, Product, ProductQuery, ReturnableOrder, ReturnInput, Review, Reviewable, ReviewInput, ReviewQuery, Shop, VerifyResult } from './models';
 
 /** Все вызовы публичного API витрины /market/*. */
 @Injectable({ providedIn: 'root' })
@@ -41,6 +41,14 @@ export class MarketApi {
   reviewable(): Observable<Reviewable[]> { return this.http.get<Reviewable[]>(`${this.base}/me/reviewable`); }
   /** Оставить или изменить отзыв (Bearer); 403 — заказ ещё не получен. */
   postReview(body: ReviewInput): Observable<Review> { return this.http.post<Review>(`${this.base}/reviews`, body); }
+  /** Доставленные заказы, из которых ещё можно вернуть товар (Bearer). */
+  returnable(): Observable<ReturnableOrder[]> { return this.http.get<ReturnableOrder[]>(`${this.base}/me/returnable`); }
+  /** Возвраты покупателя — новые сверху (Bearer). */
+  myReturns(): Observable<MarketReturn[]> { return this.http.get<MarketReturn[]>(`${this.base}/me/returns`); }
+  /** Запросить возврат (Bearer); 400 — срок истёк или количество больше доступного. */
+  createReturn(body: ReturnInput): Observable<MarketReturn> { return this.http.post<MarketReturn>(`${this.base}/returns`, body); }
+  /** Отменить запрос, пока лавка не ответила (Bearer). */
+  cancelReturn(id: number): Observable<MarketReturn> { return this.http.post<MarketReturn>(`${this.base}/returns/${id}/cancel`, {}); }
   sendCode(phone: string) { return this.http.post(`${this.base}/auth/send-code`, { phone }); }
   verify(phone: string, code: string): Observable<VerifyResult> { return this.http.post<VerifyResult>(`${this.base}/auth/verify`, { phone, code }); }
   me(): Observable<Buyer> { return this.http.get<Buyer>(`${this.base}/me`); }

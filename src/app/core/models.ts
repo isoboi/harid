@@ -20,3 +20,10 @@ export interface Reviewable { product_id: string; product_title: string; image: 
 /** Тело POST /market/reviews: product_id — число, как в строках заказа. */
 export interface ReviewInput { product_id: number; rating: number; text?: string }
 export interface ReviewQuery { product?: string; shop?: string }
+/** Возврат товаров из доставленного заказа: запрошен → одобрен → деньги возвращены; либо отказ лавки или отмена покупателем. */
+export type ReturnStatus = 'requested' | 'approved' | 'refunded' | 'rejected' | 'cancelled';
+export interface ReturnItem { line_id: number; product_id: string; title: string; image: string; size: string | null; price: number; qty: number }
+export interface MarketReturn { id: number; number: string | null; order_id: number; shop_handle: string; shop_name: string; status: ReturnStatus; reason: string; shop_comment: string; amount: number; created_at: string; decided_at: string | null; refunded_at: string | null; items: ReturnItem[] }
+/** Доставленная заявка лавки, из которой ещё можно вернуть товар; available — сколько штук строки осталось. */
+export interface ReturnableOrder { order_id: number; number: string | null; shop_handle: string; shop_name: string; shop_phone: string; delivered_at: string; deadline: string; lines: (ReturnItem & { available: number })[] }
+export interface ReturnInput { order_id: number; reason: string; items: { line_id: number; qty: number }[] }
