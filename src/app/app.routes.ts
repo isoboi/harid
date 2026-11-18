@@ -7,6 +7,7 @@ import { NotFoundComponent } from './pages/not-found/not-found.component';
  */
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./pages/home/home.component').then((m) => m.HomeComponent) },
+  { path: 'catalog', loadComponent: () => import('./pages/catalog/catalog.component').then((m) => m.CatalogComponent) },
   { path: 'c/:slug', loadComponent: () => import('./pages/category/category.component').then((m) => m.CategoryComponent) },
   { path: 'search', loadComponent: () => import('./pages/search/search.component').then((m) => m.SearchComponent) },
   { path: 'shop/:handle', loadComponent: () => import('./pages/shop/shop.component').then((m) => m.ShopComponent) },

@@ -91,6 +91,9 @@ const CASH_STEPS = [
     .cap-t { font-weight: 600 }
     .cap-s { display: block; color: var(--color-ink-soft) }
     .fresh { scroll-margin-top: 96px; padding-bottom: 64px }
+    /* Телефон: первый экран сразу с товарами — блок-приветствие скрыт стилями (разметка с сервера та же,
+       на десктопе он на месте). «Продавцам» на телефоне — в подвале и на странице каталога */
+    @media (max-width: 640px) { .hero { display: none } .fresh { margin-top: 28px; scroll-margin-top: 16px } }
     .fresh-head { margin-bottom: 20px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px }
     .fresh-title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em }
     .list { margin-top: 24px }

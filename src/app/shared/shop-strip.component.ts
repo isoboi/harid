@@ -27,6 +27,8 @@ import { ShopAvatarComponent } from './shop-avatar.component';
     .strip { display: flex; gap: 16px; margin-inline: -16px; padding: 0 16px 4px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none }
     .strip::-webkit-scrollbar { display: none }
     @media (min-width: 640px) { .strip { margin-inline: -24px; padding-inline: 24px } }
+    /* Телефон: привязка к кружку учитывает поле 16px, первая лавка не прилипает к краю экрана */
+    @media (max-width: 640px) { .strip { scroll-padding-inline: 16px } }
     li { scroll-snap-align: start }
     .shop { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 76px; border-radius: var(--radius-lg) }
     .h { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: 12px; color: var(--color-ink-soft) }

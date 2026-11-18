@@ -48,6 +48,16 @@ describe('AppComponent', () => {
     expect(TestBed.inject(CartService).count()).toBe(3);
   });
 
+  it('на обычных страницах есть нижняя панель «Основная навигация»', async () => {
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [provideRouter([]), provideHttpClient()],
+    }).compileComponents();
+    const f = TestBed.createComponent(AppComponent);
+    f.detectChanges();
+    expect((f.nativeElement as HTMLElement).querySelector('app-tab-bar nav[aria-label="Основная навигация"]')).not.toBeNull();
+  });
+
   it('на /checkout каркас тот же: шапка с навигацией и подвал, нижней панели нет', async () => {
     @Component({ standalone: true, template: '' }) class Blank {}
     await TestBed.configureTestingModule({
@@ -60,6 +70,6 @@ describe('AppComponent', () => {
     const el: HTMLElement = f.nativeElement;
     expect(el.querySelector('header nav a[href="/cart"]')).not.toBeNull();
     expect(el.querySelector('footer')).not.toBeNull();
-    expect(el.classList).not.toContain('no-tabbar');
+    expect(el.querySelector('.tabbar')).toBeNull();
   });
 });

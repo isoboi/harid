@@ -71,13 +71,51 @@ describe('HeaderComponent', () => {
       f.detectChanges();
       return f.nativeElement as HTMLElement;
     }
-    // Нижней панели, как и в прототипе, нет: навигация живёт в шапке и не перекрывает кнопку «Заказать»
+    // Иконки шапки в разметке на всех страницах (на телефоне их прячут стили — там работает нижняя панель)
     it.each(['/checkout', '/checkout?x=1', '/cart'])('на %s навигация стоит в шапке', async (url) => {
       const el = await at(url);
       const nav = el.querySelector('header nav')!;
       expect(nav).not.toBeNull();
       expect(nav.querySelector('a[href="/cart"]')).not.toBeNull();
       expect(el.querySelectorAll('nav').length).toBe(1);
+    });
+  });
+
+  describe('скрытие при прокрутке', () => {
+    afterEach(() => {
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      jest.restoreAllMocks();
+    });
+
+    it('в первом кадре (и на сервере) шапка видна', async () => {
+      const f = await setup();
+      expect(f.componentInstance.hidden()).toBe(false);
+      expect((f.nativeElement as HTMLElement).querySelector('header')!.classList).not.toContain('hdr--up');
+    });
+
+    it('вниз — прячется, вверх — возвращается; фокус в поиске держит шапку на месте', async () => {
+      const frames: FrameRequestCallback[] = [];
+      jest.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => { frames.push(cb); return frames.length; });
+      const f = await setup();
+      await f.whenStable();
+      const scrollTo = (y: number) => {
+        Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+        window.dispatchEvent(new Event('scroll'));
+        frames.splice(0).forEach((cb) => cb(0));
+        f.detectChanges();
+      };
+      const header = () => (f.nativeElement as HTMLElement).querySelector('header')!;
+      scrollTo(400);
+      expect(header().classList).toContain('hdr--up');
+      scrollTo(300);
+      expect(header().classList).not.toContain('hdr--up');
+      scrollTo(700);
+      expect(header().classList).toContain('hdr--up');
+      header().querySelector('input')!.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      f.detectChanges();
+      expect(header().classList).not.toContain('hdr--up');
+      scrollTo(1200);
+      expect(header().classList).not.toContain('hdr--up');
     });
   });
 });

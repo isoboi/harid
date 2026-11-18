@@ -1,23 +1,24 @@
-import { Component, computed, inject } from '@angular/core';
+import { afterNextRender, ChangeDetectorRef, Component, computed, DestroyRef, inject, NgZone, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
+import { HeaderScrollState, nextHeaderState } from './header-scroll';
 import { IconComponent } from './icon.component';
 import { LogoComponent } from './logo.component';
 
 /**
  * Шапка как в прототипе: бирка-логотип «харид», поиск и иконки справа.
- * Одна разметка на все ширины: на телефоне поиск переносится второй строкой под логотип и иконки,
- * подписи «Войти»/«Корзина» прячутся визуально (остаются для скринридера), «Продавцам» — от 1024px.
- * Нижней панели навигации нет, как и в прототипе: на /checkout ничего не перекрывает кнопку «Заказать».
+ * Одна разметка на все ширины. До 640px шапка в две строки — логотип, под ним поиск, а иконки уходят
+ * в нижнюю панель (app-tab-bar); при прокрутке вниз шапка уезжает вверх, при прокрутке вверх возвращается.
+ * На планшете подписи «Войти»/«Корзина» видны, «Продавцам» — от 1024px (на телефоне — в подвале и в первом экране).
  */
 @Component({
   selector: 'app-header',
   standalone: true,
   imports: [RouterLink, FormsModule, IconComponent, LogoComponent],
   template: `
-    <header class="hdr">
+    <header class="hdr" [class.hdr--up]="hidden()" (focusin)="onFocus(true)" (focusout)="onFocus(false)">
       <div class="wrap row">
         <app-logo />
         <form class="search" role="search" (ngSubmit)="search()">
@@ -62,7 +63,7 @@ import { LogoComponent } from './logo.component';
     .nav .cart { padding: 0 12px; font-weight: 600 }
     /* Счётчик корзины: шафран с тёмным текстом, как в прототипе */
     .badge { display: grid; place-items: center; height: 24px; min-width: 24px; padding: 0 6px; border-radius: 9999px; background: var(--color-saffron); color: var(--color-ink); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums }
-    /* Телефон: подписи только для скринридера, остаются иконки 44×44 */
+    /* Узкий экран 640px: подписи только для скринридера, остаются иконки 44×44 */
     @media (max-width: 639.98px) {
       .hide-sm { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
       .nav .cart { gap: 4px; padding: 0 10px }
@@ -73,6 +74,17 @@ import { LogoComponent } from './logo.component';
       .search { order: 1; flex: 1 1 auto; max-width: 520px; padding: 0 0 0 24px }
     }
     @media (min-width: 1024px) { .nav .sell { display: inline-flex } }
+    /* Телефон: логотип первой строкой, поиск во всю ширину второй (базовая раскладка), иконки — в нижней панели */
+    @media (max-width: 640px) {
+      /* Липнет сам хост: у .hdr внутри app-header нет высоты для прилипания (родитель ровно с шапку) */
+      :host { position: sticky; top: 0; z-index: 30; display: block }
+      .nav { display: none }
+    }
+    /* Уезжает вверх только на телефоне и только без «уменьшить движение» — иначе просто стоит на месте */
+    @media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+      .hdr { transition: transform .25s cubic-bezier(.2, .8, .2, 1) }
+      .hdr--up { transform: translateY(-100%) }
+    }
   `,
 })
 export class HeaderComponent {
@@ -84,6 +96,45 @@ export class HeaderComponent {
   /** Счётчик корзины: больше 99 не помещается в бейдж — показываем «99+». */
   readonly badge = computed(() => { const n = this.cart.count(); return n > 99 ? '99+' : String(n); });
   q = '';
+  /** Шапка уехала вверх (действует только на телефоне, см. стили). На сервере и в первом кадре — видна. */
+  readonly hidden = signal(false);
+  private focused = false;
+  private state: HeaderScrollState = { hidden: false, lastY: 0 };
+
+  constructor() {
+    const zone = inject(NgZone);
+    const cdr = inject(ChangeDetectorRef);
+    const destroyRef = inject(DestroyRef);
+    // Слушатель прокрутки — только в браузере и после гидратации; пассивный, вне зоны Angular, раз в кадр
+    afterNextRender(() => {
+      let frame = 0;
+      const apply = () => {
+        frame = 0;
+        const next = nextHeaderState(this.state, window.scrollY, this.focused);
+        this.state = next;
+        if (next.hidden === this.hidden()) return;
+        // Перерисовываем только шапку: глобальный цикл обнаружения изменений ради одного класса не нужен
+        this.hidden.set(next.hidden);
+        cdr.detectChanges();
+      };
+      const onScroll = () => { if (!frame) frame = requestAnimationFrame(apply); };
+      zone.runOutsideAngular(() => window.addEventListener('scroll', onScroll, { passive: true }));
+      destroyRef.onDestroy(() => {
+        window.removeEventListener('scroll', onScroll);
+        if (frame) cancelAnimationFrame(frame);
+      });
+    });
+  }
+
+  /** Фокус в шапке (поиск, ссылки с клавиатуры) — шапка не прячется. */
+  onFocus(on: boolean): void {
+    this.focused = on;
+    if (on) {
+      this.state = { hidden: false, lastY: this.state.lastY };
+      this.hidden.set(false);
+    }
+  }
+
   search(): void {
     const q = this.q.trim();
     if (q) this.router.navigate(['/search'], { queryParams: { q } });

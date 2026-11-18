@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ProductComponent } from './product.component';
+import { buyBarVisible, ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
 import { Product, Review } from '../../core/models';
@@ -138,5 +138,57 @@ describe('ProductComponent', () => {
     f.detectChanges();
     expect(cart.items().length).toBe(30);
     expect(f.nativeElement.textContent).toContain('В корзине уже 30 позиций — оформите заказ или уберите лишнее');
+  });
+
+  describe('липкая панель покупки (телефон)', () => {
+    const bar = (f: { nativeElement: unknown }) => (f.nativeElement as HTMLElement).querySelector('[data-test="buybar"]') as HTMLElement;
+    const barBtn = (f: { nativeElement: unknown }) => bar(f).querySelector('.bar-btn') as HTMLButtonElement;
+
+    it('видна, только когда основная кнопка ушла вверх за экран', () => {
+      const root = { top: 0 };
+      expect(buyBarVisible({ isIntersecting: true, boundingClientRect: { bottom: 300 }, rootBounds: root })).toBe(false);
+      expect(buyBarVisible({ isIntersecting: false, boundingClientRect: { bottom: 1400 }, rootBounds: root })).toBe(false);
+      expect(buyBarVisible({ isIntersecting: false, boundingClientRect: { bottom: -20 }, rootBounds: root })).toBe(true);
+    });
+
+    it('в первом кадре скрыта; с ценой и «Добавить в корзину», добавление → «Перейти в корзину»', async () => {
+      const f = await render(prod());
+      expect(bar(f).classList).not.toContain('on');
+      expect(bar(f).textContent).toContain('540');
+      f.componentInstance.barShown.set(true);
+      f.detectChanges();
+      expect(bar(f).classList).toContain('on');
+      expect(barBtn(f).textContent?.trim()).toBe('Добавить в корзину');
+      barBtn(f).click();
+      f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(1);
+      const link = barBtn(f);
+      expect(link.tagName).toBe('A');
+      expect(link.textContent?.trim()).toBe('Перейти в корзину');
+      expect(link.getAttribute('href')).toBe('/cart');
+    });
+
+    it('нет в наличии — кнопка недоступна', async () => {
+      const f = await render(prod({ in_stock: false }));
+      expect(barBtn(f).textContent?.trim()).toBe('Нет в наличии');
+      expect(barBtn(f).disabled).toBe(true);
+    });
+
+    it('размер не выбран — не добавляет, а ведёт к выбору и показывает подсказку', async () => {
+      const f = await render(prod({ sizes: ['S', 'M'] }));
+      const el: HTMLElement = f.nativeElement;
+      expect(el.querySelector('[data-test="size-hint"]')).toBeNull();
+      expect(barBtn(f).disabled).toBe(false);
+      barBtn(f).click();
+      f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(0);
+      expect(el.querySelector('[data-test="size-hint"]')?.textContent).toContain('Выберите размер');
+      expect(document.activeElement).toBe(el.querySelector('[data-test="size"]'));
+      (el.querySelectorAll('[data-test="size"]')[1] as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(el.querySelector('[data-test="size-hint"]')).toBeNull();
+      barBtn(f).click();
+      expect(TestBed.inject(CartService).items()[0].size).toBe('M');
+    });
   });
 });

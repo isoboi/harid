@@ -20,6 +20,9 @@
   --radius-lg: .5rem;
   --spacing: .25rem;
   --shadow-pop: 0 12px 32px -12px rgb(19 35 91 / .5);
+  /* Нижняя панель вкладок и липкая кнопка покупки на телефоне */
+  --tabbar-h: 60px;
+  --buybar-h: 68px;
 }
 
 /* Сброс в духе Tailwind preflight: отступы задаёт разметка, а не браузер */
@@ -69,8 +72,11 @@ textarea { resize: vertical }
 .chip { display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border: 1px solid var(--color-line); border-radius: 9999px; font-size: 14px; font-weight: 500; white-space: nowrap }
 @media (hover: hover) { .chip:hover { border-color: var(--color-ink) } }
 .chip--on { border-color: var(--color-ink); background: var(--color-ink); color: var(--color-paper) }
-/* Телефон: палец не промахивается — высота 44px */
-@media (max-width: 640px) { .chip { height: 44px } }
+/* Телефон: палец не промахивается — высота 44px; лента листается с привязкой к чипу */
+@media (max-width: 640px) {
+  .chips { scroll-snap-type: x proximity; scroll-padding-inline: 16px }
+  .chip { flex: none; height: 44px; scroll-snap-align: start }
+}
 
 /* Сетка товаров: 2 / 3 / 4 колонки, gap-x-3 gap-y-7, sm:gap-x-5 */
 .products { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; row-gap: 28px }
@@ -126,3 +132,27 @@ select.field-control { padding-right: 40px; background-image: url("data:image/sv
 .tel .field-control { padding-left: 62px; font-variant-numeric: tabular-nums }
 .field-hint { font-size: 13px; line-height: 1.4; color: var(--color-ink-soft) }
 .field-error { font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--color-anor) }
+
+/*
+ * Мобильная оболочка (до 640px): нижняя панель вкладок и липкая кнопка покупки.
+ * Контент и подвал не уходят под фиксированные панели — у app-root отступ снизу на их высоту.
+ */
+@media (max-width: 640px) {
+  app-root:has(.tabbar) { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)) }
+  app-root:has(.tabbar):has(.buybar) { padding-bottom: calc(var(--tabbar-h) + var(--buybar-h) + env(safe-area-inset-bottom)) }
+  /* Фокус в поле ввода — скорее всего открыта клавиатура: панели прячем, чтобы не висели над ней */
+  body:has(:is(input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"]), textarea, [contenteditable="true"]):focus) :is(.tabbar, .buybar) { display: none }
+}
+
+/* Липкая панель покупки на странице товара: над вкладками, прячется сдвигом вниз и visibility (не ловит фокус) */
+.buybar { display: none }
+@media (max-width: 640px) {
+  .buybar { position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); z-index: 35; display: flex; align-items: center; gap: 12px; height: var(--buybar-h); padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); border-top: 1px solid var(--color-line); background: var(--color-paper); visibility: hidden; transform: translateY(calc(100% + var(--tabbar-h))) }
+  .buybar.on { visibility: visible; transform: none }
+  .buybar .bar-price { flex: none; padding-left: 4px }
+  .buybar .bar-btn { flex: 1 1 auto; min-width: 0; padding: 0 12px; white-space: nowrap }
+}
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .buybar { transition: transform .25s cubic-bezier(.2, .8, .2, 1), visibility 0s .25s }
+  .buybar.on { transition: transform .25s cubic-bezier(.2, .8, .2, 1), visibility 0s }
+}

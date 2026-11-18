@@ -1,4 +1,5 @@
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Component, computed, effect, ElementRef, inject, input, PLATFORM_ID, signal, untracked, viewChild } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
@@ -18,6 +19,17 @@ import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
 const money = new MoneyPipe();
+
+/** Видимая часть наблюдения IntersectionObserver — чтобы функцию можно было проверить без браузера. */
+export interface ButtonView { isIntersecting: boolean; boundingClientRect: { bottom: number }; rootBounds: { top: number } | null }
+
+/**
+ * Липкая кнопка покупки нужна, когда основная кнопка ушла вверх за край экрана.
+ * Пока кнопка ещё ниже (страница только открыта) — панели нет, покупатель сначала видит товар.
+ */
+export function buyBarVisible(e: ButtonView): boolean {
+  return !e.isIntersecting && e.boundingClientRect.bottom <= (e.rootBounds?.top ?? 0);
+}
 
 @Component({
   selector: 'app-product',
@@ -51,15 +63,16 @@ const money = new MoneyPipe();
             @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="16" [filled]="true" />{{ ratingText() }}</p> }
             <div class="price"><app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" /></div>
             @if (p.sizes.length > 1) {
-              <fieldset class="sizes">
+              <fieldset class="sizes" #sizes>
                 <legend>Размер</legend>
                 <div class="size-list">@for (s of p.sizes; track s) {
                   <button type="button" data-test="size" class="size" [class.on]="size() === s" [attr.aria-pressed]="size() === s" (click)="size.set(s)">{{ s }}</button>
                 }</div>
+                @if (sizeHint() && !size()) { <p class="field-error size-hint" data-test="size-hint" role="alert">Выберите размер, чтобы добавить в корзину</p> }
               </fieldset>
             }
             <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></p>
-            <div class="actions">
+            <div class="actions" #actions>
               <button type="button" class="btn add" data-test="add" [disabled]="!canAdd()" (click)="add(p)">{{ addLabel() }}</button>
               @if (added()) { <a class="btn btn--ghost" routerLink="/cart">Перейти в корзину</a> }
               <button type="button" class="fav" [attr.aria-pressed]="fav.has(p.id)" (click)="fav.toggle(p.id)">
@@ -76,6 +89,13 @@ const money = new MoneyPipe();
               <details class="desc"><summary>Описание из Instagram</summary><p>{{ p.description }}</p></details>
             }
           </div>
+        </div>
+        <!-- Телефон: цена и кнопка у нижнего края, над панелью вкладок; появляется, когда основная кнопка ушла вверх -->
+        <div class="buybar" [class.on]="barShown()" data-test="buybar">
+          <app-price-tag class="bar-price" [price]="p.price" [old]="p.old_price" size="sm" />
+          @if (!p.in_stock) { <button type="button" class="btn bar-btn" disabled>Нет в наличии</button> }
+          @else if (added()) { <a class="btn bar-btn" routerLink="/cart">Перейти в корзину</a> }
+          @else { <button type="button" class="btn bar-btn" (click)="barAdd(p)">Добавить в корзину</button> }
         </div>
         <app-reviews class="reviews" [reviews]="reviews()" [rating]="p.rating ?? null" [count]="p.reviews_count ?? 0" />
         @if (more().length) {
@@ -114,6 +134,7 @@ const money = new MoneyPipe();
     .reviews { margin-top: 64px }
     .sizes { margin-top: 28px; border: 0 }
     .sizes legend { font-size: 15px; font-weight: 600 }
+    .size-hint { margin-top: 10px }
     .size-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px }
     .size { display: inline-flex; align-items: center; justify-content: center; height: 44px; min-width: 48px; padding: 0 12px; border: 1px solid var(--color-line); border-radius: 10px; font-size: 15px; font-weight: 500 }
     @media (hover: hover) { .size:hover { border-color: var(--color-ink) } }
@@ -139,6 +160,7 @@ const money = new MoneyPipe();
     @media (hover: hover) { .more h2 a:hover { text-decoration: underline } }
     /* Телефон: «В корзину» во всю ширину, ссылка в тексте с полем нажатия 44px */
     @media (max-width: 639.98px) { .add { flex: 1 1 100%; min-width: 0 } .trust a { display: inline-block; padding-block: 12px; margin-block: -12px } }
+    /* Стили липкой панели покупки (.buybar) — в styles.scss, в разделе «Мобильная оболочка» */
   `,
 })
 export class ProductComponent {
@@ -157,6 +179,13 @@ export class ProductComponent {
   readonly added = signal(false);
   /** Корзина упёрлась в лимит строк бэкенда. */
   readonly limitError = signal(false);
+  /** Липкая панель покупки видна (только телефон: основная кнопка ушла вверх). */
+  readonly barShown = signal(false);
+  /** Нажали «В корзину» в панели, а размер не выбран — подсказка у выбора размера. */
+  readonly sizeHint = signal(false);
+  private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly actionsRef = viewChild<ElementRef<HTMLElement>>('actions');
+  private readonly sizesRef = viewChild<ElementRef<HTMLElement>>('sizes');
   readonly photos = computed(() => { const p = this.product(); return p ? (p.images?.length ? p.images : p.image ? [p.image] : []) : []; });
   readonly current = computed(() => this.photos()[this.photo()] ?? '');
   readonly canAdd = computed(() => { const p = this.product(); return !!p && p.in_stock && (p.sizes.length <= 1 || !!this.size()); });
@@ -176,7 +205,7 @@ export class ProductComponent {
   constructor() {
     effect((onCleanup) => {
       const id = this.id();
-      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false);
+      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false);
       this.product.set(null); this.more.set([]); this.shop.set(null); this.reviews.set(null);
       const nested: { unsubscribe(): void }[] = [];
       const sub = untracked(() => this.api.product(id).subscribe({
@@ -196,6 +225,28 @@ export class ProductComponent {
       }));
       onCleanup(() => { sub.unsubscribe(); nested.forEach((n) => n.unsubscribe()); });
     });
+    // Следим за основной кнопкой только в браузере: на сервере и в первом кадре панели нет
+    effect((onCleanup) => {
+      const el = this.actionsRef()?.nativeElement;
+      if (!this.browser || !el || typeof IntersectionObserver === 'undefined') return;
+      // Низ корня растянут далеко вниз: «не пересекается» значит ровно «ушла за верхний край».
+      // Так прыжок прокрутки снизу сразу выше кнопки (якорь, быстрый свайп) тоже меняет состояние и не теряется
+      const io = new IntersectionObserver(([e]) => this.barShown.set(buyBarVisible(e)), { rootMargin: '0px 0px 100000px 0px' });
+      io.observe(el);
+      onCleanup(() => io.disconnect());
+    });
+  }
+
+  /** Кнопка липкой панели: добавляет, а без выбранного размера ведёт к выбору и показывает подсказку. */
+  barAdd(p: Product): void {
+    if (this.canAdd()) return this.add(p);
+    if (!p.in_stock || p.sizes.length <= 1) return;
+    this.sizeHint.set(true);
+    const box = this.sizesRef()?.nativeElement;
+    if (!box || !this.browser) return;
+    const calm = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    box.scrollIntoView?.({ behavior: calm ? 'auto' : 'smooth', block: 'center' });
+    box.querySelector<HTMLButtonElement>('[data-test="size"]')?.focus({ preventScroll: true });
   }
 
   add(p: Product): void {
