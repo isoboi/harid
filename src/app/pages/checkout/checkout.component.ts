@@ -24,77 +24,96 @@ const money = new MoneyPipe();
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink, MoneyPipe, IconComponent],
   template: `
-    <h1>Оформление заказа</h1>
-    @if (!cart.ready()) { <p class="muted">Загрузка…</p> }
-    @else if (!cart.count()) { <p class="muted">Корзина пуста. <a routerLink="/">К товарам</a></p> }
-    @else {
-      <!-- novalidate: ошибки показываем свои, по-русски и под полем, а не всплывашкой браузера -->
-      <form [formGroup]="form" (ngSubmit)="submit()" class="form" novalidate>
-        <fieldset>
-          <legend>Кто получит</legend>
-          <div class="field">
-            <label for="co-name">Имя</label>
-            <input id="co-name" class="field-control" formControlName="name" autocomplete="name" maxlength="100"
-              [attr.aria-invalid]="bad('name') || null" [attr.aria-describedby]="bad('name') ? 'co-name-err' : null" />
-            @if (bad('name')) { <p class="field-error" id="co-name-err">Укажите имя</p> }
+    <div class="wrap page-top">
+      <h1 class="page-title head">Оформление заказа</h1>
+      @if (!cart.ready()) { <p class="muted">Загрузка…</p> }
+      @else if (!cart.count()) { <p class="empty">Корзина пуста. <a routerLink="/">К товарам</a></p> }
+      @else {
+        <!-- novalidate: ошибки показываем свои, по-русски и под полем, а не всплывашкой браузера -->
+        <form [formGroup]="form" (ngSubmit)="submit()" class="layout" novalidate>
+          <div class="sets">
+            <fieldset>
+              <legend>Кто получит</legend>
+              <div class="grid two">
+                <div class="field">
+                  <label for="co-name">Имя</label>
+                  <input id="co-name" class="field-control" formControlName="name" autocomplete="name" maxlength="100"
+                    [attr.aria-invalid]="bad('name') || null" [attr.aria-describedby]="bad('name') ? 'co-name-err' : null" />
+                  @if (bad('name')) { <p class="field-error" id="co-name-err">Укажите имя</p> }
+                </div>
+                <div class="field">
+                  <label for="co-phone">Телефон</label>
+                  <div class="tel">
+                    <span class="tel-prefix" id="co-phone-prefix">+992</span>
+                    <input id="co-phone" class="field-control" formControlName="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="93 123 45 67"
+                      [attr.aria-invalid]="bad('phone') || null" [attr.aria-describedby]="bad('phone') ? 'co-phone-prefix co-phone-err' : 'co-phone-prefix co-phone-hint'" />
+                  </div>
+                  @if (bad('phone')) { <p class="field-error" id="co-phone-err">Нужен номер из 9 цифр</p> }
+                  @else { <p class="field-hint" id="co-phone-hint">Лавка и курьер позвонят на этот номер</p> }
+                </div>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Куда и когда</legend>
+              <div class="grid where">
+                <div class="field">
+                  <label for="co-district">Район</label>
+                  <select id="co-district" class="field-control" formControlName="district" aria-describedby="co-district-hint">
+                    @for (d of districts; track d) { <option [value]="d">{{ d }}</option> }
+                  </select>
+                  <p class="field-hint" id="co-district-hint">{{ deliveryHint }}</p>
+                </div>
+                <div class="field">
+                  <label for="co-address">Улица, дом, квартира</label>
+                  <input id="co-address" class="field-control" formControlName="address" autocomplete="street-address" maxlength="255"
+                    [attr.aria-invalid]="bad('address') || null" [attr.aria-describedby]="bad('address') ? 'co-address-err' : null" />
+                  @if (bad('address')) { <p class="field-error" id="co-address-err">Укажите адрес</p> }
+                </div>
+              </div>
+              <div class="grid two">
+                <div class="field">
+                  <label for="co-slot">Когда привезти</label>
+                  <select id="co-slot" class="field-control" formControlName="slot">
+                    @for (s of slots(); track s) { <option [value]="s">{{ s }}</option> }
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <label for="co-comment">Комментарий курьеру <span class="opt">— необязательно</span></label>
+                <textarea id="co-comment" class="field-control" formControlName="comment" rows="2" maxlength="500"></textarea>
+              </div>
+            </fieldset>
           </div>
-          <div class="field">
-            <label for="co-phone">Телефон</label>
-            <div class="tel">
-              <span class="tel-prefix" id="co-phone-prefix">+992</span>
-              <input id="co-phone" class="field-control" formControlName="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="93 123 45 67"
-                [attr.aria-invalid]="bad('phone') || null" [attr.aria-describedby]="bad('phone') ? 'co-phone-prefix co-phone-err' : 'co-phone-prefix'" />
-            </div>
-            @if (bad('phone')) { <p class="field-error" id="co-phone-err">Нужен номер из 9 цифр</p> }
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>Куда и когда</legend>
-          <div class="field">
-            <label for="co-district">Район</label>
-            <select id="co-district" class="field-control" formControlName="district" aria-describedby="co-district-hint">
-              @for (d of districts; track d) { <option [value]="d">{{ d }}</option> }
-            </select>
-            <p class="field-hint" id="co-district-hint">{{ deliveryHint }}</p>
-          </div>
-          <div class="field">
-            <label for="co-address">Адрес</label>
-            <input id="co-address" class="field-control" formControlName="address" autocomplete="street-address" placeholder="Улица, дом, квартира" maxlength="255"
-              [attr.aria-invalid]="bad('address') || null" [attr.aria-describedby]="bad('address') ? 'co-address-err' : null" />
-            @if (bad('address')) { <p class="field-error" id="co-address-err">Укажите адрес</p> }
-          </div>
-          <div class="field">
-            <label for="co-slot">Когда привезти</label>
-            <select id="co-slot" class="field-control" formControlName="slot">
-              @for (s of slots(); track s) { <option [value]="s">{{ s }}</option> }
-            </select>
-          </div>
-          <div class="field">
-            <label for="co-comment">Комментарий <span class="muted">— необязательно</span></label>
-            <textarea id="co-comment" class="field-control" formControlName="comment" rows="2" maxlength="500"></textarea>
-          </div>
-        </fieldset>
-        <div class="sum">
-          <div><span>Товары</span><b>{{ cart.itemsTotal() | money }}</b></div>
-          <div><span>Доставка{{ cart.groups().length > 1 ? ' (' + cart.groups().length + ' ' + plural(cart.groups().length, shopForms) + ')' : '' }}</span><b>{{ delivery() | money }}</b></div>
-          <div class="total"><span>Итого наличными курьеру</span><b>{{ total() | money }}</b></div>
-        </div>
-        <div class="cash" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></div>
-        @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-        <!-- Кнопка доступна всегда: неверная форма объясняет себя ошибками под полями, а не молчит -->
-        <button class="btn" type="submit" [disabled]="busy()">@if (busy()) { Отправляем… } @else { Заказать — {{ total() | money }} наличными курьеру }</button>
-      </form>
-    }
+          <aside class="summary side">
+            <dl>
+              <div><dt>Товары, {{ cart.count() }} шт.</dt><dd>{{ cart.itemsTotal() | money }}</dd></div>
+              <div><dt>Доставка{{ cart.groups().length > 1 ? ' (' + cart.groups().length + ' ' + plural(cart.groups().length, shopForms) + ')' : '' }}</dt><dd>{{ delivery() | money }}</dd></div>
+              <div class="total"><dt>Итого наличными курьеру</dt><dd>{{ total() | money }}</dd></div>
+            </dl>
+            <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></p>
+            @if (error()) { <p class="field-error err" role="alert">{{ error() }}</p> }
+            <!-- Кнопка доступна всегда: неверная форма объясняет себя ошибками под полями, а не молчит -->
+            <button class="btn submit" type="submit" [disabled]="busy()">@if (busy()) { Отправляем… } @else { Заказать — {{ total() | money }} наличными курьеру }</button>
+          </aside>
+        </form>
+      }
+    </div>
   `,
   styles: `
-    .form { display:flex; flex-direction:column; gap:24px; max-width:520px }
-    fieldset { display:flex; flex-direction:column; gap:14px; min-width:0; margin:0; padding:0; border:0 }
-    legend { padding:0; margin-bottom:14px; font-size:17px; font-weight:600 }
-    textarea.field-control { resize:vertical }
-    .sum { border-top:1px solid var(--line); padding-top:12px } .sum div { display:flex; justify-content:space-between; margin:4px 0 } .total { font-size:18px }
-    /* Обещание оплаты над кнопкой, а не мелкой сноской под ней */
-    .cash { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:12px; background:var(--surface); font-size:14px; line-height:1.4 } .cash app-icon { color:var(--accent-strong); margin-top:-1px }
-    .btn { min-height:48px; text-wrap:balance }
+    .head { margin-bottom: 32px }
+    .empty a { color: var(--color-lapis); text-decoration: underline; text-underline-offset: 2px }
+    .layout { display: grid; align-items: start; gap: 40px }
+    @media (min-width: 1024px) { .layout { grid-template-columns: minmax(0, 1fr) 360px } .side { position: sticky; top: 96px } }
+    .sets { display: flex; flex-direction: column; gap: 40px }
+    fieldset { display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 0; border: 0 }
+    /* legend «плавает» над рамкой — отступ даём ему самому */
+    legend { margin-bottom: 16px; font-size: 20px; font-weight: 700 }
+    .grid { display: grid; gap: 16px }
+    @media (min-width: 640px) { .two { grid-template-columns: repeat(2, minmax(0, 1fr)) } .where { grid-template-columns: 220px minmax(0, 1fr) } }
+    .opt { font-weight: 400; color: var(--color-ink-soft) }
+    .promise { margin-top: 20px; font-size: 14px }
+    .err { margin-top: 12px }
+    .submit { min-height: 48px; height: auto; padding-block: 12px; text-wrap: balance }
   `,
 })
 export class CheckoutComponent {

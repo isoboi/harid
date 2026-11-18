@@ -1,33 +1,64 @@
-import { Component, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { FavoritesService } from '../core/favorites.service';
 import { Product } from '../core/models';
 import { IconComponent } from './icon.component';
-import { MoneyPipe } from './money.pipe';
+import { PriceTagComponent } from './price-tag.component';
 
+/**
+ * Карточка товара как в прототипе: квадратное фото с ценником-биркой, сердечко в углу,
+ * название в две строки и @лавка. Сердечко — отдельная кнопка рядом со ссылкой, не внутри неё.
+ */
 @Component({
   selector: 'app-product-card',
   standalone: true,
-  imports: [RouterLink, MoneyPipe, IconComponent],
+  imports: [RouterLink, IconComponent, PriceTagComponent],
   template: `
     @let p = product();
-    <a class="card" [routerLink]="['/product', p.id]">
-      <div class="img">@if (p.image) { <img [src]="p.image" [alt]="p.title" loading="lazy" /> } @else { <span class="ph">Нет фото</span> }</div>
-      <div class="price"><b>{{ p.price | money }}</b>@if (p.old_price) { <s>{{ p.old_price | money }}</s> }</div>
-      <div class="title">{{ p.title }}</div>
-      <div class="shop muted">&#64;{{ p.shop_handle }}</div>
-      <div class="cod" data-test="cod"><app-icon name="banknote" [size]="14" />Оплата при получении</div>
-    </a>
+    <div class="card">
+      <a class="link" [routerLink]="['/product', p.id]">
+        <div class="img">
+          @if (p.image) { <img [src]="p.image" [alt]="p.title" loading="lazy" /> } @else { <span class="ph">Нет фото</span> }
+          <app-price-tag class="tag" [price]="p.price" [old]="p.old_price" size="sm" />
+        </div>
+        <h3 class="title">{{ p.title }}</h3>
+        <p class="shop">&#64;{{ p.shop_handle }}</p>
+        <p class="cod" data-test="cod">Оплата при получении</p>
+      </a>
+      <button type="button" class="fav" [class.on]="faved()" [attr.aria-pressed]="faved()" [attr.aria-label]="favLabel()" (click)="fav.toggle(p.id)">
+        <span class="fav-dot"><app-icon name="heart" [size]="18" [filled]="faved()" /></span>
+      </button>
+    </div>
   `,
   styles: `
-    .card { display:block; color:inherit; text-decoration:none }
-    .img { aspect-ratio:1; border-radius:var(--radius); overflow:hidden; background:var(--surface); display:grid; place-items:center }
-    .img img { width:100%; height:100%; object-fit:cover } .ph { color:var(--muted); font-size:13px }
-    .price { margin-top:8px; display:flex; gap:8px; align-items:baseline } .price s { color:var(--muted); font-size:13px }
-    .title { font-size:14px; line-height:1.3 } .shop { font-size:13px }
-    /* Тихая пометка: обещание видно в ленте, но не спорит с ценой */
-    .cod { display:flex; align-items:center; gap:5px; margin-top:4px; font-size:12px; color:var(--muted) }
+    :host { display: block }
+    .card { position: relative }
+    .link { display: block; border-radius: var(--radius-photo) }
+    .img { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: var(--radius-photo); background: var(--color-mist); display: grid; place-items: center }
+    .img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .5s cubic-bezier(.4, 0, .2, 1) }
+    .ph { color: var(--color-ink-soft); font-size: 13px }
+    .tag { position: absolute; top: 12px; left: 10px }
+    .title { margin-top: 10px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 15px; line-height: 1.375; font-weight: 500 }
+    .shop { margin-top: 2px; font-size: 13px; color: var(--color-ink-soft) }
+    /* Тихая пометка о наличных: видна в ленте, но не спорит с ценой */
+    .cod { margin-top: 2px; font-size: 12px; color: var(--color-ink-soft) }
+    @media (hover: hover) {
+      .link:hover .img img { transform: scale(1.03) }
+      .link:hover .title { text-decoration: underline }
+    }
+    /* Видимый кружок 36px, а сама кнопка 44px — палец не промахивается */
+    .fav { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 9999px; color: var(--color-ink) }
+    .fav-dot { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9999px; background: rgb(255 255 255 / .9) }
+    @media (hover: hover) { .fav:hover .fav-dot { background: var(--color-paper) } }
+    .fav.on { color: var(--color-anor) }
   `,
 })
 export class ProductCardComponent {
   readonly product = input.required<Product>();
+  readonly fav = inject(FavoritesService);
+  protected readonly faved = computed(() => this.fav.ids().includes(this.product().id));
+  protected readonly favLabel = computed(() => {
+    const t = this.product().title;
+    return this.faved() ? `Убрать «${t}» из избранного` : `Добавить «${t}» в избранное`;
+  });
 }

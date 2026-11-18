@@ -21,26 +21,47 @@ const safeReturn = (v: string): string => (SAFE_PATH.test(v) ? v : DEFAULT_RETUR
   standalone: true,
   imports: [FormsModule],
   template: `
-    <section class="box">
-      <h1>Вход по номеру телефона</h1>
+    <section class="wrap box">
+      <h1 class="title">Вход по номеру телефона</h1>
       @if (step() === 'phone') {
-        <label>Номер телефона<input [ngModel]="phone()" (ngModelChange)="phone.set($event)" inputmode="tel" placeholder="93 123 45 67" /></label>
-        <button class="btn" type="button" [disabled]="busy() || !isPhone(phone())" (click)="sendCode()">Получить код</button>
+        <p class="lead">Пароль не нужен — пришлём код в SMS. Так ваши заказы будут видны в «Мои заказы» на любом устройстве.</p>
+        <div class="field">
+          <label for="login-phone">Номер телефона</label>
+          <div class="tel">
+            <span class="tel-prefix" id="login-phone-prefix">+992</span>
+            <input id="login-phone" class="field-control" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="93 123 45 67" aria-describedby="login-phone-prefix"
+              [ngModel]="phone()" (ngModelChange)="phone.set($event)" />
+          </div>
+        </div>
+        <button class="btn btn--block go" type="button" [disabled]="busy() || !isPhone(phone())" (click)="sendCode()">Получить код</button>
       } @else {
-        <p class="muted">Код отправлен на +992 {{ phone9(phone()) }}</p>
-        <label>Код из SMS<input [ngModel]="code()" (ngModelChange)="code.set($event)" inputmode="numeric" maxlength="6" /></label>
-        @if (resend.left() > 0) { <p class="muted" data-test="countdown">Отправить код ещё раз через {{ resend.left() }} с</p> }
-        @else { <button class="btn btn--ghost" type="button" data-test="resend" [disabled]="busy()" (click)="send()">Отправить код ещё раз</button> }
-        <button class="btn" type="button" [disabled]="busy() || code().length !== 6" (click)="verify()">Войти</button>
-        <button class="btn btn--ghost" type="button" (click)="step.set('phone')">Другой номер</button>
+        <p class="lead">Код отправлен на +992 {{ phone9(phone()) }}</p>
+        <div class="field">
+          <label for="login-code">Код из SMS</label>
+          <input id="login-code" class="field-control code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" [ngModel]="code()" (ngModelChange)="code.set($event)" />
+        </div>
+        @if (resend.left() > 0) { <p class="field-hint again" data-test="countdown">Отправить код ещё раз через {{ resend.left() }} с</p> }
+        @else { <button class="link again" type="button" data-test="resend" [disabled]="busy()" (click)="send()">Отправить код ещё раз</button> }
+        <button class="btn btn--block go" type="button" [disabled]="busy() || code().length !== 6" (click)="verify()">Войти</button>
+        <button class="btn btn--ghost btn--block alt" type="button" (click)="step.set('phone')">Другой номер</button>
       }
-      @if (error()) { <p class="error">{{ error() }}</p> }
+      @if (error()) { <p class="field-error err" role="alert">{{ error() }}</p> }
     </section>
   `,
   styles: `
-    .box { max-width:380px; margin:40px auto; display:flex; flex-direction:column; gap:12px }
-    label { display:flex; flex-direction:column; gap:4px }
-    input { padding:10px 12px; border:1px solid var(--line); border-radius:10px; font:inherit }
+    /* Узкая колонка прототипа: max-w-[420px] pt-12 sm:pt-16 */
+    .box { max-width: 420px; padding-top: 48px }
+    @media (min-width: 640px) { .box { padding-top: 64px } }
+    .title { font-size: 32px; line-height: 1.25; font-weight: 800; letter-spacing: -0.03em }
+    .lead { margin: 8px 0 32px; font-size: 16px; line-height: 1.625; color: var(--color-ink-soft) }
+    .code { letter-spacing: .3em; font-variant-numeric: tabular-nums }
+    .go { margin-top: 20px }
+    .alt { margin-top: 12px }
+    .again { margin-top: 12px }
+    /* Ссылка-кнопка «ещё раз»: лазурь с подчёркиванием, высота 44px */
+    .link { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-lapis); font-weight: 500; text-decoration: underline; text-underline-offset: 2px }
+    .link:disabled { opacity: .5 }
+    .err { margin-top: 16px }
   `,
 })
 export class LoginComponent {

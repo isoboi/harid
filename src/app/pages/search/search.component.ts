@@ -10,14 +10,18 @@ import { ProductCardComponent } from '../../shared/product-card.component';
   standalone: true,
   imports: [ProductCardComponent],
   template: `
-    @if (!q()) { <p class="muted">Введите запрос</p> }
-    @else {
-      <h1>Поиск: «{{ q() }}»</h1>
-      @if (products().length) { <div class="grid">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
-      @else { <p class="muted">Ничего не нашлось</p> }
-    }
+    <div class="wrap page-top">
+      @if (!q()) { <p class="muted">Введите запрос</p> }
+      @else {
+        <h1 class="page-title">Поиск: «{{ q() }}»</h1>
+        <div class="list">
+          @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
+          @else { <p class="muted">Ничего не нашлось</p> }
+        </div>
+      }
+    </div>
   `,
-  styles: `.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:16px }`,
+  styles: `.page-title { overflow-wrap: anywhere } .list { margin-top: 24px }`,
 })
 export class SearchComponent {
   private readonly api = inject(MarketApi);

@@ -22,7 +22,7 @@ describe('AppComponent', () => {
     }
   });
 
-  it('в шапке 4 иконки в навигации и 1 в поиске', async () => {
+  it('в шапке 3 иконки в навигации (как в прототипе) и 1 в поиске', async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
       providers: [provideRouter([]), provideHttpClient()],
@@ -30,7 +30,7 @@ describe('AppComponent', () => {
     const f = TestBed.createComponent(AppComponent);
     f.detectChanges();
     const el: HTMLElement = f.nativeElement;
-    expect(el.querySelectorAll('nav svg').length).toBe(4);
+    expect(el.querySelectorAll('header nav svg').length).toBe(3);
     expect(el.querySelectorAll('form.search svg').length).toBe(1);
   });
 
@@ -48,19 +48,18 @@ describe('AppComponent', () => {
     expect(TestBed.inject(CartService).count()).toBe(3);
   });
 
-  it('на /checkout без отступа под нижнюю панель, на других страницах — с ним', async () => {
+  it('на /checkout каркас тот же: шапка с навигацией и подвал, нижней панели нет', async () => {
     @Component({ standalone: true, template: '' }) class Blank {}
     await TestBed.configureTestingModule({
       imports: [AppComponent],
       providers: [provideRouter([{ path: '**', component: Blank }]), provideHttpClient()],
     }).compileComponents();
     const f = TestBed.createComponent(AppComponent);
-    const router = TestBed.inject(Router);
-    await router.navigateByUrl('/checkout');
+    await TestBed.inject(Router).navigateByUrl('/checkout');
     f.detectChanges();
-    expect((f.nativeElement as HTMLElement).classList).toContain('no-tabbar');
-    await router.navigateByUrl('/cart');
-    f.detectChanges();
-    expect((f.nativeElement as HTMLElement).classList).not.toContain('no-tabbar');
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('header nav a[href="/cart"]')).not.toBeNull();
+    expect(el.querySelector('footer')).not.toBeNull();
+    expect(el.classList).not.toContain('no-tabbar');
   });
 });

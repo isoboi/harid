@@ -26,11 +26,12 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
   standalone: true,
   imports: [RouterLink, ReactiveFormsModule, NgTemplateOutlet, MoneyPipe, IconComponent],
   template: `
+    <div class="wrap page-top">
     @if (lookup()) {
       <section class="lookup" data-test="lookup" aria-labelledby="lookup-title">
-        <h1 id="lookup-title">Найти заказ</h1>
-        @if (lookupMiss()) { <p class="error" role="alert">Заказ не найден. Проверьте номер и телефон, на который оформляли заказ.</p> }
-        @else { <p class="muted">Введите номер заказа и телефон, на который его оформляли.</p> }
+        <h1 id="lookup-title" class="page-title">Найти заказ</h1>
+        @if (lookupMiss()) { <p class="lead error" role="alert">Заказ не найден. Проверьте номер и телефон, на который оформляли заказ.</p> }
+        @else { <p class="lead">Введите номер заказа и телефон, на который его оформляли.</p> }
         <form [formGroup]="lookupForm" (ngSubmit)="findOrder()" class="form" novalidate>
           <div class="field">
             <label for="ol-number">Номер заказа</label>
@@ -52,7 +53,7 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
         <ng-container [ngTemplateOutlet]="actions" />
       </section>
     }
-    @else if (error()) { <p class="error">{{ error() }}</p><a routerLink="/">На главную</a> }
+    @else if (error()) { <p class="error">{{ error() }}</p><a class="home" routerLink="/">На главную</a> }
     @else { @if (order(); as o) {
       @if (isFresh()) {
         <!-- Первый визит сразу после оформления: благодарность и что будет дальше -->
@@ -73,7 +74,7 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
           </ul>
         </section>
       } @else {
-        <h1>Заказ {{ o.number }}</h1>
+        <h1 class="page-title">Заказ {{ o.number }}</h1>
       }
       <!-- Этап показан один раз: текущий шаг выделен и отмечен aria-current, без отдельной строки над списком -->
       @if (o.stage === 'cancelled') { <p class="cancelled">{{ label(o.stage) }}</p> }
@@ -82,14 +83,19 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
           <li [class.done]="reached(o.stage, s)" [class.now]="o.stage === s" [attr.aria-current]="o.stage === s ? 'step' : null">{{ label(s) }}</li>
         }</ol>
       }
-      <p class="muted">{{ slot(o) }} · {{ o.customer.district }}, {{ o.customer.address }}</p>
-      @for (l of o.lines; track $index) {
-        <div class="row"><span>{{ l.title }}@if (l.size) { · {{ l.size }} } × {{ l.qty }}</span><b>{{ l.price * l.qty | money }}</b></div>
-      }
-      <div class="row"><span>Доставка</span><b>{{ o.delivery_total | money }}</b></div>
-      <div class="row total"><span>Наличными курьеру</span><b>{{ o.items_total + o.delivery_total | money }}</b></div>
+      <p class="where">{{ slot(o) }} · {{ o.customer.district }}, {{ o.customer.address }}</p>
+      <div class="summary bill">
+        <dl>
+          @for (l of o.lines; track $index) {
+            <div class="row"><dt>{{ l.title }}@if (l.size) { · {{ l.size }} } × {{ l.qty }}</dt><dd>{{ l.price * l.qty | money }}</dd></div>
+          }
+          <div class="row"><dt>Доставка</dt><dd>{{ o.delivery_total | money }}</dd></div>
+          <div class="row total"><dt>Наличными курьеру</dt><dd>{{ o.items_total + o.delivery_total | money }}</dd></div>
+        </dl>
+      </div>
       <ng-container [ngTemplateOutlet]="actions" />
     } @else { <p class="muted">Загрузка…</p> } }
+    </div>
     <ng-template #actions>
       <div class="actions">
         <a class="btn" routerLink="/">Продолжить покупки</a>
@@ -101,30 +107,39 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
     </ng-template>
   `,
   styles: `
-    .confirm { margin:8px 0 24px; padding:20px; border-radius:var(--radius); background:var(--surface) }
-    .confirm-head { display:flex; gap:12px; align-items:flex-start } .confirm-head app-icon { color:var(--accent-strong); margin-top:2px }
-    .confirm h1 { margin:0; font-size:24px; line-height:1.2; letter-spacing:-0.02em; text-wrap:balance } .num { margin:4px 0 0; color:var(--muted) } .num b { color:var(--text); font-variant-numeric:tabular-nums }
-    .next { margin:16px 0 0; padding:0 0 0 40px; display:flex; flex-direction:column; gap:8px; line-height:1.4 }
-    .cancelled { font-size:20px; font-weight:700 }
-    .steps { display:flex; gap:8px; padding:0; list-style:none; flex-wrap:wrap }
-    .steps li { padding:6px 12px; border-radius:999px; background:var(--surface); color:var(--muted); font-size:13px } .steps li.done { background:var(--text); color:#fff }
-    .steps li.now { font-weight:600 }
+    /* Подтверждение после оформления: серая карточка прототипа с галочкой лазури */
+    .confirm { margin-bottom: 32px; padding: 24px; border-radius: var(--radius-photo); background: var(--color-mist) }
+    .confirm-head { display: flex; gap: 12px; align-items: flex-start } .confirm-head app-icon { color: var(--color-lapis); margin-top: 4px }
+    .confirm h1 { font-size: 30px; line-height: 1.12; font-weight: 800; letter-spacing: -0.03em; text-wrap: balance }
+    .num { margin-top: 6px; color: var(--color-ink-soft) } .num b { color: var(--color-ink); font-variant-numeric: tabular-nums }
+    .next { margin-top: 20px; padding-left: 40px; display: flex; flex-direction: column; gap: 8px; list-style: disc; font-size: 15px; line-height: 1.5 }
+    .next li::marker { color: var(--color-lapis) }
+    .cancelled { margin-top: 16px; font-size: 20px; font-weight: 700; color: var(--color-anor) }
+    .steps { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px }
+    .steps li { display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border: 1px solid var(--color-line); border-radius: 9999px; font-size: 14px; font-weight: 500; color: var(--color-ink-soft) }
+    .steps li.done { border-color: var(--color-ink); background: var(--color-ink); color: var(--color-paper) }
+    .steps li.now { font-weight: 700 }
     /* Телефон: этапы — вертикальный список с точками вместо переносящихся пилюль */
     @media (max-width: 640px) {
-      .next { padding-left:20px }
-      .steps { flex-direction:column; gap:0 }
-      .steps li { position:relative; padding:5px 0 5px 22px; background:none; font-size:14px }
-      .steps li::before { content:''; position:absolute; left:2px; top:50%; width:10px; height:10px; margin-top:-5px; border-radius:50%; border:2px solid var(--line); background:var(--bg); box-sizing:border-box }
-      .steps li.done { background:none; color:var(--text) } .steps li.done::before { border-color:var(--text); background:var(--text) }
+      .next { padding-left: 20px }
+      .steps { flex-direction: column; gap: 0 }
+      .steps li { position: relative; height: auto; padding: 6px 0 6px 24px; border: 0; background: none; font-size: 15px }
+      .steps li::before { content: ''; position: absolute; left: 2px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; border: 2px solid var(--color-line); background: var(--color-paper) }
+      .steps li.done { background: none; color: var(--color-ink) } .steps li.done::before { border-color: var(--color-lapis); background: var(--color-lapis) }
     }
-    .row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line) } .total { font-size:18px; border:0 }
-    .lookup { max-width:420px } .lookup h1 { margin-bottom:8px }
-    .form { display:flex; flex-direction:column; gap:14px; margin-top:16px }
-    .form .btn { min-height:48px }
-    .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:28px }
-    .actions a { display:inline-flex; align-items:center; justify-content:center; min-height:44px; text-align:center; text-decoration:none }
-    .actions a:focus-visible { outline:2px solid var(--text); outline-offset:2px }
-    @media (max-width: 640px) { .actions { flex-direction:column } }
+    .where { margin-top: 16px; color: var(--color-ink-soft) }
+    .bill { margin-top: 24px; max-width: 560px }
+    .bill dt { overflow-wrap: anywhere }
+    .lookup { max-width: 420px; padding-top: 16px }
+    .lead { margin-top: 8px; font-size: 16px; line-height: 1.625; color: var(--color-ink-soft) }
+    .lead.error { color: var(--color-anor) }
+    .form { display: flex; flex-direction: column; gap: 16px; margin-top: 24px }
+    .form .btn { margin-top: 4px; width: 100% }
+    .home { color: var(--color-lapis); text-decoration: underline; text-underline-offset: 2px }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px }
+    /* В поиске заказа главная кнопка — «Найти заказ», остальные действия контурные */
+    .lookup .actions .btn { border-color: var(--color-line); background: transparent; color: var(--color-ink) }
+    @media (max-width: 640px) { .actions { flex-direction: column } }
   `,
 })
 export class OrderComponent {

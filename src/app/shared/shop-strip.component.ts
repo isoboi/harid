@@ -1,27 +1,35 @@
 import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Shop } from '../core/models';
+import { ShopAvatarComponent } from './shop-avatar.component';
 
-/** Лента лавок: кружок с первой буквой и ник. */
+/** Лента лавок как сторис: кружок 72px с кольцом и ник под ним, листается вбок. */
 @Component({
   selector: 'app-shop-strip',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ShopAvatarComponent],
   template: `
-    <div class="strip">
-      @for (s of shops(); track s.handle) {
-        <a class="shop" [routerLink]="['/shop', s.handle]">
-          <span class="ava" [class.fresh]="s.has_fresh" [style.background]="s.avatar_color">{{ s.handle.charAt(0).toUpperCase() }}</span>
-          <span class="h">{{ s.handle }}</span>
-        </a>
-      }
-    </div>
+    <section aria-label="Лавки" class="strip-wrap">
+      <ul class="strip">
+        @for (s of shops(); track s.handle) {
+          <li>
+            <a class="shop" [routerLink]="['/shop', s.handle]">
+              <app-shop-avatar [name]="s.name || s.handle" [color]="s.avatar_color" [fresh]="s.has_fresh" [size]="72" />
+              <span class="h">{{ s.handle }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </section>
   `,
   styles: `
-    .strip { display:flex; gap:16px; overflow-x:auto; padding:8px 0 }
-    .shop { display:flex; flex-direction:column; align-items:center; gap:6px; color:inherit; text-decoration:none; min-width:72px }
-    .ava { width:60px; height:60px; border-radius:50%; display:grid; place-items:center; color:#fff; font-weight:700; font-size:22px }
-    .ava.fresh { outline:3px solid var(--accent); outline-offset:2px } .h { font-size:12px }
+    .strip-wrap { padding-top: 20px }
+    .strip { display: flex; gap: 16px; margin-inline: -16px; padding: 0 16px 4px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none }
+    .strip::-webkit-scrollbar { display: none }
+    @media (min-width: 640px) { .strip { margin-inline: -24px; padding-inline: 24px } }
+    li { scroll-snap-align: start }
+    .shop { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 76px; border-radius: var(--radius-lg) }
+    .h { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: 12px; color: var(--color-ink-soft) }
   `,
 })
 export class ShopStripComponent {

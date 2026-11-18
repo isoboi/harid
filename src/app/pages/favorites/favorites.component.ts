@@ -1,4 +1,5 @@
 import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { forkJoin, of, Subscription } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { FavoritesService } from '../../core/favorites.service';
@@ -10,16 +11,28 @@ import { ProductCardComponent } from '../../shared/product-card.component';
 @Component({
   selector: 'app-favorites',
   standalone: true,
-  imports: [ProductCardComponent],
+  imports: [ProductCardComponent, RouterLink],
   template: `
-    <h1>Избранное</h1>
-    @if (!fav.ready() || loading()) { <p class="muted">Загрузка…</p> }
-    @else if (products().length) {
-      <div class="grid">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div>
-    }
-    @else { <p class="muted">Пока пусто</p> }
+    <div class="wrap page-top">
+      <h1 class="page-title head">Избранное</h1>
+      @if (!fav.ready() || loading()) { <p class="muted">Загрузка…</p> }
+      @else if (products().length) {
+        <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div>
+      }
+      @else {
+        <div class="empty">
+          <p>Пока пусто. Нажмите на сердечко у товара — он появится здесь.</p>
+          <a class="btn" routerLink="/">Смотреть товары</a>
+        </div>
+      }
+    </div>
   `,
-  styles: `.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:16px }`,
+  styles: `
+    .head { margin-bottom: 32px }
+    .empty { max-width: 46ch }
+    .empty p { font-size: 18px; line-height: 1.625 }
+    .empty .btn { margin-top: 24px }
+  `,
 })
 export class FavoritesComponent {
   private readonly api = inject(MarketApi);

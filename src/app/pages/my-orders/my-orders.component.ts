@@ -14,25 +14,35 @@ import { MoneyPipe } from '../../shared/money.pipe';
   standalone: true,
   imports: [RouterLink, MoneyPipe, DatePipe],
   template: `
-    <h1>Мои заказы</h1>
-    @if (!auth.ready()) { <p class="muted">Загрузка…</p> }
-    @else {
-      @if (error()) { <p class="error">{{ error() }}</p> }
-      @for (o of orders(); track o.number) {
-        <!-- Без телефона в адресе: страница заказа узнаёт владельца по Bearer -->
-        <a class="row" [routerLink]="['/order', o.number]">
-          <b>{{ o.number }}</b><span class="muted">{{ o.created_at | date: 'dd.MM.yyyy' }}</span>
-          <span>{{ label[o.stage] }}</span><b>{{ o.items_total + o.delivery_total | money }}</b>
-        </a>
-      } @empty {
-        @if (!error()) { <p class="muted">Заказов пока нет</p> }
+    <div class="wrap page-top">
+      <h1 class="page-title head">Мои заказы</h1>
+      @if (!auth.ready()) { <p class="muted">Загрузка…</p> }
+      @else {
+        @if (error()) { <p class="error">{{ error() }}</p> }
+        <div class="list">
+          @for (o of orders(); track o.number) {
+            <!-- Без телефона в адресе: страница заказа узнаёт владельца по Bearer -->
+            <a class="row" [routerLink]="['/order', o.number]">
+              <b class="num">{{ o.number }}</b><span class="muted">{{ o.created_at | date: 'dd.MM.yyyy' }}</span>
+              <span class="stage">{{ label[o.stage] }}</span><b class="sum">{{ o.items_total + o.delivery_total | money }}</b>
+            </a>
+          } @empty {
+            @if (!error()) { <p class="muted">Заказов пока нет</p> }
+          }
+        </div>
+        <button class="btn btn--ghost out" type="button" (click)="logout()">Выйти</button>
       }
-      <button class="btn btn--ghost" type="button" (click)="logout()">Выйти</button>
-    }
+    </div>
   `,
   styles: `
-    .row { display:grid; grid-template-columns:auto auto 1fr auto; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); color:inherit; text-decoration:none }
-    .btn { margin-top:24px }
+    .head { margin-bottom: 32px }
+    .list { max-width: 760px; border-top: 1px solid var(--color-line) }
+    .row { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 12px; min-height: 56px; padding: 12px 0; border-bottom: 1px solid var(--color-line) }
+    @media (hover: hover) { .row:hover .num { text-decoration: underline } }
+    .num, .sum { font-weight: 600; font-variant-numeric: tabular-nums }
+    .stage { color: var(--color-ink-soft) }
+    @media (max-width: 639.98px) { .row { grid-template-columns: 1fr auto } .stage { grid-column: 1 } }
+    .out { margin-top: 32px }
   `,
 })
 export class MyOrdersComponent {

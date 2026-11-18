@@ -19,9 +19,9 @@ describe('HeaderComponent', () => {
   }
   const labels = (el: HTMLElement) => Array.from(el.querySelectorAll('nav a .lbl')).map((n) => n.textContent?.trim());
 
-  it('порядок: сначала покупательские ссылки, «Продавцам» последним', async () => {
+  it('порядок как в прототипе: «Продавцам», избранное, вход, корзина', async () => {
     const f = await setup();
-    expect(labels(f.nativeElement)).toEqual(['Избранное', 'Войти', 'Корзина', 'Продавцам']);
+    expect(labels(f.nativeElement)).toEqual(['Продавцам', 'Избранное', 'Войти', 'Корзина']);
   });
 
   it('вошедшему — «Мои заказы» с иконкой коробки', async () => {
@@ -29,7 +29,7 @@ describe('HeaderComponent', () => {
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
     f.detectChanges();
     const el: HTMLElement = f.nativeElement;
-    expect(labels(el)).toEqual(['Избранное', 'Мои заказы', 'Корзина', 'Продавцам']);
+    expect(labels(el)).toEqual(['Продавцам', 'Избранное', 'Мои заказы', 'Корзина']);
     // путь «M12 22V12» есть только у иконки package
     expect(el.querySelector('a[href="/me/orders"] svg path[d="M12 22V12"]')).not.toBeNull();
     expect(f.componentInstance.ordersIcon()).toBe('package');
@@ -62,23 +62,22 @@ describe('HeaderComponent', () => {
     expect((f.nativeElement as HTMLElement).querySelector('.badge')).toBeNull();
   });
 
-  describe('нижняя панель на оформлении заказа', () => {
+  describe('навигация на оформлении заказа', () => {
     @Component({ standalone: true, template: '' }) class Blank {}
     async function at(url: string) {
       await TestBed.configureTestingModule({ imports: [HeaderComponent], providers: [provideRouter([{ path: '**', component: Blank }])] }).compileComponents();
       const f = TestBed.createComponent(HeaderComponent);
       await TestBed.inject(Router).navigateByUrl(url);
       f.detectChanges();
-      return (f.nativeElement as HTMLElement).querySelector('nav')!;
+      return f.nativeElement as HTMLElement;
     }
-    it('на /checkout навигация получает nav--hidden', async () => {
-      expect((await at('/checkout')).classList).toContain('nav--hidden');
-    });
-    it('на /checkout с query — тоже скрыта', async () => {
-      expect((await at('/checkout?x=1')).classList).toContain('nav--hidden');
-    });
-    it.each(['/cart', '/checkout-help'])('на %s навигация видна', async (url) => {
-      expect((await at(url)).classList).not.toContain('nav--hidden');
+    // Нижней панели, как и в прототипе, нет: навигация живёт в шапке и не перекрывает кнопку «Заказать»
+    it.each(['/checkout', '/checkout?x=1', '/cart'])('на %s навигация стоит в шапке', async (url) => {
+      const el = await at(url);
+      const nav = el.querySelector('header nav')!;
+      expect(nav).not.toBeNull();
+      expect(nav.querySelector('a[href="/cart"]')).not.toBeNull();
+      expect(el.querySelectorAll('nav').length).toBe(1);
     });
   });
 });

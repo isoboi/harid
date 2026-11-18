@@ -48,3 +48,11 @@ export function slotWithDate(slot: string, createdAt: string): string {
   const day = new Date(Date.UTC(p.y, p.m - 1, p.day + (m[1] === 'Завтра' ? 1 : 0)));
   return `${day.getUTCDate()} ${MONTHS_GENITIVE[day.getUTCMonth()]}${m[2]}`;
 }
+
+/** Дата по Душанбе без года: «2 марта». Пустая строка, если дата не разобралась. */
+export function dayMonth(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = dushanbeParts(d);
+  return `${p.day} ${MONTHS_GENITIVE[p.m - 1]}`;
+}
