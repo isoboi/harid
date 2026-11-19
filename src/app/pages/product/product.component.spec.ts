@@ -94,6 +94,19 @@ describe('ProductComponent', () => {
     expect(el.querySelector('details')).toBeNull();
     expect(el.textContent).not.toContain('Описание из Instagram');
   });
+  it('товар из Instagram — «Пост в Instagram» открывает исходный пост в новой вкладке', async () => {
+    const f = await render(prod({ permalink: 'https://www.instagram.com/p/Df4MU6pzP1g/' }));
+    const a = (f.nativeElement as HTMLElement).querySelector('[data-test="ig-post"]') as HTMLAnchorElement;
+    expect(a).not.toBeNull();
+    expect(a.getAttribute('href')).toBe('https://www.instagram.com/p/Df4MU6pzP1g/');
+    expect(a.target).toBe('_blank');
+    expect(a.rel).toContain('noopener');
+    expect(a.textContent).toContain('Пост в Instagram');
+  });
+  it.each([undefined, null, '', 'https://example.com/p/1/', 'javascript:alert(1)'])('ссылки на пост Instagram нет (%j) — и блока нет', async (permalink) => {
+    const f = await render(prod({ permalink }));
+    expect((f.nativeElement as HTMLElement).querySelector('[data-test="ig-post"]')).toBeNull();
+  });
   it('несколько вариантов — кнопка недоступна до выбора', async () => {
     const f = await render(prod({ sizes: ['128 ГБ', '256 ГБ'] }));
     const btn: HTMLButtonElement = f.nativeElement.querySelector('[data-test="add"]');

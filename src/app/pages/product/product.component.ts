@@ -104,6 +104,10 @@ export function buyBarVisible(e: ButtonView): boolean {
             @if (p.description.trim()) {
               <details class="desc"><summary>Описание из Instagram</summary><p>{{ p.description }}</p></details>
             }
+            <!-- Товар импортирован из поста — покупатель может открыть исходный пост -->
+            @if (igPost()) {
+              <a class="ig-post" data-test="ig-post" [href]="igPost()" target="_blank" rel="noopener nofollow"><app-icon name="instagram" [size]="20" /><span>Пост в Instagram</span></a>
+            }
           </div>
         </div>
         <!-- Телефон: цена и кнопка у нижнего края, над панелью вкладок; появляется, когда основная кнопка ушла вверх -->
@@ -176,6 +180,10 @@ export function buyBarVisible(e: ButtonView): boolean {
     .desc summary { padding: 12px 0; cursor: pointer; font-size: 15px; font-weight: 600; line-height: 20px }
     .desc summary:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 2px; border-radius: 6px }
     .desc p { margin-top: 4px; max-width: 60ch; white-space: pre-line; font-size: 16px; line-height: 1.625; overflow-wrap: anywhere }
+    /* Ссылка на исходный пост: вторичная, под описанием; 44px по высоте — цель нажатия */
+    .ig-post { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 12px; font-size: 15px; font-weight: 600; color: var(--color-lapis) }
+    .ig-post:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 2px; border-radius: 6px }
+    @media (hover: hover) { .ig-post:hover span { text-decoration: underline; text-underline-offset: 2px } }
     .more { margin-top: 80px }
     .more h2 { margin-bottom: 20px }
     @media (hover: hover) { .more h2 a:hover { text-decoration: underline } }
@@ -211,6 +219,11 @@ export class ProductComponent {
   readonly current = computed(() => this.photos()[this.photo()] ?? '');
   /** Видео товара — последний слайд галереи, после всех фото. */
   readonly video = computed(() => this.product()?.video || '');
+  /** Ссылка на исходный пост; наружу ведём только на сам Instagram. */
+  readonly igPost = computed(() => {
+    const url = this.product()?.permalink ?? '';
+    return /^https:\/\/(www\.)?instagram\.com\//.test(url) ? url : '';
+  });
   readonly videoOn = computed(() => !!this.video() && this.photo() === this.photos().length);
   readonly canAdd = computed(() => { const p = this.product(); return !!p && p.in_stock && (p.sizes.length <= 1 || !!this.size()); });
   readonly addLabel = computed(() => (!this.product()?.in_stock ? 'Нет в наличии' : this.added() ? 'Добавлено в корзину' : 'Добавить в корзину'));
