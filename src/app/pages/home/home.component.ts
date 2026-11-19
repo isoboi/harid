@@ -26,7 +26,7 @@ const CASH_STEPS = [
       <app-shop-strip [shops]="shops()" />
       <section class="hero" [class.solo]="!collage().length">
         <div>
-          <h1 class="hero-title">Покупайте в Instagram-магазинах Душанбе без предоплаты на чужую карту</h1>
+          <h1 class="hero-title">Покупайте в Instagram-магазинах Таджикистана без предоплаты на чужую карту</h1>
           <p class="hero-lead">{{ shops().length }} {{ plural(shops().length, shopForms) }} уже здесь. Платите наличными курьеру, когда заказ у вас в руках.</p>
           <div class="cta"><a class="btn" href="#fresh">Смотреть товары</a><a class="btn btn--ghost" routerLink="/sell">У меня Instagram-магазин</a></div>
         </div>
