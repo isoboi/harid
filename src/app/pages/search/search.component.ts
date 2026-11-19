@@ -32,7 +32,7 @@ export class SearchComponent {
     const seo = inject(SeoService);
     effect((onCleanup) => {
       const q = this.q();
-      seo.set({ title: q ? `«${q}» — поиск на Хариде` : 'Поиск — Харид', description: 'Поиск по товарам Instagram-лавок Душанбе' });
+      seo.set({ title: q ? `«${q}» — поиск на Хариде` : 'Поиск — Харид', description: 'Поиск по товарам Instagram-лавок Таджикистана' });
       if (!q) return this.products.set([]);
       const sub = untracked(() => this.api.products({ q }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p)));
       onCleanup(() => sub.unsubscribe());

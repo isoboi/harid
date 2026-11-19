@@ -12,7 +12,7 @@ import { LogoComponent } from './logo.component';
       <div class="wrap cols">
         <div class="about">
           <app-logo class="logo" />
-          <p class="pitch">Instagram-магазины Душанбе в одном месте. Платите наличными курьеру, когда заказ у вас в руках.</p>
+          <p class="pitch">Instagram-магазины Таджикистана в одном месте. Платите наличными курьеру, когда заказ у вас в руках.</p>
         </div>
         <div>
           <h2 class="h">Покупателям</h2>
@@ -31,7 +31,7 @@ import { LogoComponent } from './logo.component';
         </div>
       </div>
       <div class="bottom">
-        <p class="wrap legal">© {{ year }} Харид, Душанбе. Instagram — товарный знак Meta Platforms, Inc.</p>
+        <p class="wrap legal">© {{ year }} Харид, Таджикистан. Instagram — товарный знак Meta Platforms, Inc.</p>
       </div>
     </footer>
   `,

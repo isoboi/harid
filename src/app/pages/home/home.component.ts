@@ -123,6 +123,6 @@ export class HomeComponent {
   /** Для коллажа в первом экране — первые три товара с фото. */
   readonly collage = computed(() => this.products().filter((p) => !!p.image).slice(0, 3));
   constructor() {
-    inject(SeoService).set({ title: 'Харид — Instagram-магазины Душанбе', description: 'Товары Instagram-лавок Душанбе с оплатой наличными курьеру.' });
+    inject(SeoService).set({ title: 'Харид — Instagram-магазины Таджикистана', description: 'Товары Instagram-лавок Таджикистана с оплатой наличными курьеру.' });
   }
 }
