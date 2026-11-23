@@ -45,21 +45,40 @@ async function getJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** Предел API на один запрос товаров (ProductListDto: limit ≤ 100, постраничной выдачи нет). */
+const PRODUCTS_PER_REQUEST = 100;
+
+/**
+ * Все товары: общий список и отдельно по каждой лавке — так в sitemap попадает до 100 товаров каждой лавки,
+ * а не только сотня самых свежих на весь сайт. Лавки опрашиваем по пять за раз, чтобы не заваливать API.
+ * complete=false — часть запросов не удалась, результат неполный.
+ */
+async function loadProducts(shops: Shop[]): Promise<{ products: Product[]; complete: boolean }> {
+  const byId = new Map<string, Product>();
+  let complete = true;
+  const add = (list: Product[]) => list.forEach((p) => byId.set(String(p.id), p));
+  try { add(await getJson<Product[]>(`products?limit=${PRODUCTS_PER_REQUEST}`)); } catch { complete = false; }
+  for (let i = 0; i < shops.length; i += 5) {
+    const results = await Promise.allSettled(
+      shops.slice(i, i + 5).map((s) => getJson<Product[]>(`products?shop=${encodeURIComponent(s.handle)}&limit=${PRODUCTS_PER_REQUEST}`)),
+    );
+    for (const r of results) { if (r.status === 'fulfilled') add(r.value); else complete = false; }
+  }
+  return { products: [...byId.values()], complete };
+}
+
 /** null — API недоступен целиком; частичный ответ (например, не отдались товары) отдаём, но не кэшируем. */
 async function loadSitemapData(): Promise<SitemapData | null> {
-  const [categories, shops, products] = await Promise.allSettled([
-    getJson<Category[]>('categories'),
-    getJson<Shop[]>('shops'),
-    // Большой лимит — чтобы в sitemap попали все товары; если бэкенд лимит не принимает, берём ответ по умолчанию
-    getJson<Product[]>('products?limit=1000').catch(() => getJson<Product[]>('products')),
-  ]);
-  if (categories.status === 'rejected' && shops.status === 'rejected' && products.status === 'rejected') return null;
+  const [categories, shops] = await Promise.allSettled([getJson<Category[]>('categories'), getJson<Shop[]>('shops')]);
+  const shopList = shops.status === 'fulfilled' ? shops.value : [];
+  const { products, complete } = await loadProducts(shopList);
+  if (categories.status === 'rejected' && shops.status === 'rejected' && products.length === 0) return null;
   const data: SitemapData = {
     categories: categories.status === 'fulfilled' ? categories.value : [],
-    shops: shops.status === 'fulfilled' ? shops.value : [],
-    products: products.status === 'fulfilled' ? products.value : [],
+    shops: shopList,
+    products,
   };
-  if (categories.status === 'fulfilled' && shops.status === 'fulfilled' && products.status === 'fulfilled') sitemapCache = { at: Date.now(), data };
+  if (categories.status === 'fulfilled' && shops.status === 'fulfilled' && complete) sitemapCache = { at: Date.now(), data };
   return data;
 }
 
