@@ -17,6 +17,8 @@ import { ProductCardComponent } from '../../shared/product-card.component';
 import { ratingLabel, ratingNumber } from '../../shared/rating';
 import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
+import { ReelAction, ReelViewerComponent } from '../../shared/reel-viewer.component';
+import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
 const money = new MoneyPipe();
@@ -41,7 +43,7 @@ export function buyBarVisible(e: ButtonView): boolean {
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent],
+  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -50,7 +52,8 @@ export function buyBarVisible(e: ButtonView): boolean {
         <div class="layout">
           <div class="gallery">
             <div class="main" [class.video]="videoOn()">
-              @if (videoOn()) { <video data-test="video" [src]="video()" [poster]="photos()[0] || ''" controls playsinline preload="none" [attr.aria-label]="'Видео: ' + p.title"></video> }
+              <!-- Человек сам выбрал слайд с видео — играем сразу, без второго нажатия -->
+              @if (videoOn()) { <app-video-player [src]="video()" [poster]="photos()[0] || ''" [label]="'Видео: ' + p.title" [autoplay]="true" [expandable]="true" [hold]="reel()" (expand)="reel.set(true)" /> }
               @else if (current()) { <img [src]="current()" [alt]="p.title" /> }
               @else { <span class="muted">Нет фото</span> }
             </div>
@@ -132,6 +135,9 @@ export function buyBarVisible(e: ButtonView): boolean {
           @else if (added()) { <a class="btn bar-btn" routerLink="/cart">Перейти в корзину</a> }
           @else { <button type="button" class="btn bar-btn" (click)="barAdd(p)">Добавить в корзину</button> }
         </div>
+        @if (reel()) {
+          <app-reel-viewer [product]="p" [shop]="shop()" [favorite]="fav.has(p.id)" [action]="reelAction()" (closed)="reel.set(false)" (act)="reelAct(p)" (toggleFavorite)="fav.toggle(p.id)" (liked)="like(p)" />
+        }
         <app-reviews class="reviews" [reviews]="reviews()" [rating]="p.rating ?? null" [count]="p.reviews_count ?? 0" [product]="p.id" />
         @if (more().length) {
           <section class="more">
@@ -154,7 +160,7 @@ export function buyBarVisible(e: ButtonView): boolean {
     .thumbs button.on { border-color: var(--color-ink) }
     .thumbs img { width: 100%; height: 100%; object-fit: cover }
     .main.video { background: var(--color-ink) }
-    .main video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain }
+    .main app-video-player { position: absolute; inset: 0 }
     .thumbs .play { position: relative; display: grid; place-items: center; color: #fff }
     .thumbs .play img { position: absolute; inset: 0; filter: brightness(.6) }
     .thumbs .play svg { position: relative; width: 26px; height: 26px }
@@ -223,6 +229,8 @@ export class ProductComponent {
   readonly more = signal<Product[]>([]);
   readonly missing = signal(false);
   readonly photo = signal(0);
+  /** Открыт вертикальный просмотр видео (как в Instagram) поверх страницы. */
+  readonly reel = signal(false);
   readonly size = signal<string | null>(null);
   readonly added = signal(false);
   /** Корзина упёрлась в лимит строк бэкенда. */
@@ -247,6 +255,15 @@ export class ProductComponent {
   readonly copied = signal(false);
   readonly videoOn = computed(() => !!this.video() && this.photo() === this.photos().length);
   readonly canAdd = computed(() => { const p = this.product(); return !!p && !directOnly(p) && p.in_stock && (p.sizes.length <= 1 || !!this.size()); });
+  /** Главная кнопка под видео в вертикальном просмотре — та же логика, что у кнопок страницы. */
+  readonly reelAction = computed<ReelAction>(() => {
+    const p = this.product();
+    if (!p) return { label: '' };
+    if (this.direct()) return { label: 'Написать в Direct', href: this.directUrl() };
+    if (!p.in_stock) return { label: 'Нет в наличии', disabled: true };
+    if (this.added()) return { label: 'Перейти в корзину', link: '/cart' };
+    return { label: p.sizes.length > 1 && !this.size() ? 'Выбрать размер' : 'Добавить в корзину' };
+  });
   readonly addLabel = computed(() => (!this.product()?.in_stock ? 'Нет в наличии' : this.added() ? 'Добавлено в корзину' : 'Добавить в корзину'));
   /** Цены доставки из той же deliveryFor, что считает итог на оформлении. */
   readonly deliveryCity = money.transform(deliveryFor(DISTRICTS[0]));
@@ -263,7 +280,7 @@ export class ProductComponent {
   constructor() {
     effect((onCleanup) => {
       const id = this.id();
-      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false); this.copied.set(false);
+      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false); this.copied.set(false); this.reel.set(false);
       this.product.set(null); this.more.set([]); this.shop.set(null); this.reviews.set(null);
       const nested: { unsubscribe(): void }[] = [];
       const sub = untracked(() => this.api.product(id).subscribe({
@@ -315,6 +332,19 @@ export class ProductComponent {
     const post = this.igPost();
     if (!this.browser || !post || !navigator.clipboard?.writeText) return;
     navigator.clipboard.writeText(post).then(() => this.copied.set(true), () => undefined);
+  }
+
+  /** Кнопка вертикального просмотра: Direct копирует пост; в корзину кладём; не выбран размер — закрываем и ведём к выбору. */
+  reelAct(p: Product): void {
+    if (this.direct()) { this.copyPost(); return; }
+    if (this.canAdd()) { this.add(p); return; }
+    this.reel.set(false);
+    this.barAdd(p);
+  }
+
+  /** Двойной тап в просмотре только добавляет в избранное, как «лайк» в Instagram: повторный тап не убирает. */
+  like(p: Product): void {
+    if (!this.fav.has(p.id)) this.fav.toggle(p.id);
   }
 
   add(p: Product): void {

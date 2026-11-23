@@ -10,16 +10,16 @@ describe('IconComponent', () => {
     return f.nativeElement as HTMLElement;
   }
 
-  for (const name of ['search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check', 'truck', 'shield-check', 'star', 'map-pin', 'x', 'minus', 'plus', 'instagram']) {
+  for (const name of ['search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check', 'truck', 'shield-check', 'star', 'map-pin', 'x', 'minus', 'plus', 'instagram', 'play', 'pause', 'volume-2', 'volume-x', 'maximize', 'minimize', 'rotate-ccw', 'smartphone']) {
     it(`иконка «${name}» рисует svg с фигурами`, async () => {
       const el = await render(name);
       const svg = el.querySelector('svg');
       expect(svg).not.toBeNull();
       expect(svg?.getAttribute('aria-hidden')).toBe('true');
       expect(svg?.getAttribute('viewBox')).toBe('0 0 24 24');
-      expect(svg?.querySelector('path, circle')).not.toBeNull();
+      expect(svg?.querySelector('path, circle, rect')).not.toBeNull();
       // элементы должны быть в SVG-пространстве имён, иначе браузер их не отрисует
-      expect(svg?.querySelector('path, circle')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
+      expect(svg?.querySelector('path, circle, rect')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
     });
   }
 
