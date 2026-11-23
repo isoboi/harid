@@ -10,6 +10,10 @@ export const serverRoutes: ServerRoute[] = [
   { path: 'login', renderMode: RenderMode.Client },
   { path: 'me/orders', renderMode: RenderMode.Client },
   { path: 'favorites', renderMode: RenderMode.Client },
+  // Чат — личный раздел покупателя: рендерится в браузере
+  { path: 'chats', renderMode: RenderMode.Client },
+  { path: 'chats/new', renderMode: RenderMode.Client },
+  { path: 'chats/:id', renderMode: RenderMode.Client },
   { path: 'sell', renderMode: RenderMode.Client },
   { path: '**', renderMode: RenderMode.Server },
 ];

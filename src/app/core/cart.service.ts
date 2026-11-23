@@ -35,7 +35,7 @@ export class CartService {
   readonly groups = computed<CartGroup[]>(() => {
     const map = new Map<string, CartItem[]>();
     for (const i of this.state()) map.set(i.product.shop_handle, [...(map.get(i.product.shop_handle) ?? []), i]);
-    return [...map].map(([shop_handle, items]) => ({ shop_handle, items, subtotal: items.reduce((s, i) => s + i.product.price * i.qty, 0) }));
+    return [...map].map(([shop_handle, items]) => ({ shop_handle, items, subtotal: items.reduce((s, i) => s + (i.product.price ?? 0) * i.qty, 0) }));
   });
   readonly itemsTotal = computed(() => this.groups().reduce((s, g) => s + g.subtotal, 0));
 
@@ -48,8 +48,12 @@ export class CartService {
     this.readyState.set(true);
   }
 
-  /** false — корзина уже на лимите строк, новая не добавлена. Количество строки режется до MAX_QTY. */
+  /**
+   * false — корзина уже на лимите строк, новая не добавлена. Количество строки режется до MAX_QTY.
+   * Товар без цены (лавка в Direct) в корзину не попадает: бэкенд такой заказ всё равно отклонит.
+   */
   add(product: Product, size: string | null, qty = 1): boolean {
+    if (product.price === null) return false;
     this.hydrate();
     const list = this.state();
     const exists = list.some((i) => same(i, product.id, size));

@@ -11,9 +11,11 @@ const ORDER_ONE = /\/market\/orders\/[^/?#]+$/;
 const REVIEWS = /\/market\/reviews$/;
 /** Возврат запрашивает и отменяет только покупатель: POST /market/returns и /market/returns/<id>/cancel. */
 const RETURNS = /\/market\/returns(\/\d+\/cancel)?$/;
+/** Чат с лавками — только для вошедшего покупателя, любой метод. */
+const CHATS = /\/market\/chats(\/|$|\?)/;
 /** GET /market/me/reviewable, /me/returnable и /me/returns покрыты ME. */
 const needsToken = (url: string, method: string) =>
-  ME.test(url) || (method === 'POST' && (ORDERS.test(url) || REVIEWS.test(url) || RETURNS.test(url))) || (method === 'GET' && ORDER_ONE.test(url));
+  ME.test(url) || CHATS.test(url) || (method === 'POST' && (ORDERS.test(url) || REVIEWS.test(url) || RETURNS.test(url))) || (method === 'GET' && ORDER_ONE.test(url));
 
 /** Bearer покупателя для личных запросов; 401 на /me при отправленном токене — выход. */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
@@ -22,7 +24,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const sent = !!token && needsToken(req.url, req.method);
   const r = sent ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;
   return next(r).pipe(catchError((e: unknown) => {
-    if (sent && e instanceof HttpErrorResponse && e.status === 401 && ME.test(req.url)) auth.logout();
+    if (sent && e instanceof HttpErrorResponse && e.status === 401 && (ME.test(req.url) || CHATS.test(req.url))) auth.logout();
     return throwError(() => e);
   }));
 };

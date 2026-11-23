@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Buyer, Category, CreateOrderInput, MarketReturn, Order, Product, ProductQuery, ReturnableOrder, ReturnInput, Review, Reviewable, ReviewInput, ReviewQuery, Shop, VerifyResult } from './models';
+import { Buyer, Category, CreateOrderInput, MarketReturn, Order, Product, ProductQuery, ReturnableOrder, ReturnInput, Review, Reviewable, ReviewInput, ReviewQuery, ReviewSummary, Shop, VerifyResult } from './models';
 
 /** Все вызовы публичного API витрины /market/*. */
 @Injectable({ providedIn: 'root' })
@@ -35,7 +35,16 @@ export class MarketApi {
     const params: Record<string, string> = {};
     if (q.product) params['product'] = q.product;
     if (q.shop) params['shop'] = q.shop;
+    if (q.rating) params['rating'] = String(q.rating);
+    if (q.with_text) params['with_text'] = 'true';
     return this.http.get<Review[]>(`${this.base}/reviews`, { params });
+  }
+  /** Сводка по товару или лавке: средняя, число, распределение 5★…1★. */
+  reviewSummary(q: Pick<ReviewQuery, 'product' | 'shop'>): Observable<ReviewSummary> {
+    const params: Record<string, string> = {};
+    if (q.product) params['product'] = q.product;
+    if (q.shop) params['shop'] = q.shop;
+    return this.http.get<ReviewSummary>(`${this.base}/reviews/summary`, { params });
   }
   /** Полученные покупки, которые можно оценить (Bearer). */
   reviewable(): Observable<Reviewable[]> { return this.http.get<Reviewable[]>(`${this.base}/me/reviewable`); }

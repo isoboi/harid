@@ -28,6 +28,16 @@ describe('ProductCardComponent', () => {
     expect(r?.textContent?.trim()).toBe(text);
     expect(r?.querySelector('svg')).not.toBeNull();
   });
+  it('неподключённая лавка — без ценника, «Заказ в Instagram Direct» вместо оплаты при получении', async () => {
+    await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
+    const f = TestBed.createComponent(ProductCardComponent);
+    f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: null, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '', shop_verified: false });
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('.price-tag')).toBeNull();
+    expect(el.textContent).not.toContain('смн');
+    expect(el.querySelector('[data-test="cod"]')?.textContent?.trim()).toBe('Заказ в Instagram Direct');
+  });
   it('0 отзывов — оценки не видно', async () => {
     await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
     const f = TestBed.createComponent(ProductCardComponent);

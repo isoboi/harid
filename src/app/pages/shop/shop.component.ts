@@ -54,7 +54,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
             @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
             @else { <p class="muted">Пока пусто</p> }
           </section>
-          <app-reviews class="reviews" [reviews]="reviews()" [rating]="s.rating" [count]="s.reviews_count ?? 0" [showProduct]="true" />
+          <app-reviews class="reviews" [reviews]="reviews()" [rating]="s.rating" [count]="s.reviews_count ?? 0" [showProduct]="true" [shop]="s.handle" />
         </div>
       } @else {
         <!-- Заглушка загрузки, как в прототипе: кружок-строки и сетка серых квадратов -->

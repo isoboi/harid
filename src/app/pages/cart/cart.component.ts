@@ -59,7 +59,7 @@ const UNDO_MS = 6000;
                             <span class="n">{{ i.qty }}</span>
                             <button type="button" [disabled]="i.qty >= maxQty" (click)="changeQty(i, i.qty + 1)" aria-label="Больше"><app-icon name="plus" [size]="16" /></button>
                           </div>
-                          <span class="sum">{{ i.product.price * i.qty | money }}</span>
+                          <span class="sum">{{ (i.product.price ?? 0) * i.qty | money }}</span>
                         </div>
                       </div>
                     </li>

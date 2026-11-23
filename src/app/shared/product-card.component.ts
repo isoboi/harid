@@ -1,5 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { directOnly } from '../core/direct';
 import { FavoritesService } from '../core/favorites.service';
 import { Product } from '../core/models';
 import { IconComponent } from './icon.component';
@@ -25,7 +26,7 @@ import { ratingLabel } from './rating';
         <h3 class="title">{{ p.title }}</h3>
         <p class="shop">&#64;{{ p.shop_handle }}</p>
         @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="12" [filled]="true" />{{ ratingText() }}</p> }
-        <p class="cod" data-test="cod">Оплата при получении</p>
+        <p class="cod" data-test="cod">{{ direct() ? 'Заказ в Instagram Direct' : 'Оплата при получении' }}</p>
       </a>
       <button type="button" class="fav" [class.on]="faved()" [attr.aria-pressed]="faved()" [attr.aria-label]="favLabel()" (click)="fav.toggle(p.id)">
         <span class="fav-dot"><app-icon name="heart" [size]="18" [filled]="faved()" /></span>
@@ -63,6 +64,8 @@ export class ProductCardComponent {
   readonly fav = inject(FavoritesService);
   /** «4,8 · 12 отзывов»; без отзывов — пусто, строку не выводим. */
   protected readonly ratingText = computed(() => ratingLabel(this.product().rating, this.product().reviews_count));
+  /** Неподключённая лавка: вместо оплаты курьеру — заказ в Instagram Direct. */
+  protected readonly direct = computed(() => directOnly(this.product()));
   protected readonly faved =computed(() => this.fav.ids().includes(this.product().id));
   protected readonly favLabel = computed(() => {
     const t = this.product().title;

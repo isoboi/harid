@@ -18,6 +18,10 @@ describe('CartService', () => {
     expect(cart.items().map((i) => [i.size, i.qty])).toEqual([['S', 3], ['M', 1]]);
     expect(cart.count()).toBe(4);
   });
+  it('товар без цены (лавка в Direct) в корзину не добавляется', () => {
+    expect(cart.add({ ...p('1', 'a', 0), price: null, shop_verified: false }, null)).toBe(false);
+    expect(cart.items()).toEqual([]);
+  });
   it('группы по лавкам, итог товаров и доставка за каждую лавку', () => {
     cart.add(p('1', 'a', 100), null, 2);
     cart.add(p('2', 'b', 50), null);

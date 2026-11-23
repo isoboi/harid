@@ -38,9 +38,20 @@ describe('authInterceptor', () => {
     http.get('http://x/api/market/me/returnable').subscribe();
     expect(ctl.expectOne('http://x/api/market/me/returnable').request.headers.get('Authorization')).toBe('Bearer tok');
   });
+  it('чаты: токен на любой метод /market/chats, 401 — выход', () => {
+    http.get('http://x/api/market/chats').subscribe({ error: () => undefined });
+    const get = ctl.expectOne('http://x/api/market/chats');
+    expect(get.request.headers.get('Authorization')).toBe('Bearer tok');
+    http.post('http://x/api/market/chats/10/messages', { text: 'x' }).subscribe();
+    expect(ctl.expectOne('http://x/api/market/chats/10/messages').request.headers.get('Authorization')).toBe('Bearer tok');
+    get.flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(auth.loggedIn()).toBe(false);
+  });
   it('без Bearer к публичному списку отзывов (GET /market/reviews)', () => {
     http.get('http://x/api/market/reviews?product=16').subscribe();
     expect(ctl.expectOne('http://x/api/market/reviews?product=16').request.headers.has('Authorization')).toBe(false);
+    http.get('http://x/api/market/reviews/summary?product=16').subscribe();
+    expect(ctl.expectOne('http://x/api/market/reviews/summary?product=16').request.headers.has('Authorization')).toBe(false);
   });
   it('без Bearer к списку заказов и каталогу', () => {
     http.get('http://x/api/market/orders').subscribe();

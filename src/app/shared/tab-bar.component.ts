@@ -6,15 +6,22 @@ import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
 import { IconComponent } from './icon.component';
 
+/** Открытая переписка: /chats/<id> (не список и не /chats/new). */
+export function isChatThread(path: string): boolean {
+  return /^\/chats\/\d+$/.test(path);
+}
+
 /** Путь без query и якоря: «/checkout?x=1» → «/checkout». */
 export function pathOf(url: string): string {
   return url.split(/[?#]/)[0] || '/';
 }
 
 /**
- * Нижняя панель навигации для телефона: пять вкладок в зоне большого пальца.
+ * Нижняя панель навигации для телефона: пять вкладок в зоне большого пальца. «Сообщения» — не вкладка,
+ * а значок в шапке (как личные сообщения в Instagram): шестая вкладка делала подписи нечитаемыми.
  * Разметка рендерится всегда (сервер и первый кадр клиента совпадают), показывают её только стили до 640px.
- * На /checkout панели нет совсем — кнопка «Заказать» ничем не перекрыта. Пока открыта клавиатура
+ * На /checkout и в открытой переписке (/chats/:id) панели нет совсем — снизу кнопка «Заказать»
+ * или поле сообщения, их ничто не перекрывает. Пока открыта клавиатура
  * (фокус в поле ввода), панель прячет глобальное правило в styles.scss.
  */
 @Component({
@@ -56,7 +63,7 @@ export function pathOf(url: string): string {
     .tabbar { display: none }
     @media (max-width: 640px) {
       /* Белая панель с волосяной линией сверху; высота 60px плюс полоса «домой» у iPhone */
-      .tabbar { position: fixed; inset: auto 0 0; z-index: 40; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding: 0 max(4px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(4px, env(safe-area-inset-left)); border-top: 1px solid var(--color-line); background: var(--color-paper) }
+      .tabbar { position: fixed; inset: auto 0 0; z-index: 40; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding: 0 max(4px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(4px, env(safe-area-inset-left)); border-top: 1px solid var(--color-line); background: var(--color-paper) }
     }
     .tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; height: var(--tabbar-h); border-radius: 10px; color: var(--color-ink-soft) }
     .tab:focus-visible { outline-offset: -4px }
@@ -80,7 +87,7 @@ export class TabBarComponent {
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => pathOf(e.urlAfterRedirects))),
     { initialValue: pathOf(this.router.url) },
   );
-  readonly onCheckout = computed(() => this.path() === '/checkout');
+  readonly onCheckout = computed(() => this.path() === '/checkout' || isChatThread(this.path()));
   readonly catalogActive = computed(() => { const p = this.path(); return p === '/catalog' || p.startsWith('/c/'); });
   /** Больше 99 в бейдж не помещается — «99+». */
   readonly badge = computed(() => { const n = this.cart.count(); return n > 99 ? '99+' : String(n); });

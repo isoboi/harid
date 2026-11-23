@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { provideRouter, Router } from '@angular/router';
-import { TabBarComponent, pathOf } from './tab-bar.component';
+import { TabBarComponent, isChatThread, pathOf } from './tab-bar.component';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
 import { Product } from '../core/models';
@@ -52,13 +52,25 @@ describe('TabBarComponent', () => {
     expect(root.querySelector(`a[href="${href}"]`)?.getAttribute('aria-current')).toBe('page');
   });
 
-  it('вошедшему — «Заказы» на /me/orders вместо «Войти»', async () => {
+  it('вошедшему — «Заказы» на /me/orders вместо «Войти»; вкладок по-прежнему пять', async () => {
     const f = await at('/');
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
     f.detectChanges();
     expect(labels(el(f))).toEqual(['Главная', 'Каталог', 'Избранное', 'Корзина', 'Заказы']);
     expect(el(f).querySelector('a[href="/me/orders"]')).not.toBeNull();
     expect(el(f).querySelector('a[href="/login"]')).toBeNull();
+    // «Сообщения» — значок в шапке, не вкладка
+    expect(el(f).querySelector('a[href="/chats"]')).toBeNull();
+  });
+
+  it('в открытой переписке панели нет — снизу поле сообщения', async () => {
+    expect(el(await at('/chats/5')).querySelector('.tabbar')).toBeNull();
+  });
+
+  it('isChatThread: только /chats/<id>', () => {
+    expect(isChatThread('/chats/12')).toBe(true);
+    expect(isChatThread('/chats')).toBe(false);
+    expect(isChatThread('/chats/new')).toBe(false);
   });
 
   it('бейдж корзины: число, «99+» и подпись для скринридера', async () => {

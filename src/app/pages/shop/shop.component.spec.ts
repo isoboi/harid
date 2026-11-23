@@ -12,7 +12,7 @@ const SHOP = (over: Partial<Shop> = {}): Shop => ({
 const REVIEW: Review = { id: 1, product_id: '16', product_title: 'Платье макси', shop_handle: 'zebo.style', author: 'Мехрона', rating: 5, text: 'Тёплый', created_at: '2026-10-19T09:00:00Z' };
 
 async function render(shop: Shop, reviews: Review[]) {
-  const api = { shop: jest.fn(() => of(shop)), products: jest.fn(() => of([])), reviews: jest.fn(() => of(reviews)) };
+  const api = { shop: jest.fn(() => of(shop)), products: jest.fn(() => of([])), reviews: jest.fn(() => of(reviews)), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])) };
   await TestBed.configureTestingModule({ imports: [ShopComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
   const f = TestBed.createComponent(ShopComponent);
   f.componentRef.setInput('handle', shop.handle);

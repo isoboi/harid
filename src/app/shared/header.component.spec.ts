@@ -1,18 +1,20 @@
 import { TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { provideRouter, Router } from '@angular/router';
 import { HeaderComponent } from './header.component';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
+import { ChatSocket } from '../core/chat-socket.service';
 import { Product } from '../core/models';
 
 const item = (id: string): Product => ({ id, shop_handle: 'a', title: 'T' + id, price: 10, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
 
 describe('HeaderComponent', () => {
-  beforeEach(() => localStorage.clear());
+  const unread = signal(0);
+  beforeEach(() => { localStorage.clear(); unread.set(0); });
 
   async function setup() {
-    await TestBed.configureTestingModule({ imports: [HeaderComponent], providers: [provideRouter([])] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [HeaderComponent], providers: [provideRouter([]), { provide: ChatSocket, useValue: { unreadTotal: unread } }] }).compileComponents();
     const f = TestBed.createComponent(HeaderComponent);
     f.detectChanges();
     return f;
@@ -29,10 +31,30 @@ describe('HeaderComponent', () => {
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
     f.detectChanges();
     const el: HTMLElement = f.nativeElement;
-    expect(labels(el)).toEqual(['Продавцам', 'Избранное', 'Мои заказы', 'Корзина']);
+    expect(labels(el)).toEqual(['Продавцам', 'Избранное', 'Сообщения', 'Мои заказы', 'Корзина']);
     // путь «M12 22V12» есть только у иконки package
     expect(el.querySelector('a[href="/me/orders"] svg path[d="M12 22V12"]')).not.toBeNull();
     expect(f.componentInstance.ordersIcon()).toBe('package');
+  });
+
+  it('«Сообщения» только у вошедшего; бейдж — число непрочитанных', async () => {
+    const f = await setup();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('a[href="/chats"]')).toBeNull();
+    TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
+    unread.set(3);
+    f.detectChanges();
+    expect(el.querySelector('.nav a[href="/chats"]')?.textContent).toContain('Сообщения');
+    expect(el.querySelector('[data-test="chat-badge"]')?.textContent?.trim()).toBe('3');
+    // Телефон: значок «как в Instagram» рядом с логотипом, со своим счётчиком
+    const dm = el.querySelector('[data-test="dm-link"]');
+    expect(dm?.getAttribute('href')).toBe('/chats');
+    expect(dm?.getAttribute('aria-label')).toBe('Сообщения, непрочитанных: 3');
+    expect(dm?.querySelector('.dm-badge')?.textContent?.trim()).toBe('3');
+    unread.set(0);
+    f.detectChanges();
+    expect(el.querySelector('[data-test="chat-badge"]')).toBeNull();
+    expect(el.querySelector('.dm-badge')).toBeNull();
   });
 
   it('гостю — «Войти» с иконкой пользователя', async () => {
@@ -65,7 +87,7 @@ describe('HeaderComponent', () => {
   describe('навигация на оформлении заказа', () => {
     @Component({ standalone: true, template: '' }) class Blank {}
     async function at(url: string) {
-      await TestBed.configureTestingModule({ imports: [HeaderComponent], providers: [provideRouter([{ path: '**', component: Blank }])] }).compileComponents();
+      await TestBed.configureTestingModule({ imports: [HeaderComponent], providers: [provideRouter([{ path: '**', component: Blank }]), { provide: ChatSocket, useValue: { unreadTotal: unread } }] }).compileComponents();
       const f = TestBed.createComponent(HeaderComponent);
       await TestBed.inject(Router).navigateByUrl(url);
       f.detectChanges();

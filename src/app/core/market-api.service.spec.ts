@@ -71,6 +71,21 @@ describe('MarketApi', () => {
     expect(b.request.params.has('product')).toBe(false);
     b.flush([]);
   });
+  it('reviews: фильтры rating и with_text уходят на сервер', () => {
+    api.reviews({ product: '16', rating: 5, with_text: true }).subscribe();
+    const r = http.expectOne((req) => req.url === `${B}/reviews`);
+    expect(r.request.params.get('rating')).toBe('5');
+    expect(r.request.params.get('with_text')).toBe('true');
+    r.flush([]);
+  });
+  it('reviewSummary: GET /reviews/summary по лавке', () => {
+    api.reviewSummary({ shop: 'zebo.style' }).subscribe();
+    const r = http.expectOne((req) => req.url === `${B}/reviews/summary`);
+    expect(r.request.method).toBe('GET');
+    expect(r.request.params.get('shop')).toBe('zebo.style');
+    expect(r.request.params.has('product')).toBe(false);
+    r.flush({ rating: null, count: 0, distribution: { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 } });
+  });
   it('reviewable: GET /me/reviewable; postReview: POST /reviews с телом как есть', () => {
     api.reviewable().subscribe();
     expect(http.expectOne(`${B}/me/reviewable`).request.method).toBe('GET');

@@ -19,5 +19,9 @@ export const routes: Routes = [
   { path: 'me/orders', loadComponent: () => import('./pages/my-orders/my-orders.component').then((m) => m.MyOrdersComponent) },
   { path: 'favorites', loadComponent: () => import('./pages/favorites/favorites.component').then((m) => m.FavoritesComponent) },
   { path: 'sell', loadComponent: () => import('./pages/sell/sell.component').then((m) => m.SellComponent) },
+  { path: 'chats', loadComponent: () => import('./pages/chats/chats.component').then((m) => m.ChatsComponent) },
+  // «new» раньше «:id», иначе «new» разберётся как номер чата
+  { path: 'chats/new', loadComponent: () => import('./pages/chats/chat-new.component').then((m) => m.ChatNewComponent) },
+  { path: 'chats/:id', loadComponent: () => import('./pages/chats/chat-thread.component').then((m) => m.ChatThreadComponent) },
   { path: '**', component: NotFoundComponent },
 ];

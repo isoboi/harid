@@ -18,13 +18,17 @@ const MAX_TEXT = 1000;
   imports: [RouterLink, IconComponent, StarsComponent],
   template: `
     @let it = item();
-    <div class="item">
+    <div class="item" [class.item--compact]="compact()">
+      @if (!compact()) {
       <a class="thumb" [routerLink]="['/product', it.product_id]" tabindex="-1" aria-hidden="true">
         @if (it.image) { <img [src]="it.image" alt="" loading="lazy" /> }
       </a>
+      }
       <div class="body">
-        <a class="t" [routerLink]="['/product', it.product_id]">{{ it.product_title }}</a>
-        <p class="meta">&#64;{{ it.shop_handle }} · заказ {{ it.order_number }}</p>
+        @if (!compact()) {
+          <a class="t" [routerLink]="['/product', it.product_id]">{{ it.product_title }}</a>
+          <p class="meta">&#64;{{ it.shop_handle }} · заказ {{ it.order_number }}</p>
+        }
         @if (thanks()) { <p class="thanks" role="status">Спасибо за отзыв!</p> }
         @if (!editing() && it.review; as r) {
           <div class="done">
@@ -56,6 +60,8 @@ const MAX_TEXT = 1000;
   styles: `
     :host { display: block }
     .item { display: flex; gap: 16px; padding-block: 20px }
+    /* Внутри раздела отзывов товара: товар и заказ уже понятны из страницы */
+    .item--compact { padding-block: 4px 16px }
     .thumb { position: relative; flex: none; width: 72px; height: 72px; overflow: hidden; border-radius: 10px; background: var(--color-mist) }
     .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover }
     .body { flex: 1; min-width: 0 }
@@ -84,6 +90,8 @@ export class RateItemComponent {
   private static next = 0;
   private readonly api = inject(MarketApi);
   readonly item = input.required<Reviewable>();
+  /** Без превью товара и номера заказа — для страницы самого товара. */
+  readonly compact = input(false);
   /** Отзыв принят: родитель обновляет строку списка. */
   readonly saved = output<Reviewable>();
   protected readonly uid = ++RateItemComponent.next;

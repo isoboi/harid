@@ -2,5 +2,6 @@
 export const environment = {
   production: true,
   apiUrl: 'https://disti.site/api',
+  socketUrl: 'https://disti.site',
   cabinetUrl: 'https://admin.disti.site',
 };

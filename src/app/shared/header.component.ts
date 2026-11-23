@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
+import { ChatSocket } from '../core/chat-socket.service';
 import { HeaderScrollState, nextHeaderState } from './header-scroll';
 import { IconComponent } from './icon.component';
 import { LogoComponent } from './logo.component';
@@ -21,6 +22,13 @@ import { LogoComponent } from './logo.component';
     <header class="hdr" [class.hdr--up]="hidden()" (focusin)="onFocus(true)" (focusout)="onFocus(false)">
       <div class="wrap row">
         <app-logo />
+        <!-- Телефон: личные сообщения — значок справа от логотипа, как в Instagram; на широком экране он в .nav -->
+        @if (auth.loggedIn()) {
+          <a routerLink="/chats" class="dm" data-test="dm-link" [attr.aria-label]="chat.unreadTotal() ? 'Сообщения, непрочитанных: ' + chat.unreadTotal() : 'Сообщения'">
+            <app-icon name="message-circle" [size]="24" [stroke]="1.8" />
+            @if (chat.unreadTotal()) { <span class="dm-badge" aria-hidden="true">{{ unread() }}</span> }
+          </a>
+        }
         <form class="search" role="search" (ngSubmit)="search()">
           <label class="box">
             <app-icon class="search-icon" name="search" [size]="18" />
@@ -32,6 +40,9 @@ import { LogoComponent } from './logo.component';
           <a routerLink="/sell" class="sell"><span class="lbl">Продавцам</span></a>
           <a routerLink="/favorites" class="ico-link"><app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl sr-only">Избранное</span></a>
           @if (auth.loggedIn()) {
+            <a routerLink="/chats" class="ico-link chat-link" [attr.aria-label]="chat.unreadTotal() ? 'Сообщения, непрочитанных: ' + chat.unreadTotal() : null"><app-icon name="message-circle" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Сообщения</span>
+              @if (chat.unreadTotal()) { <span class="badge badge--msg" data-test="chat-badge" aria-hidden="true">{{ chat.unreadTotal() }}</span> }
+            </a>
             <a routerLink="/me/orders" class="ico-link"><app-icon [name]="ordersIcon()" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Мои заказы</span></a>
           } @else {
             <a routerLink="/login" class="ico-link"><app-icon [name]="ordersIcon()" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Войти</span></a>
@@ -56,6 +67,7 @@ import { LogoComponent } from './logo.component';
     /* 16px на всех ширинах: меньший шрифт заставляет iOS Safari увеличивать страницу при фокусе */
     .box input { width: 100%; min-width: 0; height: 100%; border: 0; background: transparent; font-size: 16px; outline: none; -webkit-appearance: none; appearance: none }
     .box input::-webkit-search-cancel-button { -webkit-appearance: none }
+    .dm { display: none }
     .nav { order: 2; margin-left: auto; display: flex; align-items: center; gap: 2px }
     .nav a { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; min-width: 44px; padding: 0 10px; border-radius: 10px; font-weight: 500; transition: background-color .15s }
     @media (hover: hover) { .nav a:hover { background: var(--color-mist) } }
@@ -63,6 +75,7 @@ import { LogoComponent } from './logo.component';
     .nav .cart { padding: 0 12px; font-weight: 600 }
     /* Счётчик корзины: шафран с тёмным текстом, как в прототипе */
     .badge { display: grid; place-items: center; height: 24px; min-width: 24px; padding: 0 6px; border-radius: 9999px; background: var(--color-saffron); color: var(--color-ink); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums }
+    .badge--msg { background: var(--color-anor); color: var(--color-paper) }
     /* Узкий экран 640px: подписи только для скринридера, остаются иконки 44×44 */
     @media (max-width: 639.98px) {
       .hide-sm { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
@@ -79,6 +92,10 @@ import { LogoComponent } from './logo.component';
       /* Липнет сам хост: у .hdr внутри app-header нет высоты для прилипания (родитель ровно с шапку) */
       :host { position: sticky; top: 0; z-index: 30; display: block }
       .nav { display: none }
+      .dm { order: 2; position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; margin: -6px -10px -6px auto; border-radius: 10px; color: var(--color-ink) }
+      .dm:active { background: var(--color-mist) }
+      /* Непрочитанные: анор — сигнал «вам ответили», шафран уже занят корзиной */
+      .dm-badge { position: absolute; top: 4px; right: 2px; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border: 2px solid var(--color-paper); border-radius: 9999px; box-sizing: content-box; background: var(--color-anor); color: var(--color-paper); font-size: 11px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums }
     }
     /* Уезжает вверх только на телефоне и только без «уменьшить движение» — иначе просто стоит на месте */
     @media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
@@ -90,10 +107,13 @@ import { LogoComponent } from './logo.component';
 export class HeaderComponent {
   private readonly router = inject(Router);
   readonly cart = inject(CartService);
+  readonly chat = inject(ChatSocket);
   readonly auth = inject(AuthService);
   /** Вошедшему — коробка «Мои заказы», гостю — человечек «Войти». */
   readonly ordersIcon = computed(() => (this.auth.loggedIn() ? 'package' : 'user'));
   /** Счётчик корзины: больше 99 не помещается в бейдж — показываем «99+». */
+  /** Непрочитанные сообщения для значка: больше 99 — «99+». */
+  readonly unread = computed(() => { const n = this.chat.unreadTotal(); return n > 99 ? '99+' : String(n); });
   readonly badge = computed(() => { const n = this.cart.count(); return n > 99 ? '99+' : String(n); });
   q = '';
   /** Шапка уехала вверх (действует только на телефоне, см. стили). На сервере и в первом кадре — видна. */

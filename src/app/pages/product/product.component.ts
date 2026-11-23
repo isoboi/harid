@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { CartService } from '../../core/cart.service';
+import { directLink, directOnly, postLink } from '../../core/direct';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { FavoritesService } from '../../core/favorites.service';
 import { MarketApi } from '../../core/market-api.service';
@@ -77,8 +78,8 @@ export function buyBarVisible(e: ButtonView): boolean {
             </a>
             <h1 class="title">{{ p.title }}</h1>
             @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="16" [filled]="true" />{{ ratingText() }}</p> }
-            <div class="price"><app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" /></div>
-            @if (p.sizes.length > 1) {
+            @if (p.price !== null) { <div class="price"><app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" /></div> }
+            @if (!direct() && p.sizes.length > 1) {
               <fieldset class="sizes" #sizes>
                 <legend>Размер</legend>
                 <div class="size-list">@for (s of p.sizes; track s) {
@@ -87,19 +88,32 @@ export function buyBarVisible(e: ButtonView): boolean {
                 @if (sizeHint() && !size()) { <p class="field-error size-hint" data-test="size-hint" role="alert">Выберите размер, чтобы добавить в корзину</p> }
               </fieldset>
             }
-            <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></p>
+            <!-- Неподключённая лавка: заказ и цена — в Instagram Direct продавца, корзины и курьера Харида нет -->
+            @if (direct()) {
+              <p class="promise direct-note" data-test="direct-promise"><app-icon name="instagram" [size]="20" /><span>Лавка принимает заказы в Instagram Direct.@if (igPost()) { При нажатии ссылка на этот пост скопируется — вставьте её в сообщение продавцу.}</span></p>
+            } @else {
+              <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></p>
+            }
             <div class="actions" #actions>
-              <button type="button" class="btn add" data-test="add" [disabled]="!canAdd()" (click)="add(p)">{{ addLabel() }}</button>
-              @if (added()) { <a class="btn btn--ghost" routerLink="/cart">Перейти в корзину</a> }
+              @if (direct()) {
+                <a class="btn add" data-test="direct" [href]="directUrl()" target="_blank" rel="noopener nofollow" (click)="copyPost()"><app-icon name="instagram" [size]="20" />Написать в Direct</a>
+              } @else {
+                <button type="button" class="btn add" data-test="add" [disabled]="!canAdd()" (click)="add(p)">{{ addLabel() }}</button>
+                @if (added()) { <a class="btn btn--ghost" routerLink="/cart">Перейти в корзину</a> }
+              }
               <button type="button" class="fav" [attr.aria-pressed]="fav.has(p.id)" (click)="fav.toggle(p.id)">
                 <app-icon name="heart" [size]="20" [filled]="fav.has(p.id)" [class.on]="fav.has(p.id)" />{{ fav.has(p.id) ? 'В избранном' : 'В избранное' }}
               </button>
+              <a class="btn btn--ghost write" data-test="write-seller" routerLink="/chats/new" [queryParams]="{ shop: p.shop_handle, product: p.id }">Написать продавцу</a>
             </div>
+            @if (copied()) { <p class="copied" data-test="copied" role="status">Ссылка на пост скопирована — вставьте её в чат</p> }
             @if (limitError()) { <p class="error limit" data-test="limit">В корзине уже 30 позиций — оформите заказ или уберите лишнее</p> }
-            <ul class="trust">
-              <li><app-icon name="truck" [size]="20" /><span>Курьер привезёт в выбранное время. По Душанбе — {{ deliveryCity }}, в {{ suburbs }} — {{ deliverySuburb }}.</span></li>
-              <li><app-icon name="shield-check" [size]="20" /><span>Не подошло — не берёте и ничего не платите. <a routerLink="/" fragment="cash">Как это работает</a></span></li>
-            </ul>
+            @if (!direct()) {
+              <ul class="trust">
+                <li><app-icon name="truck" [size]="20" /><span>Курьер привезёт в выбранное время. По Душанбе — {{ deliveryCity }}, в {{ suburbs }} — {{ deliverySuburb }}.</span></li>
+                <li><app-icon name="shield-check" [size]="20" /><span>Не подошло — не берёте и ничего не платите. <a routerLink="/" fragment="cash">Как это работает</a></span></li>
+              </ul>
+            }
             <!-- Подпись из Instagram — сырой текст лавки: свёрнута, чтобы не теснить цену и кнопку. Телефоны из неё вычищает бэкенд -->
             @if (p.description.trim()) {
               <details class="desc"><summary>Описание из Instagram</summary><p>{{ p.description }}</p></details>
@@ -112,12 +126,13 @@ export function buyBarVisible(e: ButtonView): boolean {
         </div>
         <!-- Телефон: цена и кнопка у нижнего края, над панелью вкладок; появляется, когда основная кнопка ушла вверх -->
         <div class="buybar" [class.on]="barShown()" data-test="buybar">
-          <app-price-tag class="bar-price" [price]="p.price" [old]="p.old_price" size="sm" />
-          @if (!p.in_stock) { <button type="button" class="btn bar-btn" disabled>Нет в наличии</button> }
+          @if (p.price !== null) { <app-price-tag class="bar-price" [price]="p.price" [old]="p.old_price" size="sm" /> }
+          @if (direct()) { <a class="btn bar-btn" data-test="bar-direct" [href]="directUrl()" target="_blank" rel="noopener nofollow" (click)="copyPost()">Написать в Direct</a> }
+          @else if (!p.in_stock) { <button type="button" class="btn bar-btn" disabled>Нет в наличии</button> }
           @else if (added()) { <a class="btn bar-btn" routerLink="/cart">Перейти в корзину</a> }
           @else { <button type="button" class="btn bar-btn" (click)="barAdd(p)">Добавить в корзину</button> }
         </div>
-        <app-reviews class="reviews" [reviews]="reviews()" [rating]="p.rating ?? null" [count]="p.reviews_count ?? 0" />
+        <app-reviews class="reviews" [reviews]="reviews()" [rating]="p.rating ?? null" [count]="p.reviews_count ?? 0" [product]="p.id" />
         @if (more().length) {
           <section class="more">
             <h2 class="section-title">Ещё в лавке <a [routerLink]="['/shop', p.shop_handle]">{{ shop()?.name || '@' + p.shop_handle }}</a></h2>
@@ -165,12 +180,16 @@ export function buyBarVisible(e: ButtonView): boolean {
     @media (hover: hover) { .size:hover { border-color: var(--color-ink) } }
     .size.on { border-color: var(--color-ink); background: var(--color-ink); color: var(--color-paper) }
     .promise { margin-top: 24px }
+    /* Пометка для лавки в Direct — та же раскладка, что у обещания оплаты (.cash в styles.scss) */
+    .direct-note { display: flex; gap: 12px; font-size: 15px; line-height: 1.5 }
+    .direct-note app-icon { flex: none; margin-top: 2px; color: var(--color-lapis) }
     .actions { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 12px }
     .add { min-width: 220px }
     .fav { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border: 1px solid var(--color-line); border-radius: 10px; font-size: 15px; font-weight: 600 }
     @media (hover: hover) { .fav:hover { border-color: var(--color-ink) } }
     .fav app-icon.on { color: var(--color-anor) }
     .limit { margin-top: 12px }
+    .copied { margin-top: 12px; font-size: 14px; color: var(--color-ink-soft) }
     .trust { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-line); display: flex; flex-direction: column; gap: 12px; font-size: 15px }
     .trust li { display: flex; gap: 12px }
     .trust app-icon { margin-top: 2px; color: var(--color-lapis) }
@@ -220,12 +239,14 @@ export class ProductComponent {
   /** Видео товара — последний слайд галереи, после всех фото. */
   readonly video = computed(() => this.product()?.video || '');
   /** Ссылка на исходный пост; наружу ведём только на сам Instagram. */
-  readonly igPost = computed(() => {
-    const url = this.product()?.permalink ?? '';
-    return /^https:\/\/(www\.)?instagram\.com\//.test(url) ? url : '';
-  });
+  readonly igPost = computed(() => { const p = this.product(); return p ? postLink(p) : ''; });
+  /** Лавка не подключена к Хариду: вместо корзины — чат с продавцом в Instagram Direct. */
+  readonly direct = computed(() => { const p = this.product(); return !!p && directOnly(p); });
+  readonly directUrl = computed(() => { const p = this.product(); return p ? directLink(p) : ''; });
+  /** Ссылка на пост скопирована в буфер после нажатия «Написать в Direct». */
+  readonly copied = signal(false);
   readonly videoOn = computed(() => !!this.video() && this.photo() === this.photos().length);
-  readonly canAdd = computed(() => { const p = this.product(); return !!p && p.in_stock && (p.sizes.length <= 1 || !!this.size()); });
+  readonly canAdd = computed(() => { const p = this.product(); return !!p && !directOnly(p) && p.in_stock && (p.sizes.length <= 1 || !!this.size()); });
   readonly addLabel = computed(() => (!this.product()?.in_stock ? 'Нет в наличии' : this.added() ? 'Добавлено в корзину' : 'Добавить в корзину'));
   /** Цены доставки из той же deliveryFor, что считает итог на оформлении. */
   readonly deliveryCity = money.transform(deliveryFor(DISTRICTS[0]));
@@ -242,14 +263,14 @@ export class ProductComponent {
   constructor() {
     effect((onCleanup) => {
       const id = this.id();
-      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false);
+      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false); this.copied.set(false);
       this.product.set(null); this.more.set([]); this.shop.set(null); this.reviews.set(null);
       const nested: { unsubscribe(): void }[] = [];
       const sub = untracked(() => this.api.product(id).subscribe({
         next: (p) => {
           this.product.set(p);
           if (p.sizes.length === 1) this.size.set(p.sizes[0]);
-          this.seo.set({ title: `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined });
+          this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined });
           nested.push(
             this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8))),
             this.api.shop(p.shop_handle).pipe(catchError(() => of(null))).subscribe((s) => this.shop.set(s)),
@@ -284,6 +305,16 @@ export class ProductComponent {
     const calm = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     box.scrollIntoView?.({ behavior: calm ? 'auto' : 'smooth', block: 'center' });
     box.querySelector<HTMLButtonElement>('[data-test="size"]')?.focus({ preventScroll: true });
+  }
+
+  /**
+   * «Написать в Direct»: ссылка сама открывает чат, а пост кладём в буфер обмена —
+   * у ig.me нет документированного параметра, чтобы подставить текст сообщения.
+   */
+  copyPost(): void {
+    const post = this.igPost();
+    if (!this.browser || !post || !navigator.clipboard?.writeText) return;
+    navigator.clipboard.writeText(post).then(() => this.copied.set(true), () => undefined);
   }
 
   add(p: Product): void {

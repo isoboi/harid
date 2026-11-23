@@ -1,37 +1,53 @@
-import { afterNextRender, Component, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { afterNextRender, Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { HeaderComponent } from './shared/header.component';
 import { FooterComponent } from './shared/footer.component';
-import { TabBarComponent } from './shared/tab-bar.component';
+import { isChatThread, pathOf, TabBarComponent } from './shared/tab-bar.component';
 import { AuthService } from './core/auth.service';
 import { CartService } from './core/cart.service';
 import { FavoritesService } from './core/favorites.service';
+import { ChatSocket } from './core/chat-socket.service';
 
 /**
  * Каркас как в прототипе: шапка, main на всю ширину (каждая страница сама задаёт контейнер .wrap,
  * чтобы полосы вроде «Оплата наличными» шли от края до края) и подвал, прижатый к низу.
  * На телефоне снизу — панель вкладок; отступ под неё задаёт styles.scss (правило app-root:has(.tabbar)).
+ * Открытая переписка (/chats/:id) — экран мессенджера: без подвала, а на телефоне и без шапки сайта —
+ * сверху своя строка с лавкой, снизу поле сообщения.
  */
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, HeaderComponent, FooterComponent, TabBarComponent],
-  template: `<app-header /><main class="page"><router-outlet /></main><app-footer /><app-tab-bar />`,
+  template: `<app-header [class.chat-hide]="chatThread()" /><main class="page"><router-outlet /></main>@if (!chatThread()) { <app-footer /> }<app-tab-bar />`,
   styles: `
     :host { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom) }
     .page { flex: 1 }
+    @media (max-width: 640px) { app-header.chat-hide { display: none } }
   `,
 })
 export class AppComponent {
+  private readonly router = inject(Router);
+  private readonly path = toSignal(
+    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => pathOf(e.urlAfterRedirects))),
+    { initialValue: pathOf(this.router.url) },
+  );
+  readonly chatThread = computed(() => isChatThread(this.path()));
+
   constructor() {
     const cart = inject(CartService);
     const fav = inject(FavoritesService);
     const auth = inject(AuthService);
+    const chat = inject(ChatSocket);
     // Только в браузере и после гидратации: сервер и первый рендер клиента одинаковы (пустое состояние).
     afterNextRender(() => {
       cart.hydrate();
       fav.hydrate();
       auth.hydrate();
+      // Сокет чата: подключается после входа, на сервере не стартует
+      chat.start();
     });
   }
 }
