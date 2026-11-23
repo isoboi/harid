@@ -1,8 +1,12 @@
-import { Component, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { environment } from '../../../environments/environment';
 import { apiErrorMessage } from '../../core/api-error';
+import { Analytics } from '../../core/analytics.service';
 import { MarketApi } from '../../core/market-api.service';
+import { SeoService } from '../../core/seo.service';
+import { bioLink } from '../../core/share';
 import { CodeResend } from '../../core/code-resend';
 import { PHONE_PATTERN, phone9 } from '../../core/phone';
 
@@ -61,6 +65,14 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
               <h2 class="done">Лавка открыта</h2>
               <p>&#64;{{ handle() }} уже на Хариде. Войдите в кабинет по номеру телефона, чтобы добавить товары.</p>
               <a class="btn go" data-test="cabinet" [href]="cabinetUrl">Перейти в кабинет</a>
+              <div class="bio" data-test="bio">
+                <h3 class="bio-title">Ваша ссылка для Instagram</h3>
+                <p class="muted">Вставьте её в шапку профиля, в поле «Сайт»: подписчики попадут сразу в вашу лавку на Хариде.</p>
+                <div class="bio-row">
+                  <input class="field-control" readonly data-test="bio-url" aria-label="Ссылка на вашу лавку" [value]="bioUrl()" (focus)="$any($event.target).select()" />
+                  <button class="btn btn--ghost" type="button" data-test="bio-copy" (click)="copyBio()">{{ bioCopied() ? 'Скопировано' : 'Копировать' }}</button>
+                </div>
+              </div>
             </div>
           }
         }
@@ -97,6 +109,11 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
     .link { align-self: flex-start; display: inline-flex; align-items: center; min-height: 44px; color: var(--color-lapis); font-weight: 500; text-decoration: underline; text-underline-offset: 2px }
     .link:disabled { opacity: .5 }
     .done { font-size: 22px; font-weight: 700 }
+    .bio { margin-top: 8px; padding-top: 24px; border-top: 1px solid var(--color-line) }
+    .bio-title { font-size: 17px; font-weight: 700 }
+    .bio p { margin-top: 6px; font-size: 15px; line-height: 1.5 }
+    .bio-row { display: flex; gap: 8px; margin-top: 12px }
+    .bio-row .field-control { flex: 1; min-width: 0 }
     .err { margin-top: 16px }
     .terms { margin-top: 80px; scroll-margin-top: 96px }
     .terms-title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em }
@@ -110,6 +127,8 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
 })
 export class SellComponent {
   private readonly api = inject(MarketApi);
+  private readonly doc = inject(DOCUMENT);
+  private readonly analytics = inject(Analytics);
   readonly cabinetUrl = environment.cabinetUrl;
   /** Последняя успешная отправка кода и обратный отсчёт повтора. */
   readonly resend = new CodeResend();
@@ -119,11 +138,30 @@ export class SellComponent {
   readonly handle = signal('');
   readonly busy = signal(false);
   readonly error = signal('');
+  /** Ссылка на лавку для шапки профиля Instagram (с меткой «пришли из bio»); адрес сайта — из адресной строки. */
+  readonly bioUrl = computed(() => (this.handle() ? bioLink(this.doc.location?.origin ?? '', this.handle()) : ''));
+  readonly bioCopied = signal(false);
   readonly form = inject(FormBuilder).nonNullable.group({
     handle: ['', [Validators.required, Validators.pattern(/^\s*@?[A-Za-z0-9._]{1,30}\s*$/)]],
     owner_name: ['', [Validators.required, Validators.minLength(2)]],
     phone: ['', [Validators.required, Validators.pattern(PHONE_PATTERN)]],
   });
+
+  constructor() {
+    inject(SeoService).set({
+      title: 'Открыть Instagram-лавку на Хариде',
+      description: 'Посты вашего Instagram станут товарами на Хариде: покупатели заказывают, курьер привозит и забирает оплату наличными.',
+      path: '/sell',
+    });
+  }
+
+  /** «Копировать» в блоке со ссылкой для Instagram. Буфер недоступен — ссылку можно выделить и скопировать вручную. */
+  async copyBio(): Promise<void> {
+    try {
+      await this.doc.defaultView?.navigator.clipboard.writeText(this.bioUrl());
+      this.bioCopied.set(true);
+    } catch { this.bioCopied.set(false); }
+  }
 
   /** Возврат к форме: код и ошибка сбрасываются, чтобы не остались от прошлой попытки. */
   back(): void {
@@ -150,7 +188,7 @@ export class SellComponent {
     const v = this.form.getRawValue();
     this.busy.set(true); this.error.set('');
     this.api.sellerApply({ handle: v.handle.trim(), owner_name: v.owner_name.trim(), phone: phone9(v.phone), code: this.code() }).subscribe({
-      next: (r) => { this.busy.set(false); this.handle.set(r.handle); this.step.set('done'); },
+      next: (r) => { this.busy.set(false); this.handle.set(r.handle); this.step.set('done'); this.analytics.track('seller_signup'); },
       error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
     });
   }

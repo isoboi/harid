@@ -66,6 +66,6 @@ export class CatalogComponent {
   readonly categories = toSignal<Category[] | null | undefined>(this.api.categories().pipe(catchError(() => of(null))), { initialValue: undefined });
   readonly skeleton = [1, 2, 3, 4, 5, 6];
   constructor() {
-    inject(SeoService).set({ title: 'Каталог — Харид', description: 'Все категории товаров Instagram-лавок Таджикистана с оплатой наличными курьеру.' });
+    inject(SeoService).set({ title: 'Каталог — Харид', description: 'Все категории товаров Instagram-лавок Таджикистана с оплатой наличными курьеру.', path: '/catalog' });
   }
 }

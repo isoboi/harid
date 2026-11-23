@@ -4,6 +4,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { buyBarVisible, ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
+import { Analytics } from '../../core/analytics.service';
 import { CartService } from '../../core/cart.service';
 import { Product, Review } from '../../core/models';
 
@@ -309,5 +310,42 @@ describe('ProductComponent', () => {
       barBtn(f).click();
       expect(TestBed.inject(CartService).items()[0].size).toBe('M');
     });
+  });
+});
+
+describe('ProductComponent: поделиться, canonical, разметка и аналитика', () => {
+  const track = jest.fn();
+  beforeEach(() => {
+    localStorage.clear();
+    track.mockReset();
+    TestBed.overrideProvider(Analytics, { useValue: { track } });
+  });
+  afterEach(() => document.head.querySelectorAll('script[data-seo-ld], link[rel="canonical"]').forEach((n) => n.remove()));
+
+  it('рядом с «Написать продавцу» есть «Поделиться»', async () => {
+    const f = await render(prod());
+    expect((f.nativeElement as HTMLElement).querySelector('app-share [data-test="share"]')?.textContent).toContain('Поделиться');
+  });
+
+  it('в голове страницы canonical и JSON-LD товара с ценой в сомони', async () => {
+    await render(prod());
+    expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`${window.location.origin}/product/16`);
+    const item = JSON.parse(document.head.querySelector('script[data-seo-ld]')!.textContent!)['@graph'][0];
+    expect(item.name).toBe('Наушники');
+    expect(item.offers).toMatchObject({ price: 540, priceCurrency: 'TJS', availability: 'https://schema.org/InStock' });
+  });
+
+  it('товар без цены (лавка в Direct) — разметка без offers', async () => {
+    await render(prod({ price: null, old_price: null, shop_verified: false, direct_url: 'https://ig.me/m/technomir.tj' }));
+    const item = JSON.parse(document.head.querySelector('script[data-seo-ld]')!.textContent!)['@graph'][0];
+    expect(item.offers).toBeUndefined();
+  });
+
+  it('открытие товара — событие view_product, добавление в корзину — add_to_cart', async () => {
+    const f = await render(prod());
+    expect(track).toHaveBeenCalledWith('view_product', { product: '16', shop: 'technomir.tj' });
+    expect(track).not.toHaveBeenCalledWith('add_to_cart', expect.anything());
+    ((f.nativeElement as HTMLElement).querySelector('[data-test="add"]') as HTMLButtonElement).click();
+    expect(track).toHaveBeenCalledWith('add_to_cart', { product: '16', shop: 'technomir.tj', price: 540 });
   });
 });

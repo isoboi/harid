@@ -1,10 +1,11 @@
 import { afterNextRender, Component, computed, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { HeaderComponent } from './shared/header.component';
 import { FooterComponent } from './shared/footer.component';
 import { isChatThread, pathOf, TabBarComponent } from './shared/tab-bar.component';
+import { Analytics } from './core/analytics.service';
 import { AuthService } from './core/auth.service';
 import { CartService } from './core/cart.service';
 import { FavoritesService } from './core/favorites.service';
@@ -41,6 +42,9 @@ export class AppComponent {
     const fav = inject(FavoritesService);
     const auth = inject(AuthService);
     const chat = inject(ChatSocket);
+    const analytics = inject(Analytics);
+    // Просмотры страниц для аналитики (на сервере и без счётчика сервис ничего не делает). Заголовок не передаём: на этот момент он ещё от прошлой страницы
+    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), takeUntilDestroyed()).subscribe((e) => analytics.pageview(e.urlAfterRedirects));
     // Только в браузере и после гидратации: сервер и первый рендер клиента одинаковы (пустое состояние).
     afterNextRender(() => {
       cart.hydrate();

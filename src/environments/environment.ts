@@ -4,4 +4,6 @@ export const environment = {
   apiUrl: 'http://localhost:3000/api',
   socketUrl: 'http://localhost:3000',
   cabinetUrl: 'https://admin.disti.site',
+  /** Номер счётчика Яндекс.Метрики (только цифры). Пусто — аналитика выключена. */
+  metrikaId: '',
 };

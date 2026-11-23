@@ -5,19 +5,21 @@ import { dayMonth } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
+import { shopGraph } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { followersCount, followersLabel } from '../../shared/followers';
 import { plural } from '../../shared/plural';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { ratingNumber, reviewsCount } from '../../shared/rating';
 import { ReviewsComponent } from '../../shared/reviews.component';
+import { ShareComponent } from '../../shared/share.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
 @Component({
   selector: 'app-shop',
   standalone: true,
-  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent],
+  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, ShareComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -32,6 +34,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
                 <app-icon name="instagram" [size]="16" [stroke]="1.8" />&#64;{{ s.handle }}<span class="sr-only">(откроется Instagram)</span>
               </a>
               @if (s.bio) { <p class="bio">{{ s.bio }}</p> }
+              <app-share class="share" [path]="'/shop/' + s.handle" [title]="s.name || '@' + s.handle" [text]="'Лавка @' + s.handle + ' на Хариде'" kind="shop" />
             </div>
             <dl class="stats">
               @if (s.rating !== null) {
@@ -76,6 +79,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
     .name { font-size: 30px; line-height: 1.25; font-weight: 800; letter-spacing: -0.03em; overflow-wrap: anywhere }
     .ig { margin-top: 4px; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--color-ink-soft) }
     @media (hover: hover) { .ig:hover { color: var(--color-ink) } }
+    .share { margin-top: 12px }
     .bio { margin-top: 8px; max-width: 56ch; font-size: 16px; line-height: 1.625 }
     .stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 24px }
     @media (min-width: 640px) { .stats { gap: 32px } }
@@ -114,7 +118,16 @@ export class ShopComponent {
       this.missing.set(false); this.failed.set(false); this.shop.set(null); this.products.set([]); this.reviews.set(null);
       const subs = untracked(() => [
         this.api.shop(h).subscribe({
-          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде` }); },
+          next: (s) => {
+            this.shop.set(s);
+            this.seo.set({
+              title: `@${s.handle} — Харид`,
+              description: s.bio || `Лавка @${s.handle} на Хариде`,
+              image: s.avatar_url || undefined,
+              path: `/shop/${encodeURIComponent(s.handle)}`,
+              jsonLd: (origin) => shopGraph(s, origin),
+            });
+          },
           error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
         }),
         this.api.products({ shop: h }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p)),

@@ -3,6 +3,7 @@ import { Component, computed, effect, ElementRef, inject, input, PLATFORM_ID, si
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
+import { Analytics } from '../../core/analytics.service';
 import { CartService } from '../../core/cart.service';
 import { directLink, directOnly, postLink } from '../../core/direct';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
@@ -10,12 +11,14 @@ import { FavoritesService } from '../../core/favorites.service';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
+import { productGraph } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { PriceTagComponent } from '../../shared/price-tag.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { ratingLabel, ratingNumber } from '../../shared/rating';
 import { ReviewsComponent } from '../../shared/reviews.component';
+import { ShareComponent } from '../../shared/share.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
@@ -41,7 +44,7 @@ export function buyBarVisible(e: ButtonView): boolean {
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent],
+  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, ShareComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -105,6 +108,7 @@ export function buyBarVisible(e: ButtonView): boolean {
                 <app-icon name="heart" [size]="20" [filled]="fav.has(p.id)" [class.on]="fav.has(p.id)" />{{ fav.has(p.id) ? 'В избранном' : 'В избранное' }}
               </button>
               <a class="btn btn--ghost write" data-test="write-seller" routerLink="/chats/new" [queryParams]="{ shop: p.shop_handle, product: p.id }">Написать продавцу</a>
+              <app-share [path]="'/product/' + p.id" [title]="p.title" [text]="shareText(p)" kind="product" />
             </div>
             @if (copied()) { <p class="copied" data-test="copied" role="status">Ссылка на пост скопирована — вставьте её в чат</p> }
             @if (limitError()) { <p class="error limit" data-test="limit">В корзине уже 30 позиций — оформите заказ или уберите лишнее</p> }
@@ -215,6 +219,7 @@ export class ProductComponent {
   private readonly api = inject(MarketApi);
   private readonly cart = inject(CartService);
   private readonly seo = inject(SeoService);
+  private readonly analytics = inject(Analytics);
   readonly fav = inject(FavoritesService);
   readonly id = input.required<string>();
   readonly product = signal<Product | null>(null);
@@ -260,6 +265,22 @@ export class ProductComponent {
 
   rating(r: number): string { return ratingNumber(r); }
 
+  /** Текст сообщения для «Поделиться»: название, цена (если есть) и где смотреть. */
+  shareText(p: Product): string { return `${p.title}${p.price === null ? '' : ` — ${money.transform(p.price)}`} на Хариде`; }
+
+  /** Заголовок, превью ссылки, canonical и разметка товара; вызывается заново, когда подгрузилась лавка (имя продавца). */
+  private applySeo(p: Product): void {
+    this.seo.set({
+      title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`,
+      description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`,
+      image: this.photos()[0] || undefined,
+      path: `/product/${encodeURIComponent(p.id)}`,
+      type: 'product',
+      price: p.price,
+      jsonLd: (origin) => productGraph(p, this.shop(), origin),
+    });
+  }
+
   constructor() {
     effect((onCleanup) => {
       const id = this.id();
@@ -270,10 +291,11 @@ export class ProductComponent {
         next: (p) => {
           this.product.set(p);
           if (p.sizes.length === 1) this.size.set(p.sizes[0]);
-          this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined });
+          this.applySeo(p);
+          this.analytics.track('view_product', { product: p.id, shop: p.shop_handle });
           nested.push(
             this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8))),
-            this.api.shop(p.shop_handle).pipe(catchError(() => of(null))).subscribe((s) => this.shop.set(s)),
+            this.api.shop(p.shop_handle).pipe(catchError(() => of(null))).subscribe((s) => { this.shop.set(s); this.applySeo(p); }),
             // Ошибка отзывов не ломает страницу товара: раздел просто не выводится
             this.api.reviews({ product: p.id }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),
           );
@@ -313,6 +335,7 @@ export class ProductComponent {
    */
   copyPost(): void {
     const post = this.igPost();
+    this.analytics.track('direct_click', { product: this.product()?.id ?? '', shop: this.product()?.shop_handle ?? '' });
     if (!this.browser || !post || !navigator.clipboard?.writeText) return;
     navigator.clipboard.writeText(post).then(() => this.copied.set(true), () => undefined);
   }
@@ -322,5 +345,6 @@ export class ProductComponent {
     const ok = this.cart.add(p, p.sizes.length ? this.size() : null);
     this.limitError.set(!ok);
     this.added.set(ok);
+    if (ok) this.analytics.track('add_to_cart', { product: p.id, shop: p.shop_handle, price: p.price ?? 0 });
   }
 }

@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { SellComponent } from './sell.component';
 import { MarketApi } from '../../core/market-api.service';
+import { Analytics } from '../../core/analytics.service';
 
 async function setup(api: Partial<Record<'sellerSendCode' | 'sellerApply', jest.Mock>>) {
   await TestBed.configureTestingModule({ imports: [SellComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
@@ -88,5 +89,54 @@ describe('SellComponent', () => {
     const el: HTMLElement = f.nativeElement;
     expect(el.querySelector('input[formControlName="handle"]')?.getAttribute('maxlength')).toBe('31');
     expect(el.querySelector('input[formControlName="owner_name"]')?.getAttribute('maxlength')).toBe('150');
+  });
+});
+
+describe('SellComponent: ссылка для Instagram и аналитика', () => {
+  afterEach(() => { delete (window.navigator as unknown as Record<string, unknown>)['clipboard']; });
+
+  async function openShop(track: jest.Mock) {
+    TestBed.overrideProvider(Analytics, { useValue: { track } });
+    const api = { sellerSendCode: jest.fn(() => of({})), sellerApply: jest.fn(() => of({ id: 2, handle: 'technomir.tj', status: 'active' })) };
+    const { f, c } = await setup(api);
+    c.form.setValue({ handle: 'technomir.tj', owner_name: 'Рустам', phone: '93 111 00 01' });
+    c.sendCode(); c.code.set('000000'); c.apply(); f.detectChanges();
+    return { f, c };
+  }
+
+  it('после открытия лавки показывает ссылку с меткой «bio» и копирует её', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window.navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const { f } = await openShop(jest.fn());
+    const url = `${window.location.origin}/shop/technomir.tj?utm_source=instagram&utm_medium=bio`;
+    const el: HTMLElement = f.nativeElement;
+    expect((el.querySelector('[data-test="bio-url"]') as HTMLInputElement).value).toBe(url);
+    (el.querySelector('[data-test="bio-copy"]') as HTMLButtonElement).click();
+    await f.whenStable();
+    f.detectChanges();
+    expect(writeText).toHaveBeenCalledWith(url);
+    expect(el.querySelector('[data-test="bio-copy"]')?.textContent).toContain('Скопировано');
+  });
+
+  it('буфер недоступен — кнопка не меняется, ссылку можно скопировать вручную', async () => {
+    const { f } = await openShop(jest.fn());
+    const el: HTMLElement = f.nativeElement;
+    (el.querySelector('[data-test="bio-copy"]') as HTMLButtonElement).click();
+    await f.whenStable();
+    f.detectChanges();
+    expect(el.querySelector('[data-test="bio-copy"]')?.textContent).toContain('Копировать');
+  });
+
+  it('открытие лавки — событие seller_signup; до этого блока со ссылкой нет', async () => {
+    const track = jest.fn();
+    TestBed.overrideProvider(Analytics, { useValue: { track } });
+    const { f } = await setup({ sellerSendCode: jest.fn(), sellerApply: jest.fn() });
+    expect((f.nativeElement as HTMLElement).querySelector('[data-test="bio"]')).toBeNull();
+    expect(track).not.toHaveBeenCalled();
+    TestBed.resetTestingModule();
+    const t2 = jest.fn();
+    const { f: g } = await openShop(t2);
+    expect(t2).toHaveBeenCalledWith('seller_signup');
+    expect((g.nativeElement as HTMLElement).querySelector('[data-test="bio"]')).not.toBeNull();
   });
 });

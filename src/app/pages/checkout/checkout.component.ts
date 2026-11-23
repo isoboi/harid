@@ -2,6 +2,7 @@ import { afterNextRender, Component, computed, effect, ElementRef, inject, signa
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { Analytics } from '../../core/analytics.service';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { BrowserStorage } from '../../core/browser-storage.service';
@@ -121,6 +122,9 @@ export class CheckoutComponent {
   private readonly router = inject(Router);
   private readonly store = inject(BrowserStorage);
   private readonly auth = inject(AuthService);
+  private readonly analytics = inject(Analytics);
+  /** «Начало оформления» отправляется один раз за визит, когда корзина уже прочитана из браузера. */
+  private checkoutTracked = false;
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
   readonly cart = inject(CartService);
   readonly plural = plural;
@@ -153,6 +157,11 @@ export class CheckoutComponent {
       this.slots.set(list);
       const slot = this.form.controls.slot;
       if (!list.includes(slot.value)) slot.setValue(list[0]);
+    });
+    effect(() => {
+      if (!this.cart.ready() || !this.cart.count() || this.checkoutTracked) return;
+      this.checkoutTracked = true;
+      untracked(() => this.analytics.track('begin_checkout', { value: this.cart.itemsTotal(), items: this.cart.count(), shops: this.cart.groups().length }));
     });
     // Префилл только после гидратации auth и только в поля, которых пользователь ещё не трогал.
     effect(() => {
@@ -191,6 +200,8 @@ export class CheckoutComponent {
       slot: v.slot, payment: 'cash', lines: this.cart.toOrderLines(),
     }).subscribe({
       next: (o) => {
+        // Сумма и размер заказа — без имени, телефона и адреса
+        this.analytics.track('purchase', { value: (o.items_total ?? 0) + (o.delivery_total ?? 0), items: (o.lines ?? []).reduce((n, l) => n + l.qty, 0), shops: (o.shops ?? []).length });
         this.cart.clear();
         this.store.set('harid.lastPhone', phone);
         this.busy.set(false);

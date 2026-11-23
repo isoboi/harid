@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { CheckoutComponent } from './checkout.component';
 import { MarketApi } from '../../core/market-api.service';
+import { Analytics } from '../../core/analytics.service';
 import { CartService } from '../../core/cart.service';
 import { AuthService } from '../../core/auth.service';
 import { CLOCK } from '../../core/clock';
@@ -225,5 +226,31 @@ describe('CheckoutComponent', () => {
     const f = TestBed.createComponent(CheckoutComponent);
     f.detectChanges();
     expect(f.componentInstance.form.getRawValue().phone).toBe('931110002');
+  });
+});
+
+describe('CheckoutComponent: аналитика', () => {
+  it('begin_checkout — один раз при открытии с товарами, purchase — после заказа, и без личных данных', async () => {
+    const track = jest.fn();
+    TestBed.overrideProvider(Analytics, { useValue: { track } });
+    const placeOrder = jest.fn(() => of({ number: 'R-1', access_token: 'tok', items_total: 640, delivery_total: 15, lines: [{ qty: 2 }], shops: [{ shop_handle: 'technomir.tj' }] }));
+    const { f, c } = await setup(placeOrder);
+    f.detectChanges();
+    expect(track.mock.calls.filter(([name]) => name === 'begin_checkout')).toEqual([['begin_checkout', { value: 640, items: 2, shops: 1 }]]);
+    jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    c.submit();
+    expect(track).toHaveBeenCalledWith('purchase', { value: 655, items: 2, shops: 1 });
+    const sent = JSON.stringify(track.mock.calls);
+    for (const secret of ['Фаррух', '931110002', 'Рудаки', 'R-1', 'tok']) expect(sent).not.toContain(secret);
+  });
+
+  it('пустая корзина — begin_checkout не отправляется', async () => {
+    const track = jest.fn();
+    TestBed.overrideProvider(Analytics, { useValue: { track } });
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [CheckoutComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder: jest.fn() } }, { provide: CLOCK, useValue: () => MORNING }] }).compileComponents();
+    TestBed.inject(CartService).hydrate();
+    TestBed.createComponent(CheckoutComponent).detectChanges();
+    expect(track).not.toHaveBeenCalled();
   });
 });

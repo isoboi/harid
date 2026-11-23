@@ -3,6 +3,7 @@ import { Component } from '@angular/core';
 import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { AppComponent } from './app.component';
+import { Analytics } from './core/analytics.service';
 import { CartService } from './core/cart.service';
 import { Product } from './core/models';
 
@@ -71,5 +72,22 @@ describe('AppComponent', () => {
     expect(el.querySelector('header nav a[href="/cart"]')).not.toBeNull();
     expect(el.querySelector('footer')).not.toBeNull();
     expect(el.querySelector('.tabbar')).toBeNull();
+  });
+});
+
+describe('AppComponent: аналитика', () => {
+  it('при переходе на страницу отправляет просмотр с адресом перехода', async () => {
+    const pageview = jest.fn();
+    TestBed.overrideProvider(Analytics, { useValue: { pageview, track: jest.fn() } });
+    @Component({ standalone: true, template: '' })
+    class Blank {}
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [provideRouter([{ path: 'product/:id', component: Blank }]), provideHttpClient()],
+    }).compileComponents();
+    const f = TestBed.createComponent(AppComponent);
+    f.detectChanges();
+    await TestBed.inject(Router).navigateByUrl('/product/5?utm_source=instagram');
+    expect(pageview).toHaveBeenCalledWith('/product/5?utm_source=instagram');
   });
 });

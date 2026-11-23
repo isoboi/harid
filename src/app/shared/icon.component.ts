@@ -4,12 +4,12 @@ import { Component, computed, input } from '@angular/core';
 export type IconName =
   | 'search' | 'store' | 'heart' | 'user' | 'bag' | 'package' | 'banknote' | 'circle-check'
   | 'truck' | 'shield-check' | 'star' | 'map-pin' | 'x' | 'minus' | 'plus' | 'instagram'
-  | 'house' | 'layout-grid' | 'chevron-right' | 'chevron-left' | 'message-circle' | 'send';
+  | 'house' | 'layout-grid' | 'chevron-right' | 'chevron-left' | 'message-circle' | 'send' | 'share';
 
 const ICON_NAMES: readonly string[] = [
   'search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check',
   'truck', 'shield-check', 'star', 'map-pin', 'x', 'minus', 'plus', 'instagram',
-  'house', 'layout-grid', 'chevron-right', 'chevron-left', 'message-circle', 'send',
+  'house', 'layout-grid', 'chevron-right', 'chevron-left', 'message-circle', 'send', 'share',
 ];
 
 /**
@@ -116,6 +116,13 @@ const ICON_NAMES: readonly string[] = [
           }
           @case ('chevron-left') {
             <path d="m15 18-6-6 6-6" />
+          }
+          @case ('share') {
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" x2="15.42" y1="13.51" y2="17.49" />
+            <line x1="15.41" x2="8.59" y1="6.51" y2="10.49" />
           }
           @case ('send') {
             <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />

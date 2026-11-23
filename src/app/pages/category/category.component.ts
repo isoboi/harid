@@ -50,6 +50,6 @@ export class CategoryComponent {
       const sub = untracked(() => this.api.products({ category: slug }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p)));
       onCleanup(() => sub.unsubscribe());
     });
-    effect(() => this.seo.set({ title: `${this.name()} — Харид`, description: `${this.name()} в Instagram-лавках Таджикистана` }));
+    effect(() => this.seo.set({ title: `${this.name()} — Харид`, description: `${this.name()} в Instagram-лавках Таджикистана`, path: `/c/${encodeURIComponent(this.slug())}` }));
   }
 }
