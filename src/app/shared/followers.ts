@@ -18,4 +18,4 @@ export const followersCount = (n: number): string => {
 };
 
 /** Слово при числе: «подписчик / подписчика / подписчиков» (после «тыс.» и «млн» — родительный). */
-export const followersLabel = (n: number): string => plural(n, FORMS);
+export const followersLabel = (n: number): string => (n >= 10_000 ? FORMS[2] : plural(n, FORMS));

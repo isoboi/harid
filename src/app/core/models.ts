@@ -1,6 +1,6 @@
 /** Модели публичного API витрины (/market/*). Формы совпадают с ответами бэкенда distributor. */
 export interface Category { slug: string; name: string }
-export interface Shop { handle: string; name: string; bio: string; followers: number; district: string | null; rating: number | null; delivered_orders: number; joined_at: string; avatar_color: string; has_fresh: boolean; avatar_url?: string | null; reviews_count?: number }
+export interface Shop { handle: string; name: string; bio: string; followers: number; district: string | null; rating: number | null; delivered_orders: number; joined_at: string; avatar_color: string; has_fresh: boolean; avatar_url?: string | null; reviews_count?: number; verified?: boolean; direct_url?: string | null }
 /**
  * price null — цену лавка называет в Direct (неподключённая лавка, shop_verified=false).
  * shop_verified=false: лавка заведена импортом из Instagram, заказы только через direct_url.
@@ -16,7 +16,7 @@ export interface Order { number: string; access_token?: string; created_at: stri
 /** Покупатель как его отдаёт бэкенд (mapBuyer): name может быть пустым. */
 export interface Buyer { id: number; phone: string; name: string | null }
 export interface VerifyResult { token: string; buyer: Buyer; is_new: boolean }
-export interface ProductQuery { category?: string; shop?: string; q?: string; limit?: number }
+export interface ProductQuery { category?: string; shop?: string; q?: string; limit?: number; offset?: number }
 /** Отзыв о товаре: GET /market/reviews?product=<id> | ?shop=<handle>, новые первыми. */
 /** Публичный ответ лавки на отзыв (решение 0007). */
 export interface ReviewReply { text: string; created_at: string }

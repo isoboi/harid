@@ -49,6 +49,20 @@ describe('ProductComponent', () => {
     const g = await render(prod());
     expect((g.nativeElement as HTMLElement).querySelector('[data-test="empty"]')?.textContent).toContain('Отзывов пока нет');
   });
+  it('плашка «Продавец» — когда лавка загрузилась; без лавки её нет', async () => {
+    const f = await render(prod());
+    expect((f.nativeElement as HTMLElement).querySelector('app-seller-card')).toBeNull();
+    TestBed.resetTestingModule();
+    const shop = { handle: 'technomir.tj', name: 'Техномир', bio: '', followers: 1200, district: null, rating: null, reviews_count: 0, delivered_orders: 5, joined_at: '2026-03-02T00:00:00Z', avatar_color: '#000', has_fresh: false };
+    const api = { product: jest.fn(() => of(prod())), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => of(shop)) };
+    await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+    const g = TestBed.createComponent(ProductComponent);
+    g.componentRef.setInput('id', '16');
+    g.detectChanges();
+    const card = (g.nativeElement as HTMLElement).querySelector('app-seller-card');
+    expect(card?.textContent).toContain('Техномир');
+    expect(card?.textContent).toContain('Пока без оценок');
+  });
   it('показывает цену, старую цену и все фото', async () => {
     const f = await render(prod());
     const el: HTMLElement = f.nativeElement;

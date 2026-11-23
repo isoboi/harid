@@ -34,9 +34,16 @@ describe('ShopComponent', () => {
     expect(item.textContent).toContain('Мехрона');
     expect(item.querySelector('a')?.textContent?.trim()).toBe('Платье макси');
   });
-  it('без оценки — пункта «Оценка» нет, отзывы показывают пустое состояние', async () => {
+  it('без оценки — «Пока без оценок», отзывы показывают пустое состояние', async () => {
     const { el } = await render(SHOP({ rating: null, reviews_count: 0 }), []);
-    expect(el.querySelector('[data-test="shop-rating"]')).toBeNull();
+    expect(el.querySelector('[data-test="shop-rating"]')?.textContent).toContain('Пока без оценок');
     expect(el.querySelector('[data-test="empty"]')).not.toBeNull();
+  });
+  it('лавка в Direct — оценок нет и не будет, «Доставлено» не показываем', async () => {
+    const { el } = await render(SHOP({ rating: null, reviews_count: 0, verified: false, delivered_orders: 0 }), []);
+    const stat = el.querySelector('[data-test="shop-rating"]')!;
+    expect(stat.textContent).toContain('Нет');
+    expect(stat.textContent).toContain('заказы в Direct');
+    expect(el.querySelector('.stats')?.textContent).not.toContain('Доставлено');
   });
 });

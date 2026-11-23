@@ -15,6 +15,7 @@ import { MoneyPipe } from '../../shared/money.pipe';
 import { PriceTagComponent } from '../../shared/price-tag.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { ratingLabel, ratingNumber } from '../../shared/rating';
+import { SellerCardComponent } from '../../shared/seller-card.component';
 import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { ReelAction, ReelViewerComponent } from '../../shared/reel-viewer.component';
@@ -43,7 +44,7 @@ export function buyBarVisible(e: ButtonView): boolean {
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent],
+  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent, SellerCardComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -125,6 +126,8 @@ export function buyBarVisible(e: ButtonView): boolean {
             @if (igPost()) {
               <a class="ig-post" data-test="ig-post" [href]="igPost()" target="_blank" rel="noopener nofollow"><app-icon name="instagram" [size]="20" /><span>Пост в Instagram</span></a>
             }
+            <!-- Кто продаёт: оценка лавки (или почему её нет) и факты — перед решением купить -->
+            @if (shop(); as s) { <app-seller-card class="seller-card" [shop]="s" /> }
           </div>
         </div>
         <!-- Телефон: цена и кнопка у нижнего края, над панелью вкладок; появляется, когда основная кнопка ушла вверх -->
@@ -209,6 +212,7 @@ export function buyBarVisible(e: ButtonView): boolean {
     .ig-post { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 12px; font-size: 15px; font-weight: 600; color: var(--color-lapis) }
     .ig-post:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 2px; border-radius: 6px }
     @media (hover: hover) { .ig-post:hover span { text-decoration: underline; text-underline-offset: 2px } }
+    .seller-card { margin-top: 32px }
     .more { margin-top: 80px }
     .more h2 { margin-bottom: 20px }
     @media (hover: hover) { .more h2 a:hover { text-decoration: underline } }

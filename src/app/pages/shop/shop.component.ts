@@ -9,7 +9,7 @@ import { IconComponent } from '../../shared/icon.component';
 import { followersCount, followersLabel } from '../../shared/followers';
 import { plural } from '../../shared/plural';
 import { ProductCardComponent } from '../../shared/product-card.component';
-import { ratingNumber, reviewsCount } from '../../shared/rating';
+import { ShopRating, shopRating } from '../../shared/rating';
 import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
@@ -34,13 +34,18 @@ import { NotFoundComponent } from '../not-found/not-found.component';
               @if (s.bio) { <p class="bio">{{ s.bio }}</p> }
             </div>
             <dl class="stats">
-              @if (s.rating !== null) {
-                <div data-test="shop-rating">
-                  <dt>Оценка</dt><dd class="rating"><app-icon class="star" name="star" [size]="17" [filled]="true" />{{ rating(s.rating) }}</dd>
-                  @if (s.reviews_count) { <dd class="count">{{ reviewsCount(s.reviews_count) }}</dd> }
-                </div>
-              }
-              <div><dt>Доставлено</dt><dd>{{ s.delivered_orders }}</dd></div>
+              <!-- Пункт «Оценка» есть всегда: без оценок пустое место выглядело бы как скрытый плохой рейтинг -->
+              <div data-test="shop-rating">
+                <dt>Оценка</dt>
+                @let r = rate();
+                @if (r.kind === 'rated') {
+                  <dd class="rating"><app-icon class="star" name="star" [size]="17" [filled]="true" />{{ r.value }}</dd>
+                  <dd class="count">{{ r.count }}</dd>
+                } @else if (r.kind === 'direct') { <dd class="quiet">Нет</dd><dd class="count">заказы в Direct</dd> }
+                @else { <dd class="quiet">Пока без оценок</dd> }
+              </div>
+              <!-- Лавка в Direct не возит через Харид — «0 доставлено» выглядело бы как плохой показатель -->
+              @if (s.verified !== false) { <div><dt>Доставлено</dt><dd>{{ s.delivered_orders }}</dd></div> }
               @if (s.followers > 0) { <div data-test="followers"><dt>В Instagram</dt><dd>{{ followersCount(s.followers) }} {{ followersLabel(s.followers) }}</dd></div> }
             </dl>
           </header>
@@ -83,6 +88,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
     dd { margin-top: 2px; font-size: 20px; font-weight: 700 }
     .rating { display: flex; align-items: center; gap: 4px }
     .count { margin-top: 0; font-size: 13px; font-weight: 400; color: var(--color-ink-soft) }
+    .quiet { font-size: 16px; font-weight: 600; line-height: 30px; color: var(--color-ink-soft) }
     .reviews { margin-top: 64px }
     .star { color: var(--color-saffron) }
     .meta { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 20px; row-gap: 4px; font-size: 14px; color: var(--color-ink-soft) }
@@ -106,8 +112,7 @@ export class ShopComponent {
   readonly joined = computed(() => dayMonth(this.shop()?.joined_at ?? ''));
   /** Отзывы о товарах лавки; null — не загрузились, раздел скрыт. */
   readonly reviews = signal<Review[] | null>(null);
-  readonly reviewsCount = reviewsCount;
-  rating(r: number): string { return ratingNumber(r); }
+  readonly rate = computed<ShopRating>(() => { const s = this.shop(); return s ? shopRating(s) : { kind: 'none' }; });
   constructor() {
     effect((onCleanup) => {
       const h = this.handle();

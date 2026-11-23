@@ -7,6 +7,7 @@ import { SeoService } from '../../core/seo.service';
 import { PriceTagComponent } from '../../shared/price-tag.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { plural } from '../../shared/plural';
+import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
 import { ShopStripComponent } from '../../shared/shop-strip.component';
 
 /** Четыре шага оплаты наличными — в раскладке «Как это работает» прототипа. */
@@ -20,7 +21,7 @@ const CASH_STEPS = [
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent],
+  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent],
   template: `
     <div class="wrap">
       <app-shop-strip [shops]="shops()" />
@@ -53,7 +54,8 @@ const CASH_STEPS = [
         </nav>
         <div class="list">
           @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
-          @else { <p class="muted">Пока пусто</p> }
+          @else if (!feed.loading()) { <p class="muted">Пока пусто</p> }
+          @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
         </div>
       </section>
     </div>
@@ -119,10 +121,13 @@ export class HomeComponent {
   private readonly api = inject(MarketApi);
   readonly shops = toSignal(this.api.shops().pipe(catchError(() => of([]))), { initialValue: [] });
   readonly categories = toSignal(this.api.categories().pipe(catchError(() => of([]))), { initialValue: [] });
-  readonly products = toSignal(this.api.products({ limit: 24 }).pipe(catchError(() => of([]))), { initialValue: [] });
+  /** Лента «Новое в лавках»: догружается при прокрутке. */
+  readonly feed = new ProductFeed();
+  readonly products = this.feed.items;
   /** Для коллажа в первом экране — первые три товара с фото. */
   readonly collage = computed(() => this.products().filter((p) => !!p.image).slice(0, 3));
   constructor() {
     inject(SeoService).set({ title: 'Харид — Instagram-магазины Таджикистана', description: 'Товары Instagram-лавок Таджикистана с оплатой наличными курьеру.' });
+    this.feed.reset({});
   }
 }
