@@ -1,10 +1,15 @@
 import { DOCUMENT } from '@angular/common';
-import { afterNextRender, Component, computed, DestroyRef, ElementRef, inject, input, signal, viewChild } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { IconComponent } from './icon.component';
 import { clampTime, formatTime, fromScrubber, scrubberValue, SCRUBBER_MAX, SEEK_STEP } from './video-time';
 
 /** Через сколько миллисекунд бездействия во время игры управление уходит с видео. */
 const IDLE_MS = 2500;
+
+/** Сколько ждать второго тапа, прежде чем считать нажатие одиночным (как в Instagram). */
+const DOUBLE_TAP_MS = 250;
+/** Сколько живёт сердечко после двойного тапа. */
+const HEART_MS = 700;
 
 /** iPhone умеет только системный полный экран самого <video>: у него свои кнопки, зато он работает. */
 type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
@@ -14,6 +19,10 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
  * Ролики приходят из Instagram и чаще вертикальные, а рамка галереи квадратная: боковые поля
  * заливает размытый постер, как в Reels, вместо чёрных полос. Управление — одним рядом снизу,
  * исчезает во время игры и возвращается от касания, движения мыши или Tab.
+ *
+ * Вариант reels — вертикальный режим как в Instagram: ролик на всю рамку (вертикальный — с обрезкой по краям),
+ * без панели кнопок: тонкая линия прогресса у нижнего края, кнопка звука справа, двойной тап — «нравится».
+ * Всё, что передано внутрь тега (подпись лавки, цена, кнопка), встаёт поверх видео.
  */
 @Component({
   selector: 'app-video-player',
@@ -21,14 +30,18 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
   imports: [IconComponent],
   host: { '(document:visibilitychange)': 'onVisibility()', '(document:fullscreenchange)': 'onFullscreenChange()' },
   template: `
-    <div #frame class="frame" data-test="frame" [class.still]="away()" (pointermove)="wake()" (pointerdown)="wake()" (focusin)="wake()" (keydown)="key($event)">
+    <div #frame class="frame" data-test="frame" [class.reels]="reels()" [class.portrait]="portrait()" [class.still]="away()" (pointermove)="wake()" (pointerdown)="wake()" (focusin)="wake()" (keydown)="key($event)">
       @if (poster()) { <img class="ambient" data-test="ambient" [src]="poster()" alt="" aria-hidden="true" /> }
       <video #v data-test="video" [src]="src()" [attr.poster]="poster() || null" preload="none" playsinline loop [attr.aria-label]="label()"
         (play)="onPlay()" (pause)="onPause()" (playing)="waiting.set(false)" (canplay)="waiting.set(false)" (waiting)="waiting.set(true)"
         (timeupdate)="sync()" (durationchange)="sync()" (loadedmetadata)="sync()" (volumechange)="muted.set(video().nativeElement.muted)"
         (emptied)="reset()" (error)="failed.set(true)"></video>
-      <button type="button" class="surface" data-test="surface" [attr.aria-label]="playing() ? 'Пауза' : started() ? 'Воспроизвести' : 'Смотреть видео'" (click)="toggle()"></button>
-      @if (!playing() && !failed() && !waiting()) { <span class="big" data-test="big-play" aria-hidden="true"><app-icon name="play" [size]="30" [filled]="true" /></span> }
+      <button type="button" class="surface" data-test="surface" [attr.aria-label]="playing() ? 'Пауза' : started() ? 'Воспроизвести' : 'Смотреть видео'" (click)="tap($event)"></button>
+      @if (!playing() && !failed() && !waiting()) {
+        @if (reels()) { <span class="reel-play" data-test="big-play" aria-hidden="true"><app-icon name="play" [size]="76" [filled]="true" /></span> }
+        @else { <span class="big" data-test="big-play" aria-hidden="true"><app-icon name="play" [size]="30" [filled]="true" /></span> }
+      }
+      @for (h of hearts(); track h.id) { <app-icon class="heart" data-test="heart" name="heart" [size]="104" [filled]="true" [style.left.px]="h.x" [style.top.px]="h.y" /> }
       @if (waiting() && !failed()) { <span class="spinner" data-test="spinner" aria-hidden="true"></span> }
       @if (failed()) {
         <div class="fail" data-test="error" role="alert">
@@ -36,20 +49,26 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
           <button type="button" class="retry" data-test="retry" (click)="retry()"><app-icon name="rotate-ccw" [size]="18" />Повторить</button>
         </div>
       }
+      @if (reels()) { <div class="slot" data-test="slot"><ng-content /></div> }
       <div class="bar" data-test="bar" [class.away]="away()">
-        <button type="button" class="ctl" data-test="toggle" [attr.aria-label]="playing() ? 'Пауза' : 'Воспроизвести'" (click)="toggle()">
-          <app-icon [name]="playing() ? 'pause' : 'play'" [size]="22" [filled]="true" />
-        </button>
+        @if (!reels()) {
+          <button type="button" class="ctl" data-test="toggle" [attr.aria-label]="playing() ? 'Пауза' : 'Воспроизвести'" (click)="toggle()">
+            <app-icon [name]="playing() ? 'pause' : 'play'" [size]="22" [filled]="true" />
+          </button>
+        }
         <span class="scrub">
           <span class="track" aria-hidden="true"><span class="fill" [class.snap]="snap()" [style.width.%]="percent()"></span></span>
           <!-- max задан числом в разметке, а не привязкой: иначе value выставится раньше max и обрежется до 100 (значение — SCRUBBER_MAX) -->
           <input type="range" data-test="scrub" min="0" max="1000" step="1" [value]="scrub()" aria-label="Перемотка" [attr.aria-valuetext]="spoken()" (input)="seek($event)" />
         </span>
-        <span class="time" data-test="time">{{ elapsed() }} / {{ total() }}</span>
-        <button type="button" class="ctl" data-test="mute" [attr.aria-label]="muted() ? 'Включить звук' : 'Выключить звук'" (click)="toggleMute()">
+        @if (!reels()) { <span class="time" data-test="time">{{ elapsed() }} / {{ total() }}</span> }
+        <button type="button" class="ctl mute" data-test="mute" [attr.aria-label]="muted() ? 'Включить звук' : 'Выключить звук'" (click)="toggleMute()">
           <app-icon [name]="muted() ? 'volume-x' : 'volume-2'" [size]="22" />
         </button>
-        @if (canFullscreen()) {
+        @if (expandable() && !reels()) {
+          <button type="button" class="ctl" data-test="expand" aria-label="Вертикальный режим" (click)="expand.emit()"><app-icon name="smartphone" [size]="22" /></button>
+        }
+        @if (canFullscreen() && !reels()) {
           <button type="button" class="ctl" data-test="fullscreen" [attr.aria-label]="fullscreen() ? 'Выйти из полноэкранного режима' : 'Во весь экран'" (click)="toggleFullscreen()">
             <app-icon [name]="fullscreen() ? 'minimize' : 'maximize'" [size]="22" />
           </button>
@@ -93,7 +112,30 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
     .time { flex: none; padding: 0 6px; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap }
     /* Совсем узкая рамка (телефон 320px): полосе перемотки нужнее место, чем времени */
     @container (max-width: 339px) { .time { display: none } }
+    /* Вертикальный режим, как в Instagram: чёрный фон, видео на всю рамку, белые элементы вместо шафрановых */
+    .frame.reels { background: #000 }
+    .reels.portrait video { object-fit: cover }
+    .reels::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 48%; background: linear-gradient(to top, rgb(0 0 0 / .66), transparent); pointer-events: none }
+    .reel-play { position: absolute; left: 50%; top: 50%; margin: -38px 0 0 -38px; color: #fff; opacity: .92; filter: drop-shadow(0 2px 14px rgb(0 0 0 / .55)); pointer-events: none }
+    /* Подпись и кнопки поверх видео: сам слой пропускает касания, ловят их только вложенные элементы */
+    .slot { position: absolute; inset: 0; z-index: 1; pointer-events: none }
+    .heart { position: absolute; z-index: 2; margin: -52px 0 0 -52px; color: #fff; filter: drop-shadow(0 4px 18px rgb(0 0 0 / .45)); pointer-events: none; animation: heart-fade .7s linear forwards }
+    .reels .bar { top: 0; display: block; padding: 0; background: none; pointer-events: none }
+    .reels .scrub { position: absolute; left: 0; right: 0; bottom: 0; height: 28px; margin: 0; pointer-events: auto }
+    .reels .track { top: auto; bottom: 0; height: 3px; margin: 0; border-radius: 0 }
+    .reels .fill { background: #fff }
+    .reels input[type='range']::-webkit-slider-runnable-track { height: 28px }
+    .reels input[type='range']::-moz-range-track { height: 28px }
+    .reels input[type='range']::-webkit-slider-thumb { margin-top: 8px; background: #fff; transform: scale(0) }
+    .reels input[type='range']::-moz-range-thumb { background: #fff; transform: scale(0) }
+    .reels input[type='range']:active::-webkit-slider-thumb, .reels input[type='range']:focus-visible::-webkit-slider-thumb { transform: scale(1) }
+    .reels input[type='range']:active::-moz-range-thumb, .reels input[type='range']:focus-visible::-moz-range-thumb { transform: scale(1) }
+    .reels .mute { position: absolute; right: 12px; bottom: calc(24px + env(safe-area-inset-bottom)); width: 40px; height: 40px; background: rgb(0 0 0 / .45); pointer-events: auto }
+    .reels .surface:focus-visible, .reels .ctl:focus-visible { outline-color: #fff }
+    @keyframes heart-fade { to { opacity: 0 } }
+    @keyframes heart-pop { 0% { transform: scale(.4); opacity: 0 } 18% { transform: scale(1.15); opacity: 1 } 40% { transform: scale(1); opacity: 1 } 100% { transform: scale(1.05) translateY(-18px); opacity: 0 } }
     @media (prefers-reduced-motion: no-preference) {
+      .heart { animation-name: heart-pop }
       .bar { transition: opacity .2s }
       .fill { transition: width .25s linear }
       .fill.snap { transition: none }
@@ -111,6 +153,18 @@ export class VideoPlayerComponent {
   readonly label = input<string>('Видео');
   /** Начать играть сразу: нужно, когда человек сам выбрал видео и второе нажатие было бы лишним. */
   readonly autoplay = input<boolean>(false);
+  /** Вид плеера: обычный с панелью кнопок или вертикальный, как в Instagram. */
+  readonly variant = input<'classic' | 'reels'>('classic');
+  /** Двойной тап по видео — «нравится». Одиночный тап тогда ждёт DOUBLE_TAP_MS, чтобы отличить его от двойного. */
+  readonly likeable = input<boolean>(false);
+  /** В обычном плеере: показать кнопку, открывающую вертикальный режим. */
+  readonly expandable = input<boolean>(false);
+  /** Удерживать на паузе: пока открыт вертикальный просмотр, обычный плеер за ним не играет, но остаётся на месте. */
+  readonly hold = input<boolean>(false);
+  /** Двойной тап по видео (при likeable). */
+  readonly liked = output<void>();
+  /** Нажали кнопку вертикального режима (при expandable). */
+  readonly expand = output<void>();
 
   private readonly doc = inject(DOCUMENT);
   protected readonly video = viewChild.required<ElementRef<HTMLVideoElement>>('v');
@@ -128,11 +182,18 @@ export class VideoPlayerComponent {
   protected readonly duration = signal(NaN);
   /** Последний шаг времени был назад: у полосы прогресса на этот кадр плавность выключена. */
   protected readonly snap = signal(false);
+  /** Ролик вертикальный (выше, чем шире): в вертикальном режиме такой растягивается на всю рамку. */
+  protected readonly portrait = signal(false);
+  /** Сердечки после двойного тапа; каждое живёт HEART_MS. */
+  protected readonly hearts = signal<{ id: number; x: number; y: number }[]>([]);
+  private heartId = 0;
+  private tapTimer: ReturnType<typeof setTimeout> | undefined;
   /** Управление на виду: двигали мышью, касались или переходили по Tab меньше IDLE_MS назад. */
   private readonly awake = signal(true);
   private sleepTimer: ReturnType<typeof setTimeout> | undefined;
 
-  protected readonly away = computed(() => this.playing() && !this.awake());
+  protected readonly reels = computed(() => this.variant() === 'reels');
+  protected readonly away = computed(() => !this.reels() && this.playing() && !this.awake());
   protected readonly scrub = computed(() => scrubberValue(this.current(), this.duration()));
   protected readonly percent = computed(() => (this.scrub() / SCRUBBER_MAX) * 100);
   protected readonly elapsed = computed(() => formatTime(this.current()));
@@ -146,7 +207,15 @@ export class VideoPlayerComponent {
       this.canFullscreen.set(!!this.doc.fullscreenEnabled || typeof v.webkitEnterFullscreen === 'function');
       if (this.autoplay()) void this.start();
     });
-    inject(DestroyRef).onDestroy(() => this.cancelSleep());
+    effect(() => { if (this.hold()) untracked(() => this.video().nativeElement.pause()); });
+    inject(DestroyRef).onDestroy(() => { this.cancelSleep(); this.cancelTap(); });
+  }
+
+  /** Нажатие на видео: пауза/запуск, а при likeable второй тап подряд — «нравится». */
+  tap(e: MouseEvent): void {
+    if (!this.likeable()) { this.toggle(); return; }
+    if (this.tapTimer !== undefined) { this.cancelTap(); this.like(e); return; }
+    this.tapTimer = setTimeout(() => { this.tapTimer = undefined; this.toggle(); }, DOUBLE_TAP_MS);
   }
 
   toggle(): void {
@@ -195,7 +264,7 @@ export class VideoPlayerComponent {
     else if (e.key === 'ArrowRight') this.skip(SEEK_STEP);
     // По e.code, чтобы «m» и «f» работали и на русской раскладке
     else if (e.key.toLowerCase() === 'm' || e.code === 'KeyM') this.toggleMute();
-    else if ((e.key.toLowerCase() === 'f' || e.code === 'KeyF') && this.canFullscreen()) this.toggleFullscreen();
+    else if ((e.key.toLowerCase() === 'f' || e.code === 'KeyF') && this.canFullscreen() && !this.reels()) this.toggleFullscreen();
     else return;
     e.preventDefault();
     this.wake();
@@ -230,12 +299,28 @@ export class VideoPlayerComponent {
     this.current.set(0);
     this.duration.set(NaN);
     this.snap.set(true);
+    this.portrait.set(false);
   }
 
   sync(): void {
     const v = this.video().nativeElement;
     this.show(v.currentTime);
     this.duration.set(v.duration);
+    this.portrait.set(v.videoHeight > v.videoWidth);
+  }
+
+  private like(e: MouseEvent): void {
+    this.liked.emit();
+    const box = this.frame().nativeElement.getBoundingClientRect();
+    // Нажатие с клавиатуры (detail 0) не несёт координат — сердечко по центру
+    const heart = e.detail === 0 ? { id: ++this.heartId, x: box.width / 2, y: box.height / 2 } : { id: ++this.heartId, x: e.clientX - box.left, y: e.clientY - box.top };
+    this.hearts.update((l) => [...l, heart]);
+    setTimeout(() => this.hearts.update((l) => l.filter((h) => h.id !== heart.id)), HEART_MS);
+  }
+
+  private cancelTap(): void {
+    clearTimeout(this.tapTimer);
+    this.tapTimer = undefined;
   }
 
   private skip(delta: number): void {

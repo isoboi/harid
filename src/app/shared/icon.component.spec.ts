@@ -10,7 +10,7 @@ describe('IconComponent', () => {
     return f.nativeElement as HTMLElement;
   }
 
-  for (const name of ['search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check', 'truck', 'shield-check', 'star', 'map-pin', 'x', 'minus', 'plus', 'instagram', 'play', 'pause', 'volume-2', 'volume-x', 'maximize', 'minimize', 'rotate-ccw']) {
+  for (const name of ['search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check', 'truck', 'shield-check', 'star', 'map-pin', 'x', 'minus', 'plus', 'instagram', 'play', 'pause', 'volume-2', 'volume-x', 'maximize', 'minimize', 'rotate-ccw', 'smartphone']) {
     it(`иконка «${name}» рисует svg с фигурами`, async () => {
       const el = await render(name);
       const svg = el.querySelector('svg');

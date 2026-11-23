@@ -1,10 +1,13 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { buyBarVisible, ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
+import { FavoritesService } from '../../core/favorites.service';
+import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { Product, Review } from '../../core/models';
 
 const prod = (over: Partial<Product> = {}): Product => ({ id: '16', shop_handle: 'technomir.tj', title: 'Наушники', price: 540, old_price: 600, image: 'a.jpg', images: ['a.jpg', 'b.jpg'], category: 'gadgets', description: 'Описание', sizes: [], in_stock: true, posted_at: '', ...over });
@@ -74,6 +77,108 @@ describe('ProductComponent', () => {
     f.detectChanges();
     expect(el.querySelector('[data-test="video"]')).toBeNull();
   });
+  describe('вертикальный просмотр видео (как в Instagram)', () => {
+    const open = async (p: Product) => {
+      jest.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+      jest.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+      const f = await render(p);
+      const el: HTMLElement = f.nativeElement;
+      (el.querySelector('[data-test="thumb-video"]') as HTMLButtonElement).click();
+      f.detectChanges();
+      const expand = el.querySelector('[data-test="expand"]') as HTMLButtonElement;
+      expand.focus(); // настоящий клик сначала ставит фокус на кнопку
+      expand.click();
+      f.detectChanges();
+      return { f, el, q: (id: string) => el.querySelector(`[data-test="${id}"]`) as HTMLElement };
+    };
+    afterEach(() => jest.restoreAllMocks());
+
+    it('кнопка «Вертикальный режим» открывает просмотр, а обычный плеер за ним встаёт на паузу — два ролика не играют', async () => {
+      const pause = jest.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+      const t = await open(prod({ video: 'v.mp4' }));
+      expect(t.el.querySelector('app-reel-viewer')).not.toBeNull();
+      expect(pause).toHaveBeenCalled();
+      expect(t.el.querySelector('.main app-video-player')).not.toBeNull();
+      expect(t.el.querySelector('.main')?.textContent).not.toContain('Нет фото');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      t.f.detectChanges();
+      expect(t.el.querySelector('app-reel-viewer')).toBeNull();
+    });
+
+    it('закрыли просмотр — фокус возвращается на кнопку «Вертикальный режим», а не теряется', async () => {
+      const t = await open(prod({ video: 'v.mp4' }));
+      const expand = t.q('expand');
+      expect(document.activeElement).not.toBe(expand); // пока открыт просмотр, фокус внутри него
+      (t.el.querySelector('[data-test="reel-close"]') as HTMLButtonElement).click();
+      t.f.detectChanges();
+      expect(t.el.querySelector('app-reel-viewer')).toBeNull();
+      expect(document.activeElement).toBe(expand);
+    });
+
+    it('«Добавить в корзину» кладёт товар и превращается в «Перейти в корзину»', async () => {
+      const t = await open(prod({ video: 'v.mp4' }));
+      expect(t.q('reel-cta').textContent?.trim()).toBe('Добавить в корзину');
+      t.q('reel-cta').click();
+      t.f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(1);
+      expect(t.q('reel-cta').textContent?.trim()).toBe('Перейти в корзину');
+      expect(t.q('reel-cta').getAttribute('href')).toBe('/cart');
+    });
+
+    it('нет в наличии — кнопка выключена', async () => {
+      const t = await open(prod({ video: 'v.mp4', in_stock: false }));
+      expect((t.q('reel-cta') as HTMLButtonElement).disabled).toBe(true);
+      expect(t.q('reel-cta').textContent?.trim()).toBe('Нет в наличии');
+    });
+
+    it('размер не выбран: кнопка «Выбрать размер» закрывает просмотр и показывает подсказку у выбора размера', async () => {
+      const t = await open(prod({ video: 'v.mp4', sizes: ['S', 'M'] }));
+      expect(t.q('reel-cta').textContent?.trim()).toBe('Выбрать размер');
+      t.q('reel-cta').click();
+      t.f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(0);
+      expect(t.el.querySelector('app-reel-viewer')).toBeNull();
+      expect(t.q('size-hint')).not.toBeNull();
+    });
+
+    it('лавка без подключения: «Написать в Direct» — ссылка на чат, и пост копируется в буфер', async () => {
+      const writeText = jest.fn(() => Promise.resolve());
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+      const t = await open(prod({ video: 'v.mp4', price: null, old_price: null, shop_verified: false, direct_url: 'https://ig.me/m/technomir.tj', permalink: 'https://www.instagram.com/p/Df4MU6pzP1g/' }));
+      const a = t.q('reel-cta') as HTMLAnchorElement;
+      expect(a.getAttribute('href')).toBe('https://ig.me/m/technomir.tj');
+      expect(a.textContent?.trim()).toBe('Написать в Direct');
+      a.addEventListener('click', (e) => e.preventDefault());
+      a.click();
+      expect(writeText).toHaveBeenCalledWith('https://www.instagram.com/p/Df4MU6pzP1g/');
+      expect(TestBed.inject(CartService).count()).toBe(0);
+    });
+
+    it('сердечко сбоку переключает избранное, а двойной тап по видео только добавляет — как лайк', async () => {
+      const t = await open(prod({ video: 'v.mp4' }));
+      const fav = TestBed.inject(FavoritesService);
+      expect(fav.has('16')).toBe(false);
+      t.q('reel-fav').click();
+      t.f.detectChanges();
+      expect(fav.has('16')).toBe(true);
+      expect(t.q('reel-fav').getAttribute('aria-pressed')).toBe('true');
+      t.q('reel-fav').click();
+      expect(fav.has('16')).toBe(false);
+      // На странице два плеера: обычный (на паузе) и в просмотре — двойной тап приходит из второго
+      const player = t.f.debugElement.query(By.css('app-reel-viewer app-video-player')).componentInstance as VideoPlayerComponent;
+      player.liked.emit();
+      player.liked.emit();
+      expect(fav.has('16')).toBe(true);
+    });
+
+    it('переключили товар — просмотр закрыт', async () => {
+      const t = await open(prod({ video: 'v.mp4' }));
+      t.f.componentRef.setInput('id', '17');
+      t.f.detectChanges();
+      expect(t.el.querySelector('app-reel-viewer')).toBeNull();
+    });
+  });
+
   it('одно фото и видео — миниатюры показаны; без видео миниатюры видео нет', async () => {
     const f = await render(prod({ images: ['a.jpg'], video: 'v.mp4' }));
     expect((f.nativeElement as HTMLElement).querySelectorAll('.thumbs button').length).toBe(2);

@@ -5,13 +5,13 @@ export type IconName =
   | 'search' | 'store' | 'heart' | 'user' | 'bag' | 'package' | 'banknote' | 'circle-check'
   | 'truck' | 'shield-check' | 'star' | 'map-pin' | 'x' | 'minus' | 'plus' | 'instagram'
   | 'house' | 'layout-grid' | 'chevron-right' | 'chevron-left' | 'message-circle' | 'send'
-  | 'play' | 'pause' | 'volume-2' | 'volume-x' | 'maximize' | 'minimize' | 'rotate-ccw';
+  | 'play' | 'pause' | 'volume-2' | 'volume-x' | 'maximize' | 'minimize' | 'rotate-ccw' | 'smartphone';
 
 const ICON_NAMES: readonly string[] = [
   'search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check',
   'truck', 'shield-check', 'star', 'map-pin', 'x', 'minus', 'plus', 'instagram',
   'house', 'layout-grid', 'chevron-right', 'chevron-left', 'message-circle', 'send',
-  'play', 'pause', 'volume-2', 'volume-x', 'maximize', 'minimize', 'rotate-ccw',
+  'play', 'pause', 'volume-2', 'volume-x', 'maximize', 'minimize', 'rotate-ccw', 'smartphone',
 ];
 
 /**
@@ -163,6 +163,10 @@ const ICON_NAMES: readonly string[] = [
           @case ('rotate-ccw') {
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
             <path d="M3 3v5h5" />
+          }
+          @case ('smartphone') {
+            <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+            <path d="M12 18h.01" />
           }
         }
       </svg>

@@ -1,7 +1,8 @@
+import { Component } from '@angular/core';
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { VideoPlayerComponent } from './video-player.component';
 
-type Opts = { src?: string; poster?: string; label?: string; autoplay?: boolean };
+type Opts = { src?: string; poster?: string; label?: string; autoplay?: boolean; variant?: 'classic' | 'reels'; likeable?: boolean; expandable?: boolean };
 
 /** jsdom не умеет играть видео: подменяем методы и время, события шлём руками. */
 function setup(opts: Opts = {}) {
@@ -14,6 +15,9 @@ function setup(opts: Opts = {}) {
   if (opts.poster !== undefined) f.componentRef.setInput('poster', opts.poster);
   if (opts.label !== undefined) f.componentRef.setInput('label', opts.label);
   if (opts.autoplay !== undefined) f.componentRef.setInput('autoplay', opts.autoplay);
+  if (opts.variant !== undefined) f.componentRef.setInput('variant', opts.variant);
+  if (opts.likeable !== undefined) f.componentRef.setInput('likeable', opts.likeable);
+  if (opts.expandable !== undefined) f.componentRef.setInput('expandable', opts.expandable);
   f.detectChanges();
   const el: HTMLElement = f.nativeElement;
   const q = <T extends HTMLElement = HTMLElement>(id: string) => el.querySelector(`[data-test="${id}"]`) as T;
@@ -221,5 +225,125 @@ describe('VideoPlayerComponent', () => {
     } finally {
       Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: undefined });
     }
+  });
+
+  it('hold: пока включено, ролик стоит на паузе; без него плеер ролик не трогает', () => {
+    const t = setup();
+    expect(t.pause).not.toHaveBeenCalled();
+    t.f.componentRef.setInput('hold', true);
+    t.f.detectChanges();
+    expect(t.pause).toHaveBeenCalledTimes(1);
+  });
+
+  it('обычный плеер: кнопка вертикального режима есть только по запросу и сообщает о нажатии', () => {
+    expect(setup().q('expand')).toBeNull();
+    TestBed.resetTestingModule();
+    const t = setup({ expandable: true });
+    expect(t.q('expand').getAttribute('aria-label')).toBe('Вертикальный режим');
+    let opened = 0;
+    t.f.componentInstance.expand.subscribe(() => opened++);
+    t.q('expand').click();
+    expect(opened).toBe(1);
+  });
+
+  describe('вертикальный режим (как в Instagram)', () => {
+    it('нет панели кнопок: ни времени, ни паузы, ни полного экрана, ни вертикального режима — только линия прогресса и звук', () => {
+      const t = setup({ variant: 'reels', expandable: true });
+      t.f.detectChanges();
+      expect(t.q('frame').classList.contains('reels')).toBe(true);
+      for (const id of ['toggle', 'time', 'fullscreen', 'expand']) expect(t.q(id)).toBeNull();
+      expect(t.q('scrub')).not.toBeNull();
+      expect(t.q('mute')).not.toBeNull();
+    });
+
+    it('вертикальный ролик растягивается на всю рамку, горизонтальный остаётся целиком', () => {
+      const t = setup({ variant: 'reels' });
+      expect(t.q('frame').classList.contains('portrait')).toBe(false);
+      Object.defineProperty(t.video, 'videoWidth', { configurable: true, value: 720 });
+      Object.defineProperty(t.video, 'videoHeight', { configurable: true, value: 1280 });
+      t.emit('loadedmetadata');
+      expect(t.q('frame').classList.contains('portrait')).toBe(true);
+      Object.defineProperty(t.video, 'videoWidth', { configurable: true, value: 1280 });
+      Object.defineProperty(t.video, 'videoHeight', { configurable: true, value: 720 });
+      t.emit('loadedmetadata');
+      expect(t.q('frame').classList.contains('portrait')).toBe(false);
+    });
+
+    it('на паузе по центру белый «play» без круга', () => {
+      const t = setup({ variant: 'reels' });
+      expect(t.q('big-play').classList.contains('reel-play')).toBe(true);
+      t.emit('play');
+      expect(t.q('big-play')).toBeNull();
+    });
+
+    it('всё, что передали внутрь плеера, встаёт поверх видео', () => {
+      @Component({ standalone: true, imports: [VideoPlayerComponent], template: `<app-video-player src="v.mp4" variant="reels"><b data-test="inside">Лавка</b></app-video-player>` })
+      class Host {}
+      TestBed.configureTestingModule({ imports: [Host] });
+      const f = TestBed.createComponent(Host);
+      f.detectChanges();
+      expect(f.nativeElement.querySelector('[data-test="slot"] [data-test="inside"]')).not.toBeNull();
+    });
+
+    it('обычный плеер ничего не проецирует: подпись показывается только в вертикальном режиме', () => {
+      @Component({ standalone: true, imports: [VideoPlayerComponent], template: `<app-video-player src="v.mp4"><b data-test="inside">Лавка</b></app-video-player>` })
+      class Host {}
+      TestBed.configureTestingModule({ imports: [Host] });
+      const f = TestBed.createComponent(Host);
+      f.detectChanges();
+      expect(f.nativeElement.querySelector('[data-test="inside"]')).toBeNull();
+    });
+
+    it('без likeable одиночный тап сразу ставит на паузу', () => {
+      const t = setup({ variant: 'reels' });
+      t.emit('play');
+      t.q('surface').click();
+      expect(t.pause).toHaveBeenCalledTimes(1);
+    });
+
+    it('likeable: одиночный тап срабатывает через 250 мс, двойной — «нравится» без паузы и с сердечком', fakeAsync(() => {
+      const t = setup({ variant: 'reels', likeable: true });
+      let likes = 0;
+      t.f.componentInstance.liked.subscribe(() => likes++);
+      t.emit('play');
+      t.q('surface').click();
+      expect(t.pause).not.toHaveBeenCalled();
+      tick(250);
+      expect(t.pause).toHaveBeenCalledTimes(1);
+      expect(likes).toBe(0);
+
+      t.q('surface').click();
+      tick(100);
+      t.q('surface').click();
+      t.f.detectChanges();
+      expect(likes).toBe(1);
+      expect(t.q('heart')).not.toBeNull();
+      tick(300);
+      expect(t.pause).toHaveBeenCalledTimes(1); // двойной тап паузу не вызывает
+      tick(500);
+      t.f.detectChanges();
+      expect(t.q('heart')).toBeNull();
+    }));
+
+    it('клавиша «f» в вертикальном режиме не открывает полный экран', () => {
+      Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: true });
+      try {
+        const t = setup({ variant: 'reels' });
+        t.f.detectChanges();
+        const frame = t.q('frame');
+        frame.requestFullscreen = jest.fn(() => Promise.resolve());
+        t.q('surface').dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }));
+        expect(frame.requestFullscreen).not.toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: undefined });
+      }
+    });
+
+    it('управление не прячется: в Instagram линия прогресса и звук всегда на месте', fakeAsync(() => {
+      const t = setup({ variant: 'reels' });
+      t.emit('play');
+      tick(5000); t.f.detectChanges();
+      expect(t.q('bar').classList.contains('away')).toBe(false);
+    }));
   });
 });
