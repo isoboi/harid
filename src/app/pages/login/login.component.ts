@@ -25,25 +25,30 @@ const safeReturn = (v: string): string => (SAFE_PATH.test(v) ? v : DEFAULT_RETUR
       <h1 class="title">Вход по номеру телефона</h1>
       @if (step() === 'phone') {
         <p class="lead">Пароль не нужен — пришлём код в SMS. Так ваши заказы будут видны в «Мои заказы» на любом устройстве.</p>
-        <div class="field">
-          <label for="login-phone">Номер телефона</label>
-          <div class="tel">
-            <span class="tel-prefix" id="login-phone-prefix">+992</span>
-            <input id="login-phone" class="field-control" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="93 123 45 67" aria-describedby="login-phone-prefix"
-              [ngModel]="phone()" (ngModelChange)="phone.set($event)" />
+        <!-- Форма — чтобы Enter в поле отправлял код, как кнопка -->
+        <form (ngSubmit)="submitPhone()">
+          <div class="field">
+            <label for="login-phone">Номер телефона</label>
+            <div class="tel">
+              <span class="tel-prefix" id="login-phone-prefix">+992</span>
+              <input id="login-phone" name="phone" class="field-control" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="93 123 45 67" aria-describedby="login-phone-prefix"
+                [ngModel]="phone()" (ngModelChange)="phone.set($event)" />
+            </div>
           </div>
-        </div>
-        <button class="btn btn--block go" type="button" [disabled]="busy() || !isPhone(phone())" (click)="sendCode()">Получить код</button>
+          <button class="btn btn--block go" type="submit" [disabled]="!canSendCode()">Получить код</button>
+        </form>
       } @else {
         <p class="lead">Код отправлен на +992 {{ phone9(phone()) }}</p>
-        <div class="field">
-          <label for="login-code">Код из SMS</label>
-          <input id="login-code" class="field-control code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" [ngModel]="code()" (ngModelChange)="code.set($event)" />
-        </div>
-        @if (resend.left() > 0) { <p class="field-hint again" data-test="countdown">Отправить код ещё раз через {{ resend.left() }} с</p> }
-        @else { <button class="link again" type="button" data-test="resend" [disabled]="busy()" (click)="send()">Отправить код ещё раз</button> }
-        <button class="btn btn--block go" type="button" [disabled]="busy() || code().length !== 6" (click)="verify()">Войти</button>
-        <button class="btn btn--ghost btn--block alt" type="button" (click)="step.set('phone')">Другой номер</button>
+        <form (ngSubmit)="submitCode()">
+          <div class="field">
+            <label for="login-code">Код из SMS</label>
+            <input id="login-code" name="code" class="field-control code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" [ngModel]="code()" (ngModelChange)="code.set($event)" />
+          </div>
+          @if (resend.left() > 0) { <p class="field-hint again" data-test="countdown">Отправить код ещё раз через {{ resend.left() }} с</p> }
+          @else { <button class="link again" type="button" data-test="resend" [disabled]="busy()" (click)="send()">Отправить код ещё раз</button> }
+          <button class="btn btn--block go" type="submit" [disabled]="!canVerify()">Войти</button>
+          <button class="btn btn--ghost btn--block alt" type="button" (click)="step.set('phone')">Другой номер</button>
+        </form>
       }
       @if (error()) { <p class="field-error err" role="alert">{{ error() }}</p> }
     </section>
@@ -79,6 +84,15 @@ export class LoginComponent {
   readonly resend = new CodeResend();
   readonly phone9 = phone9;
   readonly isPhone = isPhone;
+
+  canSendCode(): boolean { return !this.busy() && isPhone(this.phone()); }
+  canVerify(): boolean { return !this.busy() && this.code().length === 6; }
+
+  /** Отправка формы телефона (кнопка или Enter): те же условия, что у кнопки. */
+  submitPhone(): void { if (this.canSendCode()) this.sendCode(); }
+
+  /** Отправка формы кода (кнопка или Enter). */
+  submitCode(): void { if (this.canVerify()) this.verify(); }
 
   /** «Получить код»: если на этот номер код ушёл меньше минуты назад — сразу к вводу кода. */
   sendCode(): void {

@@ -81,6 +81,59 @@ describe('LoginComponent', () => {
     expect(TestBed.inject(AuthService).loggedIn()).toBe(false);
   });
 
+  describe('Enter в поле отправляет форму', () => {
+    const setup = async () => {
+      const api = {
+        sendCode: jest.fn(() => of({})),
+        verify: jest.fn(() => of({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false })),
+      };
+      await TestBed.configureTestingModule({ imports: [LoginComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+      TestBed.inject(AuthService).hydrate();
+      const f = TestBed.createComponent(LoginComponent);
+      f.detectChanges();
+      jest.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+      const submit = () => {
+        const form = (f.nativeElement as HTMLElement).querySelector('form');
+        expect(form).not.toBeNull();
+        form!.dispatchEvent(new Event('submit', { cancelable: true }));
+        f.detectChanges();
+      };
+      return { api, f, c: f.componentInstance, submit };
+    };
+
+    it('шаг телефона: отправка формы запрашивает код', async () => {
+      const { api, c, f, submit } = await setup();
+      c.phone.set('931110002');
+      f.detectChanges();
+      submit();
+      expect(api.sendCode).toHaveBeenCalledWith('931110002');
+      expect(c.step()).toBe('code');
+    });
+
+    it('шаг телефона: неполный номер — код не запрашивается', async () => {
+      const { api, c, f, submit } = await setup();
+      c.phone.set('93111');
+      f.detectChanges();
+      submit();
+      expect(api.sendCode).not.toHaveBeenCalled();
+      expect(c.step()).toBe('phone');
+    });
+
+    it('шаг кода: отправка формы входит, неполный код — нет', async () => {
+      const { api, c, f, submit } = await setup();
+      c.phone.set('931110002');
+      c.step.set('code');
+      c.code.set('0000');
+      f.detectChanges();
+      submit();
+      expect(api.verify).not.toHaveBeenCalled();
+      c.code.set('000000');
+      f.detectChanges();
+      submit();
+      expect(api.verify).toHaveBeenCalledWith('931110002', '000000');
+    });
+  });
+
   describe('повторная отправка кода', () => {
     beforeEach(() => jest.useFakeTimers());
     afterEach(() => jest.useRealTimers());
