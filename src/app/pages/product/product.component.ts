@@ -17,6 +17,7 @@ import { ProductCardComponent } from '../../shared/product-card.component';
 import { ratingLabel, ratingNumber } from '../../shared/rating';
 import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
+import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
 const money = new MoneyPipe();
@@ -41,7 +42,7 @@ export function buyBarVisible(e: ButtonView): boolean {
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent],
+  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -50,7 +51,8 @@ export function buyBarVisible(e: ButtonView): boolean {
         <div class="layout">
           <div class="gallery">
             <div class="main" [class.video]="videoOn()">
-              @if (videoOn()) { <video data-test="video" [src]="video()" [poster]="photos()[0] || ''" controls playsinline preload="none" [attr.aria-label]="'Видео: ' + p.title"></video> }
+              <!-- Человек сам выбрал слайд с видео — играем сразу, без второго нажатия -->
+              @if (videoOn()) { <app-video-player [src]="video()" [poster]="photos()[0] || ''" [label]="'Видео: ' + p.title" [autoplay]="true" /> }
               @else if (current()) { <img [src]="current()" [alt]="p.title" /> }
               @else { <span class="muted">Нет фото</span> }
             </div>
@@ -154,7 +156,7 @@ export function buyBarVisible(e: ButtonView): boolean {
     .thumbs button.on { border-color: var(--color-ink) }
     .thumbs img { width: 100%; height: 100%; object-fit: cover }
     .main.video { background: var(--color-ink) }
-    .main video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain }
+    .main app-video-player { position: absolute; inset: 0 }
     .thumbs .play { position: relative; display: grid; place-items: center; color: #fff }
     .thumbs .play img { position: absolute; inset: 0; filter: brightness(.6) }
     .thumbs .play svg { position: relative; width: 26px; height: 26px }

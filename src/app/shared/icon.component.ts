@@ -4,12 +4,14 @@ import { Component, computed, input } from '@angular/core';
 export type IconName =
   | 'search' | 'store' | 'heart' | 'user' | 'bag' | 'package' | 'banknote' | 'circle-check'
   | 'truck' | 'shield-check' | 'star' | 'map-pin' | 'x' | 'minus' | 'plus' | 'instagram'
-  | 'house' | 'layout-grid' | 'chevron-right' | 'chevron-left' | 'message-circle' | 'send';
+  | 'house' | 'layout-grid' | 'chevron-right' | 'chevron-left' | 'message-circle' | 'send'
+  | 'play' | 'pause' | 'volume-2' | 'volume-x' | 'maximize' | 'minimize' | 'rotate-ccw';
 
 const ICON_NAMES: readonly string[] = [
   'search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check',
   'truck', 'shield-check', 'star', 'map-pin', 'x', 'minus', 'plus', 'instagram',
   'house', 'layout-grid', 'chevron-right', 'chevron-left', 'message-circle', 'send',
+  'play', 'pause', 'volume-2', 'volume-x', 'maximize', 'minimize', 'rotate-ccw',
 ];
 
 /**
@@ -128,6 +130,39 @@ const ICON_NAMES: readonly string[] = [
             <rect x="3" y="3" width="18" height="18" rx="5" />
             <circle cx="12" cy="12" r="4" />
             <path d="M17.5 6.5h.01" />
+          }
+          @case ('play') {
+            <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" />
+          }
+          @case ('pause') {
+            <rect x="14" y="3" width="5" height="18" rx="1" />
+            <rect x="5" y="3" width="5" height="18" rx="1" />
+          }
+          @case ('volume-2') {
+            <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+            <path d="M16 9a5 5 0 0 1 0 6" />
+            <path d="M19.364 18.364a9 9 0 0 0 0-12.728" />
+          }
+          @case ('volume-x') {
+            <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+            <path d="m22 9-6 6" />
+            <path d="m16 9 6 6" />
+          }
+          @case ('maximize') {
+            <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+            <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+            <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+            <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+          }
+          @case ('minimize') {
+            <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+            <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+            <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+            <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+          }
+          @case ('rotate-ccw') {
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
           }
         }
       </svg>

@@ -53,18 +53,23 @@ describe('ProductComponent', () => {
     expect(el.textContent).toContain('600 смн');
     expect(el.querySelectorAll('[data-test="thumb"]').length).toBe(2);
   });
-  it('видео — последний слайд галереи: по нажатию миниатюры вместо фото плеер без предзагрузки', async () => {
+  it('видео — последний слайд галереи: по нажатию миниатюры вместо фото плеер, ролик сразу играет, но заранее не грузится', async () => {
+    const play = jest.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
     const f = await render(prod({ video: 'v.mp4' }));
     const el: HTMLElement = f.nativeElement;
     expect(el.querySelector('[data-test="video"]')).toBeNull();
     expect(el.querySelectorAll('[data-test="thumb"]').length).toBe(2);
+    expect(play).not.toHaveBeenCalled();
     (el.querySelector('[data-test="thumb-video"]') as HTMLButtonElement).click();
     f.detectChanges();
-    const video = el.querySelector('[data-test="video"]') as HTMLVideoElement;
+    const video = el.querySelector('app-video-player [data-test="video"]') as HTMLVideoElement;
     expect(video.getAttribute('src')).toBe('v.mp4');
     expect(video.getAttribute('preload')).toBe('none');
     expect(video.getAttribute('poster')).toBe('a.jpg');
-    expect(el.querySelector('.main img')).toBeNull();
+    expect(video.getAttribute('aria-label')).toBe('Видео: Наушники');
+    expect(video.hasAttribute('controls')).toBe(false);
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(el.querySelector('.main img:not(.ambient)')).toBeNull();
     (el.querySelector('[data-test="thumb"]') as HTMLButtonElement).click();
     f.detectChanges();
     expect(el.querySelector('[data-test="video"]')).toBeNull();
