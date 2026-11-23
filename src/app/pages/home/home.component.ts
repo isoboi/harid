@@ -7,6 +7,8 @@ import { SeoService } from '../../core/seo.service';
 import { PriceTagComponent } from '../../shared/price-tag.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { plural } from '../../shared/plural';
+import { CatalogFeed } from '../../core/catalog-feed.service';
+import { curate, FEED_SHOWN, visibleCategories } from '../../core/feed';
 import { ShopStripComponent } from '../../shared/shop-strip.component';
 
 /** Четыре шага оплаты наличными — в раскладке «Как это работает» прототипа. */
@@ -118,8 +120,13 @@ export class HomeComponent {
   readonly steps = CASH_STEPS;
   private readonly api = inject(MarketApi);
   readonly shops = toSignal(this.api.shops().pipe(catchError(() => of([]))), { initialValue: [] });
-  readonly categories = toSignal(this.api.categories().pipe(catchError(() => of([]))), { initialValue: [] });
-  readonly products = toSignal(this.api.products({ limit: 24 }).pipe(catchError(() => of([]))), { initialValue: [] });
+  private readonly allCategories = toSignal(this.api.categories().pipe(catchError(() => of([]))), { initialValue: [] });
+  /** Свежие товары: undefined — грузятся, null — не загрузились. */
+  private readonly latest = toSignal(inject(CatalogFeed).products(), { initialValue: undefined });
+  /** Чипы — только категории с товарами. Пока лента грузится, чипов нет: пустые не мелькают и не «схлопываются» на глазах. */
+  readonly categories = computed(() => { const l = this.latest(); return l === undefined ? [] : visibleCategories(this.allCategories(), l); });
+  /** Лента: сначала то, что можно заказать; товары с поломанным названием («!», «@ник») не показываем. */
+  readonly products = computed(() => curate(this.latest() ?? []).slice(0, FEED_SHOWN));
   /** Для коллажа в первом экране — первые три товара с фото. */
   readonly collage = computed(() => this.products().filter((p) => !!p.image).slice(0, 3));
   constructor() {

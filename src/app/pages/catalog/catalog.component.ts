@@ -1,8 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { MarketApi } from '../../core/market-api.service';
+import { CatalogFeed } from '../../core/catalog-feed.service';
+import { visibleCategories } from '../../core/feed';
 import { Category } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
 import { IconComponent } from '../../shared/icon.component';
@@ -18,14 +20,14 @@ import { IconComponent } from '../../shared/icon.component';
   template: `
     <div class="wrap page-top">
       <h1 class="page-title">Каталог</h1>
-      @if (categories(); as list) {
+      @if (shown(); as list) {
         <ul class="tiles">
           <li><a class="tile tile--all" routerLink="/" fragment="fresh" data-test="all"><span>Все товары</span><app-icon name="chevron-right" [size]="20" /></a></li>
           @for (c of list; track c.slug) {
             <li><a class="tile" [routerLink]="['/c', c.slug]" data-test="category"><span>{{ c.name }}</span><app-icon name="chevron-right" [size]="20" /></a></li>
           }
         </ul>
-      } @else if (categories() === null) {
+      } @else if (shown() === null) {
         <p class="muted state">Не удалось загрузить категории. Попробуйте обновить страницу.</p>
         <a class="btn state-btn" routerLink="/" fragment="fresh">Все товары</a>
       } @else {
@@ -64,6 +66,15 @@ export class CatalogComponent {
   private readonly api = inject(MarketApi);
   /** undefined — грузится, null — ошибка, массив — категории. На сервере запрос ждётся, и плитки уходят в HTML. */
   readonly categories = toSignal<Category[] | null | undefined>(this.api.categories().pipe(catchError(() => of(null))), { initialValue: undefined });
+  /** Свежие товары: undefined — грузятся, null — не загрузились. */
+  private readonly latest = toSignal(inject(CatalogFeed).products(), { initialValue: undefined });
+  /** Плитки только для категорий с товарами; пока грузятся категории или товары — заглушки (undefined), ошибка категорий — null. */
+  readonly shown = computed<Category[] | null | undefined>(() => {
+    const cats = this.categories();
+    if (!Array.isArray(cats)) return cats;
+    const feed = this.latest();
+    return feed === undefined ? undefined : visibleCategories(cats, feed);
+  });
   readonly skeleton = [1, 2, 3, 4, 5, 6];
   constructor() {
     inject(SeoService).set({ title: 'Каталог — Харид', description: 'Все категории товаров Instagram-лавок Таджикистана с оплатой наличными курьеру.' });

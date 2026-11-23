@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
 import { dayMonth } from '../../core/checkout-options';
+import { curate } from '../../core/feed';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
@@ -50,8 +51,8 @@ import { NotFoundComponent } from '../not-found/not-found.component';
             <span>Оценка и заказы — только по доставкам через Харид</span>
           </p>
           <section class="goods">
-            <h2 class="section-title">{{ products().length }} {{ plural(products().length, productForms) }}</h2>
-            @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
+            <h2 class="section-title">{{ shown().length }} {{ plural(shown().length, productForms) }}</h2>
+            @if (shown().length) { <div class="products">@for (p of shown(); track p.id) { <app-product-card [product]="p" /> }</div> }
             @else { <p class="muted">Пока пусто</p> }
           </section>
           <app-reviews class="reviews" [reviews]="reviews()" [rating]="s.rating" [count]="s.reviews_count ?? 0" [showProduct]="true" [shop]="s.handle" />
@@ -101,6 +102,8 @@ export class ShopComponent {
   readonly handle = input.required<string>();
   readonly shop = signal<Shop | null>(null);
   readonly products = signal<Product[]>([]);
+  /** Товары лавки: без поломанных названий («!», «@ник»), сначала доступные для заказа. */
+  readonly shown = computed(() => curate(this.products()));
   readonly missing = signal(false);
   readonly failed = signal(false);
   readonly joined = computed(() => dayMonth(this.shop()?.joined_at ?? ''));
