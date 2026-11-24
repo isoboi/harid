@@ -31,7 +31,7 @@ describe('AppComponent', () => {
     f.detectChanges();
     const el: HTMLElement = f.nativeElement;
     expect(el.querySelectorAll('header nav svg').length).toBe(3);
-    expect(el.querySelectorAll('form.search svg').length).toBe(1);
+    expect(el.querySelectorAll('.search form svg').length).toBe(1);
   });
 
   it('после первого рендера загружает корзину из хранилища', async () => {

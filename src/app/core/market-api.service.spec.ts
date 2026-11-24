@@ -13,6 +13,12 @@ describe('MarketApi', () => {
   });
   afterEach(() => http.verify());
 
+  it('suggest: GET /search/suggest?q', () => {
+    api.suggest('хонор').subscribe();
+    const r = http.expectOne((req) => req.url === `${B}/search/suggest`);
+    expect(r.request.params.get('q')).toBe('хонор');
+    r.flush({ products: [], shops: [], categories: [] });
+  });
   it('products: только заданные параметры', () => {
     api.products({ shop: 'technomir.tj', limit: 24 }).subscribe();
     const r = http.expectOne((req) => req.url === `${B}/products`);

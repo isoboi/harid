@@ -22,6 +22,8 @@ export type ProductSort = 'new' | 'price_asc' | 'price_desc';
 export interface FeedFilters { sort?: ProductSort; price_min?: number; price_max?: number; size?: string; in_stock?: boolean }
 export interface ProductQuery extends FeedFilters { category?: string; shop?: string; q?: string; limit?: number; offset?: number }
 /** GET /market/products/facets: варианты (частые первыми) и диапазон цен; null — товаров с ценой нет. */
+/** Подсказки поиска при наборе (GET /market/search/suggest). */
+export interface SearchSuggestions { products: Pick<Product, 'id' | 'title' | 'price' | 'image' | 'shop_handle'>[]; shops: { handle: string; name: string; avatar_color: string; avatar_url: string | null }[]; categories: Category[] }
 export interface ProductFacets { sizes: string[]; price_min: number | null; price_max: number | null }
 /** Отзыв о товаре: GET /market/reviews?product=<id> | ?shop=<handle>, новые первыми. */
 /** Публичный ответ лавки на отзыв (решение 0007). */
