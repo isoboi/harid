@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, Subject, throwError } from 'rxjs';
+import { NEVER, Observable, of, Subject, throwError } from 'rxjs';
 import { ChatThreadComponent } from './chat-thread.component';
 import { ChatApi } from '../../core/chat-api.service';
 import { ChatSocket } from '../../core/chat-socket.service';
@@ -9,10 +9,10 @@ import { AuthService } from '../../core/auth.service';
 const m = (id: number, over = {}) => ({ id, chat_id: 3, sender: 'shop', text: `m${id}`, product: null, created_at: '2026-11-22T10:00:00Z', ...over });
 
 describe('ChatThreadComponent', () => {
-  const setup = async (history = [m(1), m(2)]) => {
+  const setup = async (history: any[] | Observable<any[]> = [m(1), m(2)]) => {
     const messages$ = new Subject<any>(); const reconnected$ = new Subject<void>();
     const api = {
-      messages: jest.fn(() => of(history)),
+      messages: jest.fn(() => (Array.isArray(history) ? of(history) : history)),
       send: jest.fn(() => of(m(3, { sender: 'buyer', text: 'Спасибо' }))),
       read: jest.fn(() => of({ unread_total: 0 })),
       list: jest.fn(() => of([])),
@@ -27,10 +27,17 @@ describe('ChatThreadComponent', () => {
   };
   beforeEach(() => localStorage.clear());
 
+  it('до ответа — заглушка переписки', async () => {
+    const { el } = await setup(NEVER);
+    expect(el.querySelector('[data-test="skel-thread"]')).not.toBeNull();
+    expect(el.querySelector('[data-test="bubble"]')).toBeNull();
+  });
+
   it('история и «прочитано» при открытии', async () => {
     const { api, socket, el } = await setup();
     expect(api.messages).toHaveBeenCalledWith(3);
     expect(el.querySelectorAll('[data-test="bubble"]').length).toBe(2);
+    expect(el.querySelector('[data-test="skel-thread"]')).toBeNull();
     expect(api.read).toHaveBeenCalledWith(3);
     expect(socket.setUnread).toHaveBeenCalledWith(0);
   });

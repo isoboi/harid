@@ -189,6 +189,7 @@ describe('OrderComponent', () => {
     f.detectChanges();
     expect(order).not.toHaveBeenCalled();
     expect(f.nativeElement.textContent).toContain('Загрузка');
+    expect(f.nativeElement.querySelector('[data-test="skel-order"]')).not.toBeNull();
     loginAsOwner();
     f.detectChanges();
     expect(order).toHaveBeenCalledTimes(1);
@@ -274,9 +275,11 @@ describe('OrderComponent', () => {
     f.componentRef.setInput('t', 'tok-1');
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Загрузка');
+    expect(f.nativeElement.querySelector('[data-test="skel-order"]')).not.toBeNull();
     res.next(ORDER);
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('R-221526');
+    expect(f.nativeElement.querySelector('[data-test="skel-order"]')).toBeNull();
   });
 
   it('смена номера отменяет прежний запрос: поздний ответ не перетирает новый заказ', async () => {

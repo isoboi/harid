@@ -103,6 +103,11 @@ textarea { resize: vertical }
 .skel { border-radius: 10px; background: var(--color-mist) }
 @media (prefers-reduced-motion: no-preference) { .skel { animation: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite } }
 @keyframes pulse { 50% { opacity: .5 } }
+/* Строка текста и кружок (аватар); ширину и высоту задаёт сама страница */
+.skel--line { display: block; height: 14px; border-radius: 7px }
+.skel--round { border-radius: 50% }
+/* Серый чип на месте категорий: та же пилюля, без рамки */
+.chip.skel { border-color: transparent; border-radius: 9999px }
 @keyframes spin { to { transform: rotate(360deg) } }
 
 /* Сводка заказа справа: rounded-[14px] bg-mist p-6 */

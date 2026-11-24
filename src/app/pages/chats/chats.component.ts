@@ -28,6 +28,23 @@ import { chatListTime } from './chat-time';
           <a class="btn" routerLink="/catalog">В каталог</a>
         </div>
       }
+      @if (!loaded()) {
+        <!-- Заглушка списка: кружок лавки, имя со временем и строка последнего сообщения -->
+        <div role="status" data-test="skel-chats">
+          <span class="sr-only">Загрузка…</span>
+          <ul class="list" aria-hidden="true">
+            @for (w of skeleton; track $index) {
+              <li class="row">
+                <span class="skel skel--round ava-skel"></span>
+                <span class="body">
+                  <span class="top"><span class="skel skel--line name-skel" [style.width.%]="w"></span><span class="skel skel--line when-skel"></span></span>
+                  <span class="skel skel--line last-skel"></span>
+                </span>
+              </li>
+            }
+          </ul>
+        </div>
+      }
       <ul class="list">
         @for (c of chats(); track c.id) {
           <li>
@@ -72,6 +89,12 @@ import { chatListTime } from './chat-time';
     .unread .last { color: var(--color-ink); font-weight: 500 }
     .unread .when { color: var(--color-lapis); font-weight: 600 }
     .badge { flex: none; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 9999px; background: var(--color-anor); color: var(--color-paper); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums }
+    /* Заглушка: строки той же высоты 76px, без подсветки при наведении */
+    li.row { pointer-events: none }
+    .ava-skel { flex: none; width: 52px; height: 52px }
+    .name-skel { height: 16px; margin-block: 2px }
+    .when-skel { flex: none; margin-left: auto; width: 40px; height: 12px }
+    .last-skel { width: 75%; margin-top: 4px }
     .empty { display: flex; flex-direction: column; align-items: center; padding: 48px 16px; text-align: center }
     .empty-ico { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--color-mist); color: var(--color-lapis) }
     .empty-title { margin: 16px 0 4px; font-size: 18px; font-weight: 700 }
@@ -87,6 +110,8 @@ export class ChatsComponent implements OnInit {
   readonly chats = signal<ChatSummary[]>([]);
   readonly loaded = signal(false);
   readonly when = chatListTime;
+  /** Ширины имён в строках заглушки — чтобы список не выглядел штампованным. */
+  readonly skeleton = [42, 30, 50, 36, 26];
 
   ngOnInit(): void {
     this.auth.hydrate();

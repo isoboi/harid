@@ -8,11 +8,12 @@ import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
 import { FeedFiltersComponent } from '../../shared/feed-filters.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
+import { SkelProductsComponent } from '../../shared/skeleton.component';
 
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [ProductCardComponent, FeedMoreComponent, FeedFiltersComponent],
+  imports: [ProductCardComponent, FeedMoreComponent, FeedFiltersComponent, SkelProductsComponent],
   template: `
     <div class="wrap page-top">
       @if (!q()) { <p class="muted">Введите запрос</p> }
@@ -21,7 +22,8 @@ import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
         <app-feed-filters class="filters" [base]="base()" [value]="filters()" />
         <div class="list">
           @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
-          @else if (!feed.loading()) { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Ничего не нашлось' }}</p> }
+          @else if (feed.loading()) { <app-skel-products /> }
+          @else { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Ничего не нашлось' }}</p> }
           @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
         </div>
       }

@@ -19,6 +19,7 @@ import { ShopRating, shopRating } from '../../shared/rating';
 import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShareComponent } from '../../shared/share.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
+import { SkelProductsComponent } from '../../shared/skeleton.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
 type ShopTab = 'goods' | 'reviews';
@@ -28,7 +29,7 @@ const FILTERS_FROM = 8;
 @Component({
   selector: 'app-shop',
   standalone: true,
-  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent, ShareComponent],
+  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent, ShareComponent, SkelProductsComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -81,7 +82,8 @@ const FILTERS_FROM = 8;
             <section id="panel-goods" class="panel" role="tabpanel" aria-labelledby="tab-goods" data-test="panel-goods">
               @if (showFilters()) { <app-feed-filters class="filters" [base]="base()" [value]="filters()" /> }
               @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
-              @else if (!feed.loading()) { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Пока пусто' }}</p> }
+              @else if (feed.loading()) { <app-skel-products /> }
+              @else { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Пока пусто' }}</p> }
               @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
             </section>
           } @else {
@@ -91,14 +93,24 @@ const FILTERS_FROM = 8;
           }
         </div>
       } @else {
-        <!-- Заглушка загрузки, как в прототипе: кружок-строки и сетка серых квадратов -->
-        <div class="wrap page-top" role="status">
-          <span class="sr-only">Загружаем…</span>
-          <div class="skel" style="height:36px;width:256px"></div>
-          <div class="skel" style="height:16px;width:192px;margin-top:12px"></div>
-          <div class="products" style="margin-top:32px">
-            @for (i of [1, 2, 3, 4]; track i) { <div><div class="skel" style="aspect-ratio:1;border-radius:var(--radius-photo)"></div><div class="skel" style="height:16px;width:80%;margin-top:12px"></div></div> }
+        <!-- Заглушка загрузки по форме шапки лавки: аватар, имя, @ник, три показателя, вкладки и сетка товаров -->
+        <!-- «Загрузка…» для экранных чтецов объявляет app-skel-products -->
+        <div class="wrap page-top" data-test="skel-shop">
+          <div aria-hidden="true">
+            <div class="head">
+              <span class="skel skel--round ava-skel"></span>
+              <div class="who">
+                <span class="skel skel--line name-skel"></span>
+                <span class="skel skel--line ig-skel"></span>
+              </div>
+              <div class="stats">
+                @for (n of [1, 2, 3]; track n) { <div><span class="skel skel--line dt-skel"></span><span class="skel skel--line dd-skel"></span></div> }
+              </div>
+            </div>
+            <span class="skel skel--line meta-skel"></span>
+            <div class="tabs"><span class="tab"><span class="skel skel--line tab-skel"></span></span><span class="tab"><span class="skel skel--line tab-skel"></span></span></div>
           </div>
+          <app-skel-products class="panel" />
         </div>
       }
     }
@@ -136,6 +148,15 @@ const FILTERS_FROM = 8;
     .meta { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 20px; row-gap: 4px; font-size: 14px; color: var(--color-ink-soft) }
     .pin { display: inline-flex; align-items: center; gap: 6px }
     .share { margin-top: 12px }
+    /* Заглушка: размеры блоков совпадают с настоящей шапкой (аватар 112, имя 30px, ссылка 44px) */
+    .ava-skel { flex: none; width: 112px; height: 112px }
+    .name-skel { height: 30px; margin-block: 4px; width: min(256px, 80%) }
+    .ig-skel { margin-top: 19px; margin-bottom: 15px; width: 140px }
+    .dt-skel { height: 12px; width: 64px; margin-block: 3px }
+    .dd-skel { height: 20px; width: 48px; margin-top: 6px }
+    .meta-skel { margin-top: 20px; width: min(420px, 90%) }
+    .tab-skel { width: 88px; height: 17px; align-self: center }
+    app-skel-products.panel { display: block }
   `,
 })
 export class ShopComponent {

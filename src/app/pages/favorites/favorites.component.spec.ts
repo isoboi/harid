@@ -22,6 +22,7 @@ describe('FavoritesComponent', () => {
     const t: string = f.nativeElement.textContent;
     expect(t).toContain('Загрузка');
     expect(t).not.toContain('Пока пусто');
+    expect(f.nativeElement.querySelector('[data-test="skel-products"]')).not.toBeNull();
   });
 
   it('после гидратации пустого избранного — «Пока пусто»', async () => {
