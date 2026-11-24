@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { CartComponent } from './cart.component';
 import { CartService } from '../../core/cart.service';
+import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { Product } from '../../core/models';
 
 const product: Product = { id: '16', shop_handle: 'technomir.tj', title: 'Наушники', price: 320, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' };
@@ -159,5 +160,58 @@ describe('CartComponent', () => {
     f.detectChanges();
     const plus = f.nativeElement.querySelector('button[aria-label="Больше"]') as HTMLButtonElement;
     expect(plus.disabled).toBe(true);
+  });
+
+  describe('«Вы смотрели»', () => {
+    const other: Product = { ...product, id: '17', title: 'Чехол' };
+    const strip = (f: { nativeElement: HTMLElement }) => f.nativeElement.querySelector('app-recent-strip section');
+    it('пустая корзина после гидратации — полоса под призывом', async () => {
+      const f = await setup();
+      TestBed.inject(RecentlyViewedService).add(other);
+      TestBed.inject(CartService).hydrate();
+      f.detectChanges();
+      const el: HTMLElement = f.nativeElement;
+      expect(el.textContent).toContain('пока пусто');
+      expect(strip(f)?.textContent).toContain('Чехол');
+      expect(el.querySelector('.empty')!.compareDocumentPosition(strip(f)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+    it('товар из корзины в полосе не повторяется', async () => {
+      const f = await setup();
+      const recent = TestBed.inject(RecentlyViewedService);
+      recent.add(product); recent.add(other);
+      TestBed.inject(CartService).add(product, null, 1);
+      f.detectChanges();
+      expect(strip(f)?.textContent).toContain('Чехол');
+      expect(strip(f)?.querySelector('a[href="/product/16"]')).toBeNull();
+    });
+    it('полоса следит за корзиной: убранный товар появляется, возвращённый — снова скрыт', async () => {
+      const f = await setup();
+      const recent = TestBed.inject(RecentlyViewedService);
+      recent.add(product); recent.add(other);
+      TestBed.inject(CartService).add(product, null, 1);
+      f.detectChanges();
+      const has16 = () => !!strip(f)?.querySelector('a[href="/product/16"]');
+      expect(has16()).toBe(false);
+      f.componentInstance.remove(TestBed.inject(CartService).items()[0]);
+      f.detectChanges();
+      expect(has16()).toBe(true);
+      f.componentInstance.restoreRemoved();
+      f.detectChanges();
+      expect(has16()).toBe(false);
+    });
+    it('вся история уже в корзине — полосы нет', async () => {
+      const f = await setup();
+      TestBed.inject(RecentlyViewedService).add(product);
+      TestBed.inject(CartService).add(product, null, 1);
+      f.detectChanges();
+      expect(f.nativeElement.textContent).not.toContain('Вы смотрели');
+    });
+    it('до гидратации корзины полосы нет', async () => {
+      const f = await setup();
+      TestBed.inject(RecentlyViewedService).add(other);
+      f.detectChanges();
+      expect(f.nativeElement.textContent).toContain('Загрузка');
+      expect(f.nativeElement.textContent).not.toContain('Вы смотрели');
+    });
   });
 });

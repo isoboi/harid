@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { NEVER, of, throwError } from 'rxjs';
 import { HomeComponent } from './home.component';
 import { MarketApi } from '../../core/market-api.service';
+import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { Product, ProductQuery } from '../../core/models';
 import { FEED_PAGE_SIZE as HOME_PAGE_SIZE } from '../../shared/product-feed';
 
@@ -104,5 +105,54 @@ describe('HomeComponent: подгрузка ленты', () => {
     const { f, cards } = await render(() => of(page(1, 3)));
     expect(cards()).toBe(3);
     expect((f.nativeElement as HTMLElement).querySelector('[data-test="skel-products"]')).toBeNull();
+  });
+});
+
+describe('HomeComponent: «Вы смотрели»', () => {
+  const original = (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
+  beforeEach(() => {
+    localStorage.clear();
+    (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = class { observe() {} disconnect() {} };
+  });
+  afterEach(() => {
+    (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = original;
+    TestBed.resetTestingModule();
+  });
+
+  async function render(withHistory: boolean, count = 3) {
+    await TestBed.configureTestingModule({
+      imports: [HomeComponent],
+      providers: [provideRouter([]), { provide: MarketApi, useValue: { products: () => of(page(1, count)), shops: () => of([]), categories: () => of([]) } }],
+    }).compileComponents();
+    if (withHistory) TestBed.inject(RecentlyViewedService).add({ ...item(77), title: 'Снимок 77' });
+    const f = TestBed.createComponent(HomeComponent);
+    f.detectChanges();
+    return f.nativeElement as HTMLElement;
+  }
+
+  const after = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+  it('десктоп: «Вы смотрели» над «Новое в лавках»', async () => {
+    const el = await render(true);
+    const strip = el.querySelector('app-recent-strip.recent-d section');
+    expect(strip?.textContent).toContain('Снимок 77');
+    expect(after(strip!, el.querySelector('#fresh')!)).toBe(true);
+  });
+  it('телефон: полоса после первых 8 товаров ленты, ниже первого экрана', async () => {
+    const el = await render(true, 12);
+    const strip = el.querySelector('app-recent-strip.recent-m section')!;
+    expect(strip?.textContent).toContain('Снимок 77');
+    const cards = el.querySelectorAll('#fresh app-product-card');
+    expect(cards).toHaveLength(12);
+    expect(after(cards[7], strip)).toBe(true);
+    expect(after(strip, cards[8])).toBe(true);
+  });
+  it('телефон: товаров меньше 8 — полоса после ленты', async () => {
+    const el = await render(true, 3);
+    const cards = el.querySelectorAll('#fresh app-product-card');
+    expect(after(cards[2], el.querySelector('app-recent-strip.recent-m section')!)).toBe(true);
+  });
+  it('без истории полосы нет', async () => {
+    const el = await render(false);
+    expect(el.textContent).not.toContain('Вы смотрели');
   });
 });

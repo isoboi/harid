@@ -8,6 +8,7 @@ import { isChatThread, pathOf, TabBarComponent } from './shared/tab-bar.componen
 import { AuthService } from './core/auth.service';
 import { CartService } from './core/cart.service';
 import { FavoritesService } from './core/favorites.service';
+import { RecentlyViewedService } from './core/recently-viewed.service';
 import { ChatSocket } from './core/chat-socket.service';
 
 /**
@@ -39,12 +40,14 @@ export class AppComponent {
   constructor() {
     const cart = inject(CartService);
     const fav = inject(FavoritesService);
+    const recent = inject(RecentlyViewedService);
     const auth = inject(AuthService);
     const chat = inject(ChatSocket);
     // Только в браузере и после гидратации: сервер и первый рендер клиента одинаковы (пустое состояние).
     afterNextRender(() => {
       cart.hydrate();
       fav.hydrate();
+      recent.hydrate();
       auth.hydrate();
       // Сокет чата: подключается после входа, на сервере не стартует
       chat.start();
