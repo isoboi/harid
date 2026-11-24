@@ -95,8 +95,30 @@ export function requestOrigin(siteUrl: string | undefined, req: { protocol: stri
   return `${proto}://${first(req.headers['host']) || 'localhost'}`;
 }
 
-/** Host без порта входит в список разрешённых (как проверяет AngularNodeAppEngine). */
+/**
+ * Список хостов, который на деле применит AngularNodeAppEngine: NG_ALLOWED_HOSTS
+ * заменяет опцию allowedHosts, а не дополняет её. Без переменной — только локальные адреса.
+ */
+export function allowedHostsFromEnv(env: string | undefined): string[] {
+  const hosts = (env ?? '').split(',').map((h) => h.trim()).filter(Boolean);
+  return hosts.length ? hosts : ['localhost', '127.0.0.1'];
+}
+
+/**
+ * Host входит в список разрешённых — по правилам AngularNodeAppEngine:
+ * сравнивается имя без порта, «*.harid.tj» пускает любой поддомен, «*» — любой хост.
+ */
 export function isAllowedHost(hostHeader: string | undefined, allowed: string[]): boolean {
-  const host = (hostHeader ?? '').replace(/:\d+$/, '').toLowerCase();
-  return !!host && allowed.some((a) => a.toLowerCase() === host);
+  let url: URL;
+  try {
+    url = new URL(`http://${hostHeader ?? ''}`);
+  } catch {
+    return false;
+  }
+  if (!url.hostname || url.pathname !== '/' || url.search || url.hash || url.username || url.password) return false;
+  const host = url.hostname;
+  return allowed.some((entry) => {
+    const a = entry.toLowerCase();
+    return a === '*' || a === host || (a.startsWith('*.') && host.endsWith(a.slice(1)));
+  });
 }

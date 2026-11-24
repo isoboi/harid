@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, REQUEST_CONTEXT } from '@angular/core';
+import { Component, makeStateKey, REQUEST_CONTEXT, TransferState } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Meta, Title } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
@@ -24,7 +24,7 @@ const jsonLd = (doc: Document) => doc.head.querySelectorAll('script[type="applic
 describe('SeoService', () => {
   afterEach(() => {
     const doc = TestBed.inject(DOCUMENT);
-    doc.head.querySelectorAll('link[rel="canonical"], script[type="application/ld+json"]').forEach((n) => n.remove());
+    doc.head.querySelectorAll('link[rel="canonical"], script[type="application/ld+json"], meta').forEach((n) => n.remove());
   });
 
   it('ставит title, description, og- и twitter-теги', () => {
@@ -101,5 +101,76 @@ describe('SeoService', () => {
     const { seo, meta } = setup();
     seo.set({ title: 't', description: '', type: 'product' });
     expect(meta.getTag('property="og:type"')?.content).toBe('product');
+  });
+  it('в браузере адрес сайта — тот, что передал сервер, а не Host посетителя', async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: '**', component: BlankComponent }])] });
+    TestBed.inject(TransferState).set(makeStateKey<string>('seo-origin'), 'https://harid.tj');
+    const seo = TestBed.inject(SeoService);
+    const doc = TestBed.inject(DOCUMENT);
+    await TestBed.inject(Router).navigateByUrl('/product/42');
+    seo.set({ title: 't', description: '' });
+    expect(seo.origin()).toBe('https://harid.tj');
+    expect(canonical(doc)).toBe('https://harid.tj/product/42');
+  });
+
+  it('сервер кладёт свой адрес в TransferState', () => {
+    setup({ origin: 'https://harid.tj/' });
+    expect(TestBed.inject(TransferState).get(makeStateKey<string>('seo-origin'), null)).toBe('https://harid.tj');
+  });
+
+  it('переход на страницу без set() убирает canonical, og:url, JSON-LD и noindex прошлой', async () => {
+    const { seo, meta, doc, router } = setup();
+    await router.navigateByUrl('/search?q=x');
+    seo.set({ title: 'Поиск', description: '', noindex: true, jsonLd: { '@type': 'WebSite' } });
+    await router.navigateByUrl('/sell');
+    expect(canonical(doc)).toBeUndefined();
+    expect(meta.getTag('property="og:url"')).toBeNull();
+    expect(meta.getTag('name="robots"')).toBeNull();
+    expect(jsonLd(doc).length).toBe(0);
+  });
+
+  it('другой товар того же маршрута — теги прошлого тоже убираются', async () => {
+    const { seo, doc, router } = setup();
+    await router.navigateByUrl('/product/42');
+    seo.set({ title: 't', description: '', jsonLd: { '@type': 'Product' } });
+    await router.navigateByUrl('/product/999');
+    expect(canonical(doc)).toBeUndefined();
+    expect(jsonLd(doc).length).toBe(0);
+  });
+
+  it('смена только query теги страницы не убирает', async () => {
+    const { seo, doc, router } = setup();
+    await router.navigateByUrl('/c/dresses');
+    seo.set({ title: 'Платья', description: '', jsonLd: { '@type': 'CollectionPage' } });
+    await router.navigateByUrl('/c/dresses?sort=price_asc');
+    expect(canonical(doc)).toBe('http://localhost/c/dresses');
+    expect(jsonLd(doc).length).toBe(1);
+  });
+
+  it('keepParams остаются в canonical и og:url и следуют за адресом', async () => {
+    const { seo, meta, doc, router } = setup();
+    await router.navigateByUrl('/search?q=платье&sort=price_asc');
+    seo.set({ title: 't', description: '', keepParams: ['q'] });
+    expect(canonical(doc)).toBe('http://localhost/search?q=%D0%BF%D0%BB%D0%B0%D1%82%D1%8C%D0%B5');
+    expect(meta.getTag('property="og:url"')?.content).toBe(canonical(doc));
+    await router.navigateByUrl('/shop/lola');
+    seo.set({ title: 't', description: '', keepParams: ['tab'] });
+    await router.navigateByUrl('/shop/lola?tab=reviews');
+    expect(canonical(doc)).toBe('http://localhost/shop/lola?tab=reviews');
+    await router.navigateByUrl('/shop/lola');
+    expect(canonical(doc)).toBe('http://localhost/shop/lola');
+  });
+
+  it('первый переход в браузере не трогает теги, которые поставил сервер', async () => {
+    const doc = document;
+    const link = doc.createElement('link');
+    link.setAttribute('rel', 'canonical');
+    link.setAttribute('href', 'https://harid.tj/product/42');
+    doc.head.appendChild(link);
+    const { router } = setup();
+    await router.navigateByUrl('/product/42');
+    expect(canonical(doc)).toBe('https://harid.tj/product/42');
+    await router.navigateByUrl('/sell');
+    expect(canonical(doc)).toBeUndefined();
   });
 });

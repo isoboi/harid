@@ -1,4 +1,4 @@
-import { isAllowedHost, loadSitemapData, requestOrigin, robotsTxt, sitemapCache, SitemapData, sitemapXml } from './seo-files';
+import { allowedHostsFromEnv, isAllowedHost, loadSitemapData, requestOrigin, robotsTxt, sitemapCache, SitemapData, sitemapXml } from './seo-files';
 
 describe('robots.txt', () => {
   it('закрывает личные разделы и указывает карту сайта', () => {
@@ -94,5 +94,24 @@ describe('isAllowedHost', () => {
     expect(isAllowedHost('Harid.tj:443', ['harid.tj'])).toBe(true);
     expect(isAllowedHost('evil.com', ['harid.tj'])).toBe(false);
     expect(isAllowedHost(undefined, ['harid.tj'])).toBe(false);
+  });
+
+  it('«*.домен» пускает поддомены, как AngularNodeAppEngine', () => {
+    expect(isAllowedHost('www.harid.tj', ['harid.tj', '*.harid.tj'])).toBe(true);
+    expect(isAllowedHost('evilharid.tj', ['*.harid.tj'])).toBe(false);
+    expect(isAllowedHost('anything.example', ['*'])).toBe(true);
+  });
+
+  it('Host с путём или логином не проходит', () => {
+    expect(isAllowedHost('harid.tj/x', ['harid.tj'])).toBe(false);
+    expect(isAllowedHost('u@harid.tj', ['harid.tj'])).toBe(false);
+  });
+});
+
+describe('allowedHostsFromEnv', () => {
+  it('NG_ALLOWED_HOSTS заменяет локальные адреса, а не дополняет', () => {
+    expect(allowedHostsFromEnv('harid.tj, *.harid.tj ,')).toEqual(['harid.tj', '*.harid.tj']);
+    expect(allowedHostsFromEnv(undefined)).toEqual(['localhost', '127.0.0.1']);
+    expect(allowedHostsFromEnv(' ')).toEqual(['localhost', '127.0.0.1']);
   });
 });

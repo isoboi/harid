@@ -168,7 +168,7 @@ export class ShopComponent {
       this.missing.set(false); this.failed.set(false); this.shop.set(null); this.reviews.set(null);
       const subs = untracked(() => [
         this.api.shop(h).subscribe({
-          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде`, image: s.avatar_url || undefined, jsonLd: shopLd(s, this.seo.origin()) }); },
+          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде`, image: s.avatar_url || undefined, jsonLd: shopLd(s, this.seo.origin()), keepParams: ['tab'] }); },
           error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
         }),
         this.api.reviews({ shop: h }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),

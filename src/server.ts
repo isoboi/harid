@@ -3,18 +3,17 @@ import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { environment } from './environments/environment';
-import { isAllowedHost, loadSitemapData, requestOrigin, robotsTxt, sitemapCache, sitemapXml } from './seo-files';
+import { allowedHostsFromEnv, isAllowedHost, loadSitemapData, requestOrigin, robotsTxt, sitemapCache, sitemapXml } from './seo-files';
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
 
 const app = express();
-/** Разрешённые Host: localhost + NG_ALLOWED_HOSTS (через запятую, например harid.tj,www.harid.tj). */
-const allowedHosts = [
-  'localhost',
-  '127.0.0.1',
-  ...(process.env['NG_ALLOWED_HOSTS'] ?? '').split(',').map((h) => h.trim()).filter(Boolean),
-];
+/**
+ * Разрешённые Host: NG_ALLOWED_HOSTS (через запятую, например harid.tj,www.harid.tj или *.harid.tj),
+ * без неё — localhost и 127.0.0.1. Тот же список проверяет robots.txt и sitemap.xml.
+ */
+const allowedHosts = allowedHostsFromEnv(process.env['NG_ALLOWED_HOSTS']);
 // Без боевого домена в NG_ALLOWED_HOSTS SSR отвечает HTTP 400 на все страницы
 if (process.env['NODE_ENV'] === 'production' && !(process.env['NG_ALLOWED_HOSTS'] ?? '').trim()) {
   console.warn('[harid] NG_ALLOWED_HOSTS пуст: сервер ответит HTTP 400 на все страницы, кроме localhost. Укажите боевой домен.');
