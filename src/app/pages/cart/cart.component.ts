@@ -134,9 +134,9 @@ export class CartComponent {
   /** Доставка по Душанбе за каждую лавку; пригород дороже — уточним на оформлении. */
   readonly delivery = computed(() => this.cart.deliveryTotal(DISTRICTS[0]));
   readonly suburbNote = `Доставка в ${SUBURBS.join(' и ')} — ${money.transform(deliveryFor(SUBURBS[0]))} за лавку. Точная сумма будет на следующем шаге.`;
-  /** Последняя убранная строка и её место — для «Вернуть». */
   /** id товаров в корзине — их полоса «Вы смотрели» не показывает. */
   readonly inCart = computed(() => this.cart.items().map((i) => i.product.id));
+  /** Последняя убранная строка и её место — для «Вернуть». */
   readonly undo = signal<{ item: CartItem; index: number } | null>(null);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private timer: ReturnType<typeof setTimeout> | null = null;

@@ -12,6 +12,9 @@ import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
 import { ShopStripComponent } from '../../shared/shop-strip.component';
 import { RecentStripComponent } from '../../shared/recent-strip.component';
 
+/** 8 товаров — 4 ряда на телефоне: полоса после них заведомо ниже первого экрана и не сдвигает его при появлении. */
+const MOBILE_STRIP_AT = 8;
+
 /** Четыре шага оплаты наличными — в раскладке «Как это работает» прототипа. */
 const CASH_STEPS = [
   { title: 'Оформляете заказ', text: 'Без оплаты на сайте и без перевода на карту.' },
@@ -48,8 +51,9 @@ const CASH_STEPS = [
           </div>
         }
       </section>
-      <!-- «Вы смотрели» — из браузера, появляется после гидратации; на телефоне герой скрыт, полоса между лавками и лентой -->
-      <app-recent-strip />
+      <!-- «Вы смотрели» из браузера появляется после гидратации. На десктопе — над лентой, под первым экраном с героем;
+           на телефоне героя нет, и полоса над лентой сдвинула бы первый экран — там она ниже, после первых товаров -->
+      <app-recent-strip class="recent-d" />
       <section id="fresh" class="fresh">
         <div class="fresh-head"><h2 class="fresh-title">Новое в лавках</h2></div>
         <nav class="chips" aria-label="Категории">
@@ -57,8 +61,10 @@ const CASH_STEPS = [
           @for (c of categories(); track c.slug) { <a class="chip" [routerLink]="['/c', c.slug]">{{ c.name }}</a> }
         </nav>
         <div class="list">
-          @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
+          @if (products().length) { <div class="products">@for (p of head(); track p.id) { <app-product-card [product]="p" /> }</div> }
           @else if (!feed.loading()) { <p class="muted">Пока пусто</p> }
+          <app-recent-strip class="recent-m" />
+          @if (tail().length) { <div class="products tail">@for (p of tail(); track p.id) { <app-product-card [product]="p" /> }</div> }
           @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
         </div>
       </section>
@@ -104,7 +110,12 @@ const CASH_STEPS = [
     .fresh-title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em }
     .list { margin-top: 24px }
     /* На десктопе у «Новое в лавках» нет своего верхнего отступа (его давал низ героя) — отделяем от полосы «Вы смотрели» */
-    @media (min-width: 641px) { app-recent-strip:has(section) + .fresh { margin-top: 40px } }
+    /* Две полосы «Вы смотрели»: на телефоне — внутри ленты, на десктопе — над ней. Границы как у героя (max-width: 640px) */
+    @media (max-width: 640px) { .recent-d { display: none } }
+    @media (width > 640px) { .recent-m { display: none } app-recent-strip:has(section) + .fresh { margin-top: 40px } }
+    /* Вторая часть ленты продолжает сетку: тот же шаг, что row-gap у .products */
+    .tail { margin-top: 28px }
+    @media (max-width: 640px) { .recent-m:has(section) { margin-bottom: 28px } .recent-m:has(section) + .tail { margin-top: 0 } }
     /* Полоса на всю ширину: bg-mist, слева заголовок, справа четыре шага сеткой с линиями 1px */
     .how { scroll-margin-top: 96px; background: var(--color-mist) }
     .how-grid { display: grid; gap: 40px; padding-block: 56px }
@@ -131,6 +142,9 @@ export class HomeComponent {
   readonly feed = new ProductFeed();
   readonly products = this.feed.items;
   /** Для коллажа в первом экране — первые три товара с фото. */
+  /** Лента делится после MOBILE_STRIP_AT товаров: между частями — полоса «Вы смотрели» для телефона. */
+  readonly head = computed(() => this.products().slice(0, MOBILE_STRIP_AT));
+  readonly tail = computed(() => this.products().slice(MOBILE_STRIP_AT));
   readonly collage = computed(() => this.products().filter((p) => !!p.image).slice(0, 3));
   constructor() {
     const seo = inject(SeoService);

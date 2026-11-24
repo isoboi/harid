@@ -469,12 +469,15 @@ describe('ProductComponent', () => {
     });
     it('товар не найден (404) — убирается из недавно просмотренных', async () => {
       TestBed.configureTestingModule({});
+      TestBed.inject(RecentlyViewedService).add(prod({ id: '17' }));
       TestBed.inject(RecentlyViewedService).add(prod());
       TestBed.resetTestingModule();
       await renderWith(failing(404));
       const recent = TestBed.inject(RecentlyViewedService);
       recent.hydrate();
-      expect(recent.items()).toEqual([]);
+      // Убран только ненайденный товар — и в памяти, и в хранилище
+      expect(recent.items().map((i) => i.id)).toEqual(['17']);
+      expect(JSON.parse(localStorage.getItem('harid.recent')!).map((i: { id: string }) => i.id)).toEqual(['17']);
     });
     it('ошибка сети (500) историю не трогает', async () => {
       TestBed.configureTestingModule({});

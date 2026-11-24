@@ -183,6 +183,21 @@ describe('CartComponent', () => {
       expect(strip(f)?.textContent).toContain('Чехол');
       expect(strip(f)?.querySelector('a[href="/product/16"]')).toBeNull();
     });
+    it('полоса следит за корзиной: убранный товар появляется, возвращённый — снова скрыт', async () => {
+      const f = await setup();
+      const recent = TestBed.inject(RecentlyViewedService);
+      recent.add(product); recent.add(other);
+      TestBed.inject(CartService).add(product, null, 1);
+      f.detectChanges();
+      const has16 = () => !!strip(f)?.querySelector('a[href="/product/16"]');
+      expect(has16()).toBe(false);
+      f.componentInstance.remove(TestBed.inject(CartService).items()[0]);
+      f.detectChanges();
+      expect(has16()).toBe(true);
+      f.componentInstance.restoreRemoved();
+      f.detectChanges();
+      expect(has16()).toBe(false);
+    });
     it('вся история уже в корзине — полосы нет', async () => {
       const f = await setup();
       TestBed.inject(RecentlyViewedService).add(product);

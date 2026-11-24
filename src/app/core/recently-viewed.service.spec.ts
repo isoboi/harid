@@ -55,8 +55,60 @@ describe('RecentlyViewedService', () => {
   it('remove убирает по id; clear очищает и хранилище', () => {
     s.add(p('1')); s.add(p('2')); s.remove('1');
     expect(s.items().map((i) => i.id)).toEqual(['2']);
+    expect(JSON.parse(localStorage.getItem('harid.recent')!).map((i: { id: string }) => i.id)).toEqual(['2']);
     s.clear();
     expect(s.items()).toEqual([]);
     expect(localStorage.getItem('harid.recent')).toBeNull();
+  });
+
+  describe('несколько вкладок', () => {
+    const write = (ids: string[]) => localStorage.setItem('harid.recent', JSON.stringify(ids.map(saved)));
+    const storedIds = () => JSON.parse(localStorage.getItem('harid.recent') ?? '[]').map((i: { id: string }) => i.id);
+    it('add не теряет то, что другая вкладка записала после hydrate()', () => {
+      s.hydrate();
+      write(['9']);
+      s.add(p('1'));
+      expect(s.items().map((i) => i.id)).toEqual(['1', '9']);
+      expect(storedIds()).toEqual(['1', '9']);
+    });
+    it('очистка в другой вкладке не откатывается следующим просмотром', () => {
+      s.add(p('1'));
+      localStorage.removeItem('harid.recent');
+      s.add(p('2'));
+      expect(storedIds()).toEqual(['2']);
+    });
+    it('remove учитывает записи другой вкладки', () => {
+      s.add(p('1'));
+      write(['9', '1']);
+      s.remove('1');
+      expect(storedIds()).toEqual(['9']);
+    });
+    it('remove отсутствующего id не пишет хранилище', () => {
+      s.hydrate();
+      s.remove('404');
+      expect(localStorage.getItem('harid.recent')).toBeNull();
+    });
+    it('событие storage из другой вкладки обновляет список', () => {
+      s.hydrate();
+      write(['5']);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'harid.recent' }));
+      expect(s.items().map((i) => i.id)).toEqual(['5']);
+      localStorage.clear();
+      window.dispatchEvent(new StorageEvent('storage', { key: null }));
+      expect(s.items()).toEqual([]);
+    });
+  });
+  it('повторы id в хранилище схлопываются, остаётся первый', () => {
+    localStorage.setItem('harid.recent', JSON.stringify([saved('1'), { ...saved('1'), title: 'старый' }, saved('2')]));
+    s.hydrate();
+    expect(s.items().map((i) => i.id)).toEqual(['1', '2']);
+    expect(s.items()[0].title).toBe('1');
+  });
+  it('снимок с пропущенными полями API переживает перезагрузку', () => {
+    s.add(p('1', { old_price: undefined as unknown as null, title: null as unknown as string, image: undefined as unknown as string, images: undefined, in_stock: undefined as unknown as boolean }));
+    TestBed.resetTestingModule(); TestBed.configureTestingModule({});
+    const fresh = TestBed.inject(RecentlyViewedService);
+    fresh.hydrate();
+    expect(fresh.items()).toEqual([{ id: '1', shop_handle: 'zebo.style', title: '', price: 100, old_price: null, image: '', in_stock: false }]);
   });
 });
