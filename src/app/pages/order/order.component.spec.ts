@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
-import { of, Subject, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { OrderComponent } from './order.component';
 import { MarketApi } from '../../core/market-api.service';
 import { AuthService } from '../../core/auth.service';
@@ -208,6 +209,22 @@ describe('OrderComponent', () => {
     const tel = el.querySelector('input[formControlName="phone"]')!;
     expect(tel.getAttribute('type')).toBe('tel');
     expect(tel.parentElement!.querySelector('.tel-prefix')?.textContent?.trim()).toBe('+992');
+  });
+
+  it('заголовок вкладки: номер заказа, форма поиска или просто «Заказ»', async () => {
+    const pending = new Subject<Order>();
+    const order = jest.fn<Observable<Order>, unknown[]>(() => pending);
+    const f = await setup(order);
+    const title = TestBed.inject(Title);
+    f.componentRef.setInput('number', 'R-221526');
+    f.componentRef.setInput('t', 'tok');
+    f.detectChanges();
+    expect(title.getTitle()).toBe('Заказ — Харид');
+    pending.next(ORDER); f.detectChanges();
+    expect(title.getTitle()).toBe('Заказ R-221526 — Харид');
+    order.mockReturnValue(notFound());
+    f.componentRef.setInput('t', 'stale'); f.detectChanges();
+    expect(title.getTitle()).toBe('Найти заказ — Харид');
   });
 
   it('404 — форма «Найти заказ» вместо голой ошибки', async () => {

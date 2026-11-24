@@ -1,5 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { Component, computed, effect, ElementRef, inject, input, PLATFORM_ID, signal, untracked, viewChild } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
@@ -11,6 +12,7 @@ import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
+import { productLd, productPath } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { PriceTagComponent } from '../../shared/price-tag.component';
@@ -226,6 +228,7 @@ export class ProductComponent {
   private readonly api = inject(MarketApi);
   private readonly cart = inject(CartService);
   private readonly seo = inject(SeoService);
+  private readonly title = inject(Title);
   readonly fav = inject(FavoritesService);
   private readonly recent = inject(RecentlyViewedService);
   readonly id = input.required<string>();
@@ -295,7 +298,7 @@ export class ProductComponent {
           // Снимок для «Вы смотрели» — только в браузере: на сервере хранилища нет
           if (this.browser) this.recent.add(p);
           if (p.sizes.length === 1) this.size.set(p.sizes[0]);
-          this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined });
+          this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined, type: 'product', jsonLd: productLd(p, this.photos(), this.seo.origin()), path: productPath(p.id) });
           nested.push(
             this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8))),
             this.api.shop(p.shop_handle).pipe(catchError(() => of(null))).subscribe((s) => this.shop.set(s)),
@@ -304,10 +307,14 @@ export class ProductComponent {
           );
         },
         // 400 — нечисловой id отклонён валидацией бэкенда: для покупателя это тоже «нет такого товара»
-        // Товара больше нет — убираем его и из «Вы смотрели»; сетевые ошибки историю не трогают
         error: (e) => {
-          if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) { this.missing.set(true); if (this.browser) this.recent.remove(id); }
-          else this.failed.set(true);
+          // Теги прошлой страницы SeoService убрал при переходе; заголовок вкладки — свой.
+          // Товара больше нет — убираем его и из «Вы смотрели»; сетевые ошибки историю не трогают
+          if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) {
+            this.missing.set(true);
+            this.title.setTitle('Товар не найден — Харид');
+            if (this.browser) this.recent.remove(id);
+          } else { this.failed.set(true); this.title.setTitle('Товар не загрузился — Харид'); }
         },
       }));
       onCleanup(() => { sub.unsubscribe(); nested.forEach((n) => n.unsubscribe()); });

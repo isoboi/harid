@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
+import { By, Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -25,6 +25,18 @@ async function render(p: Product, reviews: Review[] = []) {
 
 describe('ProductComponent', () => {
   beforeEach(() => localStorage.clear());
+  it('товар не найден или не загрузился — свой заголовок вкладки, а не прошлой страницы', async () => {
+    const f = await render(prod());
+    const title = TestBed.inject(Title);
+    title.setTitle('@lola — Харид');
+    f.api.product.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+    f.componentRef.setInput('id', '999'); f.detectChanges();
+    expect(title.getTitle()).toBe('Товар не найден — Харид');
+    f.api.product.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 502 })));
+    f.componentRef.setInput('id', '998'); f.detectChanges();
+    expect(title.getTitle()).toBe('Товар не загрузился — Харид');
+    TestBed.resetTestingModule();
+  });
   it('«Написать продавцу» ведёт в новый чат с лавкой и товаром', async () => {
     const f = await render(prod());
     const a = (f.nativeElement as HTMLElement).querySelector('[data-test="write-seller"]') as HTMLAnchorElement;

@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Title } from '@angular/platform-browser';
 import { ShopComponent } from './shop.component';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
@@ -33,6 +35,18 @@ async function render(shop: Shop, reviews: Review[], opts: { products?: Product[
 
 describe('ShopComponent', () => {
   afterEach(() => TestBed.resetTestingModule());
+
+  it('лавка не найдена или не загрузилась — свой заголовок вкладки, а не прошлой страницы', async () => {
+    const { f, api } = await render(SHOP(), []);
+    const title = TestBed.inject(Title);
+    title.setTitle('Платье — Харид');
+    api.shop.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+    f.componentRef.setInput('handle', 'nobody'); f.detectChanges();
+    expect(title.getTitle()).toBe('Лавка не найдена — Харид');
+    api.shop.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 502 })));
+    f.componentRef.setInput('handle', 'down'); f.detectChanges();
+    expect(title.getTitle()).toBe('Лавка не загрузилась — Харид');
+  });
 
   it('оценка в шапке: число и количество отзывов', async () => {
     const { q } = await render(SHOP(), [REVIEW]);

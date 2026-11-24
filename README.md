@@ -23,4 +23,14 @@ node dist/harid/server/server.mjs
 
 По умолчанию сервер слушает порт из переменной окружения `PORT` (или 4000).
 
-Сервер принимает запросы только с разрешённых Host: `localhost` и `127.0.0.1` разрешены всегда, остальные задаются переменной `NG_ALLOWED_HOSTS` (через запятую). **Это обязательная переменная деплоя:** если боевого домена в ней нет, SSR-сервер отвечает HTTP 400 на ВСЕ страницы. При `NODE_ENV=production` и пустой переменной при старте выводится предупреждение. Продакшн: `NG_ALLOWED_HOSTS=harid.tj,www.harid.tj node dist/harid/server/server.mjs`.
+Сервер принимает запросы только с разрешённых Host из переменной `NG_ALLOWED_HOSTS` (через запятую; `*.harid.tj` разрешает все поддомены). Без переменной разрешены только `localhost` и `127.0.0.1`; если она задана, работает только её список, поэтому для локальной проверки прод-сборки добавьте в неё `localhost`. **Это обязательная переменная деплоя:** если боевого домена в ней нет, SSR-сервер отвечает HTTP 400 на ВСЕ страницы. При `NODE_ENV=production` и пустой переменной при старте выводится предупреждение. Продакшн: `SITE_URL=https://harid.tj NG_ALLOWED_HOSTS=harid.tj,www.harid.tj node dist/harid/server/server.mjs`.
+
+`SITE_URL` — адрес сайта для `canonical`, `og:url`, JSON-LD и карты сайта. Без него адрес берётся из `Host` и `X-Forwarded-Proto` запроса; за прокси без `X-Forwarded-Proto` ссылки получатся `http://`, поэтому на проде переменную лучше задать.
+
+За прокси SSR доверяет заголовкам `X-Forwarded-For`, `-Host`, `-Proto` и `-Port`. Если прокси шлёт другие `X-Forwarded-*` (например, `X-Forwarded-Prefix` или `X-Forwarded-Server`), Angular молча отдаёт пустую CSR-страницу без SEO-тегов и пишет в лог `Received "…" header but "trustProxyHeaders" was not set up`. Тогда задайте полный список в `NG_TRUST_PROXY_HEADERS` (через запятую) или уберите лишние заголовки на прокси.
+
+## SEO
+
+- `/robots.txt` и `/sitemap.xml` собирает SSR-сервер (`src/seo-files.ts`): главная, каталог, категории, лавки и товары из `/api/market/*`. Данные карты сайта обновляются из API не чаще раза в час; если API недоступен, отдаются прошлые.
+- Страницы задают title, description, Open Graph, Twitter, `canonical` (путь без query) и разметку schema.org через `SeoService` (`src/app/core/seo.service.ts`, `structured-data.ts`). Поиск помечен `noindex`.
+- Иконки и манифест — в `public/` (`icon.svg`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `manifest.webmanifest`).
