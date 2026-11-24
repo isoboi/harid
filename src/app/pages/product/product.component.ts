@@ -5,6 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { CartService } from '../../core/cart.service';
+import { FlyToCart } from '../../core/fly-to-cart.service';
 import { directLink, directOnly, postLink } from '../../core/direct';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { FavoritesService } from '../../core/favorites.service';
@@ -60,7 +61,7 @@ export function buyBarVisible(e: ButtonView): boolean {
         <div class="layout">
           <div class="gallery">
             <!-- Телефон: фото листаются пальцем вбок; нажатие открывает фото на весь экран с увеличением -->
-            <div class="main" [class.video]="videoOn()" [class.swiping]="swipeDx() !== 0"
+            <div class="main" #main [class.video]="videoOn()" [class.swiping]="swipeDx() !== 0"
               (pointerdown)="swipeDown($event)" (pointermove)="swipeMove($event)" (pointerup)="swipeUp()" (pointercancel)="swipeUp()">
               <!-- Человек сам выбрал слайд с видео — играем сразу, без второго нажатия -->
               @if (videoOn()) { <app-video-player [src]="video()" [poster]="photos()[0] || ''" [label]="'Видео: ' + p.title" [autoplay]="true" [expandable]="true" [hold]="reel()" (expand)="reel.set(true)" /> }
@@ -116,7 +117,7 @@ export function buyBarVisible(e: ButtonView): boolean {
               @if (direct()) {
                 <a class="btn add" data-test="direct" [href]="directUrl()" target="_blank" rel="noopener nofollow" (click)="copyPost()"><app-icon name="instagram" [size]="20" />Написать в Direct</a>
               } @else {
-                <button type="button" class="btn add" data-test="add" [disabled]="!canAdd()" (click)="add(p)">{{ addLabel() }}</button>
+                <button type="button" class="btn add" data-test="add" [disabled]="!canAdd()" (click)="add(p, $event.currentTarget)">{{ addLabel() }}</button>
                 @if (added()) { <a class="btn btn--ghost" routerLink="/cart">Перейти в корзину</a> }
               }
               <button type="button" class="fav" [attr.aria-pressed]="fav.has(p.id)" (click)="fav.toggle(p.id)">
@@ -151,7 +152,7 @@ export function buyBarVisible(e: ButtonView): boolean {
           @if (direct()) { <a class="btn bar-btn" data-test="bar-direct" [href]="directUrl()" target="_blank" rel="noopener nofollow" (click)="copyPost()">Написать в Direct</a> }
           @else if (!p.in_stock) { <button type="button" class="btn bar-btn" disabled>Нет в наличии</button> }
           @else if (added()) { <a class="btn bar-btn" routerLink="/cart">Перейти в корзину</a> }
-          @else { <button type="button" class="btn bar-btn" (click)="barAdd(p)">Добавить в корзину</button> }
+          @else { <button type="button" class="btn bar-btn" (click)="barAdd(p, $event.currentTarget)">Добавить в корзину</button> }
         </div>
         @if (viewer()) {
           <app-photo-viewer [photos]="photos()" [start]="photo()" [alt]="p.title" (closed)="closeViewer($event)" />
@@ -288,6 +289,7 @@ export class ProductComponent {
   private readonly title = inject(Title);
   readonly fav = inject(FavoritesService);
   private readonly recent = inject(RecentlyViewedService);
+  private readonly fly = inject(FlyToCart);
   readonly id = input.required<string>();
   readonly product = signal<Product | null>(null);
   /** Лавка товара для плашки продавца; не загрузилась — показываем только ник. */
@@ -315,6 +317,7 @@ export class ProductComponent {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly actionsRef = viewChild<ElementRef<HTMLElement>>('actions');
   private readonly sizesRef = viewChild<ElementRef<HTMLElement>>('sizes');
+  private readonly mainRef = viewChild<ElementRef<HTMLElement>>('main');
   readonly photos = computed(() => { const p = this.product(); return p ? (p.images?.length ? p.images : p.image ? [p.image] : []) : []; });
   readonly current = computed(() => this.photos()[this.photo()] ?? '');
   /** Видео товара — последний слайд галереи, после всех фото. */
@@ -401,8 +404,8 @@ export class ProductComponent {
   }
 
   /** Кнопка липкой панели: добавляет, а без выбранного размера ведёт к выбору и показывает подсказку. */
-  barAdd(p: Product): void {
-    if (this.canAdd()) return this.add(p);
+  barAdd(p: Product, trigger: EventTarget | null = null): void {
+    if (this.canAdd()) return this.add(p, trigger);
     if (!p.in_stock || p.sizes.length <= 1) return;
     this.sizeHint.set(true);
     const box = this.sizesRef()?.nativeElement;
@@ -478,10 +481,15 @@ export class ProductComponent {
     if (!this.fav.has(p.id)) this.fav.toggle(p.id);
   }
 
-  add(p: Product): void {
+  /**
+   * trigger — нажатая кнопка. Летим от фото, пока оно на экране, иначе (липкая панель внизу,
+   * страница прокручена) — от самой кнопки. В полноэкранном просмотре корзины не видно — без полёта.
+   */
+  add(p: Product, trigger: EventTarget | null = null): void {
     if (!this.canAdd()) return;
     const ok = this.cart.add(p, p.sizes.length ? this.size() : null);
     this.limitError.set(!ok);
     this.added.set(ok);
+    if (ok && !this.reel()) this.fly.fly(this.mainRef()?.nativeElement, trigger instanceof Element ? trigger : null);
   }
 }
