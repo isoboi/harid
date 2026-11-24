@@ -82,7 +82,7 @@ export function buyBarVisible(e: ButtonView): boolean {
             </a>
             <h1 class="title">{{ p.title }}</h1>
             @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="16" [filled]="true" />{{ ratingText() }}</p> }
-            @if (p.price !== null) { <div class="price"><app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" /></div> }
+            @if (p.price !== null) { <div class="price"><app-price-tag [price]="p.price" [old]="p.old_price" [endsAt]="p.promo_ends_at ?? null" size="lg" [swing]="added()" /></div> }
             @if (!direct() && p.sizes.length > 1) {
               <fieldset class="sizes" #sizes>
                 <legend>Размер</legend>
@@ -132,7 +132,7 @@ export function buyBarVisible(e: ButtonView): boolean {
         </div>
         <!-- Телефон: цена и кнопка у нижнего края, над панелью вкладок; появляется, когда основная кнопка ушла вверх -->
         <div class="buybar" [class.on]="barShown()" data-test="buybar">
-          @if (p.price !== null) { <app-price-tag class="bar-price" [price]="p.price" [old]="p.old_price" size="sm" /> }
+          @if (p.price !== null) { <app-price-tag class="bar-price" [price]="p.price" [old]="p.old_price" [endsAt]="p.promo_ends_at ?? null" size="sm" /> }
           @if (direct()) { <a class="btn bar-btn" data-test="bar-direct" [href]="directUrl()" target="_blank" rel="noopener nofollow" (click)="copyPost()">Написать в Direct</a> }
           @else if (!p.in_stock) { <button type="button" class="btn bar-btn" disabled>Нет в наличии</button> }
           @else if (added()) { <a class="btn bar-btn" routerLink="/cart">Перейти в корзину</a> }

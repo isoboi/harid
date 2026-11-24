@@ -5,7 +5,7 @@ export interface Shop { handle: string; name: string; bio: string; followers: nu
  * price null — цену лавка называет в Direct (неподключённая лавка, shop_verified=false).
  * shop_verified=false: лавка заведена импортом из Instagram, заказы только через direct_url.
  */
-export interface Product { id: string; shop_handle: string; title: string; price: number | null; old_price: number | null; image: string; category: string | null; description: string; sizes: string[]; in_stock: boolean; posted_at: string; images?: string[]; rating?: number | null; reviews_count?: number; video?: string | null; permalink?: string | null; shop_verified?: boolean; direct_url?: string | null }
+export interface Product { id: string; shop_handle: string; title: string; price: number | null; old_price: number | null; promo_ends_at?: string | null; image: string; category: string | null; description: string; sizes: string[]; in_stock: boolean; posted_at: string; images?: string[]; rating?: number | null; reviews_count?: number; video?: string | null; permalink?: string | null; shop_verified?: boolean; direct_url?: string | null }
 export type OrderStage = 'placed' | 'assembling' | 'in_delivery' | 'delivered' | 'cancelled';
 export interface OrderCustomer { name: string; phone: string; district: string; address: string; comment?: string }
 export interface OrderLineInput { product_id: number; size?: string; qty: number }

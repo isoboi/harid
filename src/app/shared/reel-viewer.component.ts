@@ -42,7 +42,7 @@ const DRAG_START = 10;
             <span>&#64;{{ product().shop_handle }}</span>
           </a>
           <p class="title" data-test="reel-title">{{ product().title }}</p>
-          @if (product().price !== null) { <app-price-tag class="price" [price]="product().price" [old]="product().old_price" size="sm" /> }
+          @if (product().price !== null) { <app-price-tag class="price" [price]="product().price" [old]="product().old_price" [endsAt]="product().promo_ends_at ?? null" size="sm" /> }
           @let a = action();
           @if (a.href) { <a class="btn cta" data-test="reel-cta" [href]="a.href" target="_blank" rel="noopener nofollow" (click)="act.emit()">{{ a.label }}</a> }
           @else if (a.link) { <a class="btn cta" data-test="reel-cta" [routerLink]="a.link" (click)="close()">{{ a.label }}</a> }

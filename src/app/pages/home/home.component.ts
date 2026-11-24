@@ -37,7 +37,7 @@ const CASH_STEPS = [
             @for (p of collage(); track p.id; let first = $first) {
               <a class="tile" [class.big]="first" [routerLink]="['/product', p.id]">
                 <img [src]="p.image" [alt]="p.title" [attr.loading]="first ? null : 'lazy'" />
-                <app-price-tag class="tag" [price]="p.price" [old]="p.old_price" [size]="first ? 'lg' : 'sm'" />
+                <app-price-tag class="tag" [price]="p.price" [old]="p.old_price" [endsAt]="p.promo_ends_at ?? null" [size]="first ? 'lg' : 'sm'" />
                 @if (first) {
                   <span class="cap"><span class="cap-t">{{ p.title }}</span><span class="cap-s">&#64;{{ p.shop_handle }}</span></span>
                 }

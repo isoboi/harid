@@ -21,7 +21,7 @@ import { ratingLabel } from './rating';
       <a class="link" [routerLink]="['/product', p.id]">
         <div class="img">
           @if (p.image) { <img [src]="p.image" [alt]="p.title" loading="lazy" /> } @else { <span class="ph">Нет фото</span> }
-          <app-price-tag class="tag" [price]="p.price" [old]="p.old_price" size="sm" />
+          <app-price-tag class="tag" [price]="p.price" [old]="p.old_price" [endsAt]="p.promo_ends_at ?? null" size="sm" />
         </div>
         <h3 class="title">{{ p.title }}</h3>
         <p class="shop">&#64;{{ p.shop_handle }}</p>
