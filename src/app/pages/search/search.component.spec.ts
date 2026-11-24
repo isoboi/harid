@@ -28,7 +28,7 @@ describe('SearchComponent: подгрузка результатов', () => {
 
   async function render(q: string, products: (q: ProductQuery) => ReturnType<MarketApi['products']>) {
     const spy = jest.fn(products);
-    await TestBed.configureTestingModule({ imports: [SearchComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { products: spy } }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [SearchComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { products: spy, productFacets: () => of({ sizes: [], price_min: null, price_max: null }) } }] }).compileComponents();
     const f = TestBed.createComponent(SearchComponent);
     f.componentRef.setInput('q', q);
     f.detectChanges();

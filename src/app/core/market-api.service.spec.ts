@@ -21,6 +21,23 @@ describe('MarketApi', () => {
     expect(r.request.params.has('q')).toBe(false);
     r.flush([]);
   });
+  it('products: фильтры уходят в query, in_stock=false — нет', () => {
+    api.products({ sort: 'price_asc', price_min: 0, price_max: 300, size: 'M', in_stock: false }).subscribe();
+    const r = http.expectOne((req) => req.url === `${B}/products`);
+    expect(r.request.params.get('sort')).toBe('price_asc');
+    expect(r.request.params.get('price_min')).toBe('0');
+    expect(r.request.params.get('price_max')).toBe('300');
+    expect(r.request.params.get('size')).toBe('M');
+    expect(r.request.params.has('in_stock')).toBe(false);
+    r.flush([]);
+  });
+  it('productFacets: только категория/лавка/поиск', () => {
+    api.productFacets({ category: 'women' }).subscribe();
+    const r = http.expectOne((req) => req.url === `${B}/products/facets`);
+    expect(r.request.params.get('category')).toBe('women');
+    expect(r.request.params.keys()).toEqual(['category']);
+    r.flush({ sizes: [], price_min: null, price_max: null });
+  });
   it('shop: handle кодируется', () => {
     api.shop('a.b').subscribe();
     http.expectOne(`${B}/shops/a.b`).flush({});
