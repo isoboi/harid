@@ -1,9 +1,10 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { apiErrorMessage } from '../../core/api-error';
 import { MarketApi } from '../../core/market-api.service';
 import { MarketReturn, ReturnableOrder, ReturnStatus } from '../../core/models';
 import { MoneyPipe } from '../../shared/money.pipe';
+import { plural } from '../../shared/plural';
 
 const MIN_REASON = 5;
 const MAX_REASON = 500;
@@ -25,17 +26,20 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
   standalone: true,
   imports: [DatePipe, MoneyPipe],
   template: `
-    @if (returns().length || returnable().length) {
+    @if (shownReturns().length || shownReturnable().length) {
       <section class="returns" aria-labelledby="returns-title">
-        <h2 id="returns-title" class="title">Возвраты</h2>
+        <h2 id="returns-title" class="title">{{ order() ? 'Возврат' : 'Возвраты' }}</h2>
         <p class="note">Товар можно вернуть в течение 7 дней после доставки. Деньги возвращает лавка.</p>
         @if (done()) { <p class="ok" role="status">Запрос отправлен. Лавка ответит здесь же.</p> }
 
-        @if (returns().length) {
+        @if (shownReturns().length) {
           <ul class="list" data-test="returns">
-            @for (r of returns(); track r.id) {
+            @for (r of shownReturns(); track r.id) {
               <li class="card">
-                <p class="head"><b>Заказ {{ r.number }}</b><span class="muted"> · &#64;{{ r.shop_handle }} · {{ r.created_at | date: 'dd.MM.yyyy' }}</span></p>
+                <p class="head">
+                  @if (!order()) { <b>Заказ {{ r.number }}</b><span class="muted"> · </span> }
+                  <span class="muted">&#64;{{ r.shop_handle }} · запрос от {{ r.created_at | date: 'dd.MM.yyyy' }}</span>
+                </p>
                 <p class="status" [attr.data-status]="r.status">{{ label[r.status] }}</p>
                 <ul class="items">
                   @for (it of r.items; track it.line_id) {
@@ -52,12 +56,15 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
           </ul>
         }
 
-        @if (returnable().length) {
+        @if (shownReturnable().length) {
           <h3 class="sub">Можно вернуть</h3>
           <ul class="list" data-test="returnable">
-            @for (o of returnable(); track o.order_id) {
+            @for (o of shownReturnable(); track o.order_id) {
               <li class="card">
-                <p class="head"><b>Заказ {{ o.number }}</b><span class="muted"> · &#64;{{ o.shop_handle }} · до {{ o.deadline | date: 'dd.MM.yyyy' }}</span></p>
+                <p class="head">
+                  @if (!order()) { <b>Заказ {{ o.number }}</b><span class="muted"> · </span> }
+                  <span class="muted">&#64;{{ o.shop_handle }} · до {{ o.deadline | date: 'dd.MM.yyyy' }}</span>
+                </p>
                 @if (open() !== o.order_id) {
                   <button type="button" class="btn btn--ghost start" (click)="start(o)">Оформить возврат</button>
                 } @else {
@@ -84,9 +91,12 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
                     @if (o.shop_phone) { <p class="hint">Как передать товар, договоритесь с лавкой: {{ o.shop_phone }}</p> }
                     @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
                     <div class="actions">
-                      <button type="button" class="btn" [disabled]="!canSend() || busy()" (click)="send(o)">Отправить запрос@if (total(o)) { · {{ total(o) | money }} }</button>
+                      <button type="button" class="btn" [disabled]="!canSend() || busy()" [attr.aria-describedby]="missing() ? 'return-missing-' + o.order_id : null"
+                        (click)="send(o)">Отправить запрос@if (total(o)) { · {{ total(o) | money }} }</button>
                       <button type="button" class="link" (click)="close()">Отмена</button>
                     </div>
+                    <!-- Без подсказки закрытая кнопка выглядит сломанной: называем, чего не хватает -->
+                    @if (missing()) { <p class="missing" [id]="'return-missing-' + o.order_id" data-test="return-missing">{{ missing() }}</p> }
                   </fieldset>
                 }
               </li>
@@ -126,6 +136,7 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
     .hint { margin-top: 8px; font-size: 14px; color: var(--color-ink-soft) }
     .error { margin-top: 8px }
     .actions { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px }
+    .missing { margin-top: 8px; font-size: 14px; color: var(--color-ink-soft) }
     .link { min-height: 44px; padding: 0 4px; font-weight: 600; color: var(--color-lapis) }
     .link:disabled { opacity: .5 }
     @media (hover: hover) { .link:hover { text-decoration: underline } }
@@ -135,6 +146,16 @@ export class ReturnsComponent {
   private readonly api = inject(MarketApi);
   readonly returns = signal<MarketReturn[]>([]);
   readonly returnable = signal<ReturnableOrder[]>([]);
+  /** Номер заказа: блок на странице заказа показывает только его возвраты. Пусто — все. */
+  readonly order = input<string | null>(null);
+  protected readonly shownReturns = computed(() => {
+    const n = this.order();
+    return n ? this.returns().filter((r) => r.number === n) : this.returns();
+  });
+  protected readonly shownReturnable = computed(() => {
+    const n = this.order();
+    return n ? this.returnable().filter((o) => o.number === n) : this.returnable();
+  });
   protected readonly label = RETURN_STATUS_LABEL;
   protected readonly maxReason = MAX_REASON;
   /** Заявка, для которой открыта форма; одновременно — одна. */
@@ -148,6 +169,15 @@ export class ReturnsComponent {
   protected readonly canSend = computed(
     () => Object.values(this.qty()).some((n) => n > 0) && this.reason().trim().length >= MIN_REASON,
   );
+  /** Чего не хватает для отправки — словами под кнопкой; пусто, когда отправить можно. */
+  protected readonly missing = computed(() => {
+    const picked = Object.values(this.qty()).some((n) => n > 0);
+    const left = MIN_REASON - this.reason().trim().length;
+    if (!picked && left > 0) return `Отметьте товар и напишите причину — от ${MIN_REASON} символов`;
+    if (!picked) return 'Отметьте товар, который возвращаете';
+    if (left > 0) return `Причина: ещё ${left} ${plural(left, ['символ', 'символа', 'символов'])}`;
+    return '';
+  });
 
   constructor() {
     // Блок выводится только вошедшему покупателю после гидратации auth — запросы идут уже в браузере

@@ -142,6 +142,45 @@ describe('OrderComponent', () => {
     expect(links).toEqual(['Продолжить покупки']);
   });
 
+  it('доставленный заказ владельцу: назад к списку, товары с фото по лавкам, оценка строки и возврат этого заказа', async () => {
+    const line = { product_id: '16', shop_handle: 'zebo.style', title: 'Платье макси', price: 420, image: 'a.jpg', size: 'M', qty: 2 };
+    const delivered: Order = { ...ORDER, stage: 'delivered', lines: [line, { ...line, product_id: '17', title: 'Шарф', size: null, qty: 1 }] };
+    const reviewable = jest.fn(() => of([
+      { product_id: '16', product_title: 'Платье макси', image: '', shop_handle: 'zebo.style', order_number: 'R-221526', review: null },
+      { product_id: '16', product_title: 'Платье макси', image: '', shop_handle: 'zebo.style', order_number: 'R-999', review: null },
+    ]));
+    const able = { order_id: 4, number: 'R-221526', shop_handle: 'zebo.style', shop_name: 'Z', shop_phone: '', delivered_at: '', deadline: '2026-11-27T10:00:00Z', lines: [] };
+    const api = { order: jest.fn(() => of(delivered)), reviewable, myReturns: jest.fn(() => of([])), returnable: jest.fn(() => of([able, { ...able, order_id: 5, number: 'R-999' }])) };
+    await TestBed.configureTestingModule({ imports: [OrderComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+    const f = TestBed.createComponent(OrderComponent);
+    loginAsOwner();
+    f.componentRef.setInput('number', 'R-221526');
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-test="back"]')?.getAttribute('href')).toBe('/me/orders');
+    expect(text(el)).toContain('3 товара');
+    expect(el.querySelectorAll('[data-test="line"] img').length).toBe(2);
+    expect(text(el)).toContain('Размер M · 2 шт');
+    expect(el.querySelector('.shop-name')?.textContent).toContain('@zebo.style');
+    // Оценка только у строки из этого заказа, у второго товара её нет
+    expect(el.querySelectorAll('[data-test="rate"]').length).toBe(1);
+    // Возврат — только по этому заказу
+    expect(el.querySelectorAll('[data-test="returnable"] > li').length).toBe(1);
+    expect(text(el)).toContain('Оплачено');
+  });
+
+  it('гостю по ссылке: без отзывов, возвратов и кнопки «назад»', async () => {
+    const reviewable = jest.fn();
+    await TestBed.configureTestingModule({ imports: [OrderComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { order: jest.fn(() => of({ ...ORDER, stage: 'delivered' })), reviewable } }] }).compileComponents();
+    const f = TestBed.createComponent(OrderComponent);
+    f.componentRef.setInput('number', 'R-221526');
+    f.componentRef.setInput('t', 'tok');
+    f.detectChanges();
+    expect(reviewable).not.toHaveBeenCalled();
+    expect(f.nativeElement.querySelector('app-returns')).toBeNull();
+    expect(f.nativeElement.querySelector('[data-test="back"]')).toBeNull();
+  });
+
   it('без токена и телефона: до готовности auth не запрашивает, владельцу — запрос по Bearer', async () => {
     const order = jest.fn(() => of(ORDER));
     const f = await setup(order);

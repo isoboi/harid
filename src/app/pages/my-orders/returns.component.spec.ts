@@ -97,6 +97,29 @@ describe('ReturnsComponent', () => {
     expect(el.querySelector('.step b')?.textContent).toBe('2');
   });
 
+  it('закрытая кнопка объясняет, чего не хватает', async () => {
+    const { f, el } = await render({ returnable: [ORDER()] });
+    button(el, 'Оформить возврат').click(); f.detectChanges();
+    const hint = () => el.querySelector('[data-test="return-missing"]')?.textContent?.trim();
+    expect(hint()).toBe('Отметьте товар и напишите причину — от 5 символов');
+    check(el, 0); type(el, 'test'); f.detectChanges();
+    expect(hint()).toBe('Причина: ещё 1 символ');
+    expect(button(el, 'Отправить запрос').getAttribute('aria-describedby')).toBe('return-missing-40');
+    type(el, 'test!'); f.detectChanges();
+    expect(hint()).toBeUndefined();
+    expect(button(el, 'Отправить запрос').disabled).toBe(false);
+  });
+
+  it('с номером заказа — только его возвраты, без «Заказ …» в строке', async () => {
+    const { f, el } = await render({ returns: [RETURN(), RETURN({ id: 10, number: 'R-2' })], returnable: [ORDER(), ORDER({ order_id: 41, number: 'R-2' })] });
+    f.componentRef.setInput('order', 'R-2');
+    f.detectChanges();
+    expect(el.querySelectorAll('[data-test="returns"] > li').length).toBe(1);
+    expect(el.querySelectorAll('[data-test="returnable"] > li').length).toBe(1);
+    expect(el.querySelector('#returns-title')?.textContent).toBe('Возврат');
+    expect(el.textContent).not.toContain('Заказ R-2');
+  });
+
   it('ошибка сервера показана в форме, форма остаётся открытой', async () => {
     const createReturn = jest.fn(() => throwError(() => new HttpErrorResponse({ status: 400, error: { error: { message: 'Срок возврата истёк: 7 дней после доставки' } } })));
     const { f, el } = await render({ returnable: [ORDER()], createReturn });

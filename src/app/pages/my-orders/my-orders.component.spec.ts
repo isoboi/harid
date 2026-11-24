@@ -73,15 +73,37 @@ describe('MyOrdersComponent', () => {
     expect(myOrders).toHaveBeenCalledTimes(1);
   });
 
-  it('вошедшему — блок «Оцените покупки» из reviewable()', async () => {
-    const myOrders = jest.fn(() => of([ORDER]));
+  it('строка заказа: что внутри, лавка и подсказки — оценить, срок возврата, статус возврата', async () => {
+    const line = (title: string, shop = 'zebo.style') => ({ product_id: '16', shop_handle: shop, title, price: 50, image: 'a.jpg', size: null, qty: 1 });
+    const myOrders = jest.fn(() => of([{ ...ORDER, lines: [line('Платье макси'), line('Шарф'), line('Сумка', 'bag.tj')] }]));
     const items = jest.fn(() => of([{ product_id: '16', product_title: 'Платье макси', image: '', shop_handle: 'zebo.style', order_number: 'R-1', review: null }]));
-    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable: items, myReturns, returnable } }] }).compileComponents();
+    const ret = jest.fn(() => of([{ id: 1, number: 'R-1', status: 'requested' }]));
+    const able = jest.fn(() => of([{ order_id: 4, number: 'R-1', deadline: '2026-11-27T10:00:00Z', lines: [] }]));
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable: items, myReturns: ret, returnable: able } }] }).compileComponents();
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
     const f = TestBed.createComponent(MyOrdersComponent);
     f.detectChanges();
-    expect(items).toHaveBeenCalledTimes(1);
-    expect(f.nativeElement.textContent).toContain('Оцените покупки');
+    const t: string = f.nativeElement.textContent.replace(/\s+/g, ' ');
+    expect(t).toContain('Платье макси и ещё 2 товара');
+    expect(t).toContain('@zebo.style, @bag.tj');
+    expect(f.nativeElement.querySelectorAll('.thumb img').length).toBe(3);
+    expect(t).toContain('Оцените 1 товар');
+    expect(t).toContain('Можно вернуть до 27 ноября');
+    expect(t).toContain('Возврат: ждёт ответа лавки');
+    // Формы возврата и отзывов живут на странице заказа, не в списке
+    expect(f.nativeElement.querySelector('textarea')).toBeNull();
+  });
+
+  it('активные заказы — отдельной группой над завершёнными', async () => {
+    const myOrders = jest.fn(() => of([ORDER, { ...ORDER, number: 'R-2', stage: 'in_delivery' }]));
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable, myReturns, returnable } }] }).compileComponents();
+    TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
+    const f = TestBed.createComponent(MyOrdersComponent);
+    f.detectChanges();
+    const titles = [...f.nativeElement.querySelectorAll('.group-title')].map((h: Element) => h.textContent?.trim());
+    expect(titles).toEqual(['Активные', 'Завершённые']);
+    const nums = [...f.nativeElement.querySelectorAll('.num')].map((n: Element) => n.textContent);
+    expect(nums).toEqual(['R-2', 'R-1']);
   });
   it('без входа reviewable() не вызывается', async () => {
     const items = jest.fn(() => of([]));
