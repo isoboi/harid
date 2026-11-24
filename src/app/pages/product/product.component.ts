@@ -1,5 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { Component, computed, effect, ElementRef, inject, input, PLATFORM_ID, signal, untracked, viewChild } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
@@ -226,6 +227,7 @@ export class ProductComponent {
   private readonly api = inject(MarketApi);
   private readonly cart = inject(CartService);
   private readonly seo = inject(SeoService);
+  private readonly title = inject(Title);
   readonly fav = inject(FavoritesService);
   readonly id = input.required<string>();
   readonly product = signal<Product | null>(null);
@@ -301,7 +303,11 @@ export class ProductComponent {
           );
         },
         // 400 — нечисловой id отклонён валидацией бэкенда: для покупателя это тоже «нет такого товара»
-        error: (e) => { if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) this.missing.set(true); else this.failed.set(true); },
+        error: (e) => {
+          // Теги прошлой страницы SeoService убрал при переходе; заголовок вкладки — свой
+          if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) { this.missing.set(true); this.title.setTitle('Товар не найден — Харид'); }
+          else { this.failed.set(true); this.title.setTitle('Товар не загрузился — Харид'); }
+        },
       }));
       onCleanup(() => { sub.unsubscribe(); nested.forEach((n) => n.unsubscribe()); });
     });

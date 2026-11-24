@@ -15,14 +15,14 @@ describe('app.routes — заголовки вкладки', () => {
   const titleOf = (path: string) => routes.find((r) => r.path === path)?.title;
 
   it('страницы без SeoService.set() задают свой title, а не оставляют заголовок прошлой', () => {
-    for (const path of ['cart', 'checkout', 'order/:number', 'login', 'me/orders', 'favorites', 'sell', 'chats', 'chats/new', 'chats/:id', '**']) {
+    for (const path of ['cart', 'checkout', 'login', 'me/orders', 'favorites', 'sell', 'chats', 'chats/new', 'chats/:id', '**']) {
       expect(typeof titleOf(path)).toBe('string');
       expect(titleOf(path)).toMatch(/Харид/);
     }
   });
 
-  it('публичным страницам title не задан: заголовок ставит SeoService, роутер его не перезаписывает', () => {
-    for (const path of ['', 'catalog', 'c/:slug', 'search', 'shop/:handle', 'product/:id']) {
+  it('публичным страницам и заказу title не задан: заголовок ставит сама страница, роутер его не перезаписывает', () => {
+    for (const path of ['', 'catalog', 'c/:slug', 'search', 'shop/:handle', 'product/:id', 'order/:number']) {
       expect(titleOf(path)).toBeUndefined();
     }
   });

@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, effect, ElementRef, inject, input, signal, untracked } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -291,6 +292,12 @@ export class OrderComponent {
         else if (src.kind === 'lookup') this.showLookup(src.number, false);
         else this.reset();
       });
+    });
+    // Заголовок вкладки — по тому, что на экране: номер заказа или форма поиска
+    const title = inject(Title);
+    effect(() => {
+      const o = this.order();
+      title.setTitle(o ? `Заказ ${o.number} — Харид` : this.lookup() ? 'Найти заказ — Харид' : 'Заказ — Харид');
     });
     inject(DestroyRef).onDestroy(() => this.current?.unsubscribe());
   }

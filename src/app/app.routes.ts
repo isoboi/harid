@@ -5,7 +5,7 @@ import { NotFoundComponent } from './pages/not-found/not-found.component';
  * Все страницы подключены, включая «sell» (открытие лавки по SMS-коду).
  * Пути из app.routes.server.ts обязаны существовать и здесь, иначе сборка падает.
  * title — у страниц, которые не вызывают SeoService.set(): иначе во вкладке
- * оставался бы заголовок прошлой страницы. Публичным страницам title здесь не задавать —
+ * оставался бы заголовок прошлой страницы. Заказ ставит заголовок сам (с номером). Публичным страницам title здесь не задавать —
  * роутер перезапишет им заголовок из SeoService.
  */
 export const routes: Routes = [
@@ -17,7 +17,7 @@ export const routes: Routes = [
   { path: 'product/:id', loadComponent: () => import('./pages/product/product.component').then((m) => m.ProductComponent) },
   { path: 'cart', title: 'Корзина — Харид', loadComponent: () => import('./pages/cart/cart.component').then((m) => m.CartComponent) },
   { path: 'checkout', title: 'Оформление заказа — Харид', loadComponent: () => import('./pages/checkout/checkout.component').then((m) => m.CheckoutComponent) },
-  { path: 'order/:number', title: 'Заказ — Харид', loadComponent: () => import('./pages/order/order.component').then((m) => m.OrderComponent) },
+  { path: 'order/:number', loadComponent: () => import('./pages/order/order.component').then((m) => m.OrderComponent) },
   { path: 'login', title: 'Вход — Харид', loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent) },
   { path: 'me/orders', title: 'Мои заказы — Харид', loadComponent: () => import('./pages/my-orders/my-orders.component').then((m) => m.MyOrdersComponent) },
   { path: 'favorites', title: 'Избранное — Харид', loadComponent: () => import('./pages/favorites/favorites.component').then((m) => m.FavoritesComponent) },
