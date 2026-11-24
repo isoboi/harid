@@ -105,6 +105,68 @@ describe('ProductComponent', () => {
     f.detectChanges();
     expect(el.querySelector('[data-test="video"]')).toBeNull();
   });
+  describe('галерея: свайп, фото на весь экран, «Поделиться»', () => {
+    /** В jsdom нет PointerEvent: собираем из MouseEvent с нужными полями. */
+    const ptr = (type: string, x: number, y = 100, pointerType = 'touch') => {
+      const e = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true });
+      Object.defineProperties(e, { pointerId: { value: 1 }, pointerType: { value: pointerType }, isPrimary: { value: true } });
+      return e;
+    };
+    const swipe = (f: Awaited<ReturnType<typeof render>>, from: number, to: number, pointerType = 'touch') => {
+      const main = (f.nativeElement as HTMLElement).querySelector('.main') as HTMLElement;
+      main.dispatchEvent(ptr('pointerdown', from, 100, pointerType));
+      main.dispatchEvent(ptr('pointermove', (from + to) / 2, 100, pointerType));
+      main.dispatchEvent(ptr('pointermove', to, 100, pointerType));
+      main.dispatchEvent(ptr('pointerup', to, 100, pointerType));
+      f.detectChanges();
+    };
+    const mainSrc = (f: Awaited<ReturnType<typeof render>>) => ((f.nativeElement as HTMLElement).querySelector('.main img') as HTMLImageElement).getAttribute('src');
+
+    it('свайп пальцем листает фото, счётчик «2 / 2»; мышью — нет', async () => {
+      const f = await render(prod());
+      const el = f.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-test="photo-count"]')?.textContent?.trim()).toBe('1 / 2');
+      swipe(f, 300, 150, 'mouse');
+      expect(mainSrc(f)).toBe('a.jpg');
+      swipe(f, 300, 150);
+      expect(mainSrc(f)).toBe('b.jpg');
+      expect(el.querySelector('[data-test="photo-count"]')?.textContent?.trim()).toBe('2 / 2');
+      swipe(f, 150, 300);
+      expect(mainSrc(f)).toBe('a.jpg');
+    });
+
+    it('нажатие на фото открывает просмотр на весь экран; закрыли на другом фото — галерея на нём', async () => {
+      const f = await render(prod());
+      const el = f.nativeElement as HTMLElement;
+      (el.querySelector('[data-test="open-viewer"]') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(el.querySelector('app-photo-viewer')).not.toBeNull();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      f.detectChanges();
+      expect(el.querySelector('app-photo-viewer')).toBeNull();
+      expect(mainSrc(f)).toBe('b.jpg');
+    });
+
+    it('после свайпа click не открывает просмотр', async () => {
+      const f = await render(prod());
+      const el = f.nativeElement as HTMLElement;
+      swipe(f, 300, 150);
+      (el.querySelector('[data-test="open-viewer"]') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(el.querySelector('app-photo-viewer')).toBeNull();
+    });
+
+    it('«Поделиться» — ссылка на товар с названием и ценой', async () => {
+      const f = await render(prod());
+      const el = f.nativeElement as HTMLElement;
+      (el.querySelector('[data-test="share"]') as HTMLButtonElement).click();
+      f.detectChanges();
+      const tg = new URL((el.querySelector('[data-test="share-telegram"]') as HTMLAnchorElement).href);
+      expect(tg.searchParams.get('url')).toMatch(/\/product\/16$/);
+      expect(tg.searchParams.get('text')).toContain('Наушники — 540');
+    });
+  });
   describe('вертикальный просмотр видео (как в Instagram)', () => {
     const open = async (p: Product) => {
       jest.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);

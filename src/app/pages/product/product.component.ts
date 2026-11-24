@@ -21,11 +21,15 @@ import { ratingLabel, ratingNumber } from '../../shared/rating';
 import { SellerCardComponent } from '../../shared/seller-card.component';
 import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
+import { PhotoViewerComponent, SWIPE_X } from '../../shared/photo-viewer.component';
 import { ReelAction, ReelViewerComponent } from '../../shared/reel-viewer.component';
+import { ShareComponent } from '../../shared/share.component';
 import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
 const money = new MoneyPipe();
+/** С какого сдвига пальца вбок касание фото считаем листанием, а не нажатием. */
+const SWIPE_START = 10;
 
 /** Видимая часть наблюдения IntersectionObserver — чтобы функцию можно было проверить без браузера. */
 export interface ButtonView { isIntersecting: boolean; intersectionRatio: number }
@@ -47,7 +51,7 @@ export function buyBarVisible(e: ButtonView): boolean {
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent, SellerCardComponent],
+  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent, SellerCardComponent, ShareComponent, PhotoViewerComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -55,11 +59,18 @@ export function buyBarVisible(e: ButtonView): boolean {
       <div class="wrap top">
         <div class="layout">
           <div class="gallery">
-            <div class="main" [class.video]="videoOn()">
+            <!-- Телефон: фото листаются пальцем вбок; нажатие открывает фото на весь экран с увеличением -->
+            <div class="main" [class.video]="videoOn()" [class.swiping]="swipeDx() !== 0"
+              (pointerdown)="swipeDown($event)" (pointermove)="swipeMove($event)" (pointerup)="swipeUp()" (pointercancel)="swipeUp()">
               <!-- Человек сам выбрал слайд с видео — играем сразу, без второго нажатия -->
               @if (videoOn()) { <app-video-player [src]="video()" [poster]="photos()[0] || ''" [label]="'Видео: ' + p.title" [autoplay]="true" [expandable]="true" [hold]="reel()" (expand)="reel.set(true)" /> }
-              @else if (current()) { <img [src]="current()" [alt]="p.title" /> }
+              @else if (current()) {
+                <button type="button" class="zoom" data-test="open-viewer" aria-label="Открыть фото на весь экран" (click)="openViewer()">
+                  <img [src]="current()" [alt]="p.title" [style.transform]="swipeDx() ? 'translateX(' + swipeDx() + 'px)' : null" />
+                </button>
+              }
               @else { <span class="muted">Нет фото</span> }
+              @if (slides() > 1 && !videoOn()) { <span class="count" data-test="photo-count" aria-hidden="true">{{ photo() + 1 }} / {{ slides() }}</span> }
             </div>
             @if (photos().length + (video() ? 1 : 0) > 1) {
               <div class="thumbs">@for (src of photos(); track src; let i = $index) {
@@ -111,6 +122,7 @@ export function buyBarVisible(e: ButtonView): boolean {
               <button type="button" class="fav" [attr.aria-pressed]="fav.has(p.id)" (click)="fav.toggle(p.id)">
                 <app-icon name="heart" [size]="20" [filled]="fav.has(p.id)" [class.on]="fav.has(p.id)" />{{ fav.has(p.id) ? 'В избранном' : 'В избранное' }}
               </button>
+              <app-share [path]="sharePath()" [text]="shareText()" />
               <a class="btn btn--ghost write" data-test="write-seller" routerLink="/chats/new" [queryParams]="{ shop: p.shop_handle, product: p.id }">Написать продавцу</a>
             </div>
             @if (copied()) { <p class="copied" data-test="copied" role="status">Ссылка на пост скопирована — вставьте её в чат</p> }
@@ -141,6 +153,9 @@ export function buyBarVisible(e: ButtonView): boolean {
           @else if (added()) { <a class="btn bar-btn" routerLink="/cart">Перейти в корзину</a> }
           @else { <button type="button" class="btn bar-btn" (click)="barAdd(p)">Добавить в корзину</button> }
         </div>
+        @if (viewer()) {
+          <app-photo-viewer [photos]="photos()" [start]="photo()" [alt]="p.title" (closed)="closeViewer($event)" />
+        }
         @if (reel()) {
           <app-reel-viewer [product]="p" [shop]="shop()" [favorite]="fav.has(p.id)" [action]="reelAction()" (closed)="reel.set(false)" (act)="reelAct(p)" (toggleFavorite)="fav.toggle(p.id)" (liked)="like(p)" />
         }
@@ -182,7 +197,13 @@ export function buyBarVisible(e: ButtonView): boolean {
     .layout { display: grid; gap: 32px }
     @media (min-width: 768px) { .layout { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 56px } .info { padding-top: 8px } }
     .main { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: var(--radius-photo); background: var(--color-mist); display: grid; place-items: center }
-    .main img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover }
+    .main img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .2s ease-out }
+    .main.swiping img { transition: none }
+    /* Вертикальная прокрутка страницы — браузеру, жест вбок — нам (листание фото) */
+    .main:not(.video) { touch-action: pan-y }
+    .zoom { position: absolute; inset: 0; padding: 0; cursor: zoom-in }
+    .zoom:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: -2px; border-radius: var(--radius-photo) }
+    .count { position: absolute; right: 12px; bottom: 12px; padding: 2px 10px; border-radius: 9999px; background: rgb(19 35 91 / .6); color: #fff; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none }
     .thumbs { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto }
     .thumbs button { flex: none; width: 64px; height: 64px; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 10px; background: var(--color-mist) }
     .thumbs button.on { border-color: var(--color-ink) }
@@ -276,6 +297,13 @@ export class ProductComponent {
   readonly photo = signal(0);
   /** Открыт вертикальный просмотр видео (как в Instagram) поверх страницы. */
   readonly reel = signal(false);
+  /** Открыт просмотр фото на весь экран. */
+  readonly viewer = signal(false);
+  /** Сдвиг фото за пальцем, пока его листают вбок. */
+  readonly swipeDx = signal(0);
+  private swipe: { x: number; y: number; on: boolean } | null = null;
+  /** После свайпа браузер всё равно пришлёт click — его не считаем нажатием «открыть». */
+  private swallowClick = false;
   readonly size = signal<string | null>(null);
   readonly added = signal(false);
   /** Корзина упёрлась в лимит строк бэкенда. */
@@ -298,6 +326,8 @@ export class ProductComponent {
   readonly directUrl = computed(() => { const p = this.product(); return p ? directLink(p) : ''; });
   /** Ссылка на пост скопирована в буфер после нажатия «Написать в Direct». */
   readonly copied = signal(false);
+  /** Слайдов в галерее: фото и, если есть, видео последним. */
+  readonly slides = computed(() => this.photos().length + (this.video() ? 1 : 0));
   readonly videoOn = computed(() => !!this.video() && this.photo() === this.photos().length);
   readonly canAdd = computed(() => { const p = this.product(); return !!p && !directOnly(p) && p.in_stock && (p.sizes.length <= 1 || !!this.size()); });
   /** Главная кнопка под видео в вертикальном просмотре — та же логика, что у кнопок страницы. */
@@ -309,6 +339,9 @@ export class ProductComponent {
     if (this.added()) return { label: 'Перейти в корзину', link: '/cart' };
     return { label: p.sizes.length > 1 && !this.size() ? 'Выбрать размер' : 'Добавить в корзину' };
   });
+  /** Что уходит в мессенджер при «Поделиться»: название и цена, ссылка — на канонический адрес товара. */
+  readonly sharePath = computed(() => productPath(this.product()?.id ?? ''));
+  readonly shareText = computed(() => { const p = this.product(); return !p ? '' : p.price === null ? p.title : `${p.title} — ${money.transform(p.price)}`; });
   readonly addLabel = computed(() => (!this.product()?.in_stock ? 'Нет в наличии' : this.added() ? 'Добавлено в корзину' : 'Добавить в корзину'));
   /** Цены доставки из той же deliveryFor, что считает итог на оформлении. */
   readonly deliveryCity = money.transform(deliveryFor(DISTRICTS[0]));
@@ -325,7 +358,7 @@ export class ProductComponent {
   constructor() {
     effect((onCleanup) => {
       const id = this.id();
-      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false); this.copied.set(false); this.reel.set(false);
+      this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false); this.copied.set(false); this.reel.set(false); this.viewer.set(false);
       this.product.set(null); this.more.set([]); this.shop.set(null); this.reviews.set(null);
       const nested: { unsubscribe(): void }[] = [];
       const sub = untracked(() => this.api.product(id).subscribe({
@@ -383,6 +416,49 @@ export class ProductComponent {
    * «Написать в Direct»: ссылка сама открывает чат, а пост кладём в буфер обмена —
    * у ig.me нет документированного параметра, чтобы подставить текст сообщения.
    */
+  openViewer(): void {
+    if (this.swallowClick) { this.swallowClick = false; return; }
+    if (this.photos().length) this.viewer.set(true);
+  }
+
+  closeViewer(index: number): void {
+    this.viewer.set(false);
+    this.photo.set(index);
+  }
+
+  swipeDown(e: PointerEvent): void {
+    // Мышью листают превью; свайп — жест пальца. На видео жесты у плеера
+    if (e.pointerType === 'mouse' || !e.isPrimary || this.videoOn() || this.slides() < 2) return;
+    this.swipe = { x: e.clientX, y: e.clientY, on: false };
+    this.swallowClick = false;
+  }
+
+  swipeMove(e: PointerEvent): void {
+    const s = this.swipe;
+    if (!s) return;
+    const dx = e.clientX - s.x;
+    if (!s.on) {
+      if (Math.abs(dx) < SWIPE_START || Math.abs(dx) < Math.abs(e.clientY - s.y)) return;
+      s.on = true;
+      (e.currentTarget as Element | null)?.setPointerCapture?.(e.pointerId);
+    }
+    // У крайних слайдов фото тянется туго — видно, что дальше ничего нет
+    const edge = (dx > 0 && this.photo() === 0) || (dx < 0 && this.photo() === this.slides() - 1);
+    this.swipeDx.set(edge ? dx / 3 : dx);
+  }
+
+  swipeUp(): void {
+    const s = this.swipe;
+    this.swipe = null;
+    if (!s?.on) return;
+    const dx = this.swipeDx();
+    this.swipeDx.set(0);
+    this.swallowClick = true;
+    setTimeout(() => (this.swallowClick = false));
+    const next = this.photo() + (dx <= -SWIPE_X ? 1 : dx >= SWIPE_X ? -1 : 0);
+    if (next >= 0 && next < this.slides()) this.photo.set(next);
+  }
+
   copyPost(): void {
     const post = this.igPost();
     if (!this.browser || !post || !navigator.clipboard?.writeText) return;
