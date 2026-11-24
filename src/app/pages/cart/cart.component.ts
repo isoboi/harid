@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { CartItem, CartService, MAX_QTY } from '../../core/cart.service';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { IconComponent } from '../../shared/icon.component';
+import { RecentStripComponent } from '../../shared/recent-strip.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { plural } from '../../shared/plural';
 
@@ -15,7 +16,7 @@ const UNDO_MS = 6000;
 @Component({
   selector: 'app-cart',
   standalone: true,
-  imports: [RouterLink, MoneyPipe, IconComponent],
+  imports: [RouterLink, MoneyPipe, IconComponent, RecentStripComponent],
   template: `
     <div class="wrap page-top">
       <h1 class="page-title head">Корзина</h1>
@@ -80,10 +81,13 @@ const UNDO_MS = 6000;
           </aside>
         </div>
       }
+      <!-- «Вы смотрели» под содержимым корзины; то, что уже в корзине, не повторяем -->
+      @if (cart.ready()) { <app-recent-strip class="recent" [exclude]="inCart()" /> }
     </div>
   `,
   styles: `
     .head { margin-bottom: 32px }
+    .recent:not(:empty) { margin-top: 48px }
     .undo-slot:empty { display: none }
     .undo { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; padding-left: 16px; border-radius: 10px; background: var(--color-ink); color: var(--color-paper); font-size: 15px }
     .dot { opacity: .6 }
@@ -131,6 +135,8 @@ export class CartComponent {
   readonly delivery = computed(() => this.cart.deliveryTotal(DISTRICTS[0]));
   readonly suburbNote = `Доставка в ${SUBURBS.join(' и ')} — ${money.transform(deliveryFor(SUBURBS[0]))} за лавку. Точная сумма будет на следующем шаге.`;
   /** Последняя убранная строка и её место — для «Вернуть». */
+  /** id товаров в корзине — их полоса «Вы смотрели» не показывает. */
+  readonly inCart = computed(() => this.cart.items().map((i) => i.product.id));
   readonly undo = signal<{ item: CartItem; index: number } | null>(null);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private timer: ReturnType<typeof setTimeout> | null = null;

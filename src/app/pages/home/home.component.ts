@@ -9,6 +9,7 @@ import { ProductCardComponent } from '../../shared/product-card.component';
 import { plural } from '../../shared/plural';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
 import { ShopStripComponent } from '../../shared/shop-strip.component';
+import { RecentStripComponent } from '../../shared/recent-strip.component';
 
 /** Четыре шага оплаты наличными — в раскладке «Как это работает» прототипа. */
 const CASH_STEPS = [
@@ -21,7 +22,7 @@ const CASH_STEPS = [
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent],
+  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent, RecentStripComponent],
   template: `
     <div class="wrap">
       <app-shop-strip [shops]="shops()" />
@@ -46,6 +47,8 @@ const CASH_STEPS = [
           </div>
         }
       </section>
+      <!-- «Вы смотрели» — из браузера, появляется после гидратации; на телефоне герой скрыт, полоса между лавками и лентой -->
+      <app-recent-strip />
       <section id="fresh" class="fresh">
         <div class="fresh-head"><h2 class="fresh-title">Новое в лавках</h2></div>
         <nav class="chips" aria-label="Категории">

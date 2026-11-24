@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { HomeComponent } from './home.component';
 import { MarketApi } from '../../core/market-api.service';
+import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { Product, ProductQuery } from '../../core/models';
 import { FEED_PAGE_SIZE as HOME_PAGE_SIZE } from '../../shared/product-feed';
 
@@ -90,5 +91,39 @@ describe('HomeComponent: подгрузка ленты', () => {
     f.detectChanges();
     expect(spy).toHaveBeenCalledTimes(3);
     expect(cards()).toBe(HOME_PAGE_SIZE * 2);
+  });
+});
+
+describe('HomeComponent: «Вы смотрели»', () => {
+  const original = (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
+  beforeEach(() => {
+    localStorage.clear();
+    (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = class { observe() {} disconnect() {} };
+  });
+  afterEach(() => {
+    (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = original;
+    TestBed.resetTestingModule();
+  });
+
+  async function render(withHistory: boolean) {
+    await TestBed.configureTestingModule({
+      imports: [HomeComponent],
+      providers: [provideRouter([]), { provide: MarketApi, useValue: { products: () => of(page(1, 3)), shops: () => of([]), categories: () => of([]) } }],
+    }).compileComponents();
+    if (withHistory) TestBed.inject(RecentlyViewedService).add({ ...item(77), title: 'Снимок 77' });
+    const f = TestBed.createComponent(HomeComponent);
+    f.detectChanges();
+    return f.nativeElement as HTMLElement;
+  }
+
+  it('с историей — «Вы смотрели» над «Новое в лавках»', async () => {
+    const el = await render(true);
+    const strip = el.querySelector('app-recent-strip section');
+    expect(strip?.textContent).toContain('Снимок 77');
+    expect(strip!.compareDocumentPosition(el.querySelector('#fresh')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it('без истории полосы нет', async () => {
+    const el = await render(false);
+    expect(el.textContent).not.toContain('Вы смотрели');
   });
 });
