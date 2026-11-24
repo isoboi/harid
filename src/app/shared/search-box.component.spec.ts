@@ -16,7 +16,10 @@ describe('SearchBoxComponent', () => {
   let replies: Subject<SearchSuggestions>[];
   let suggest: jest.Mock;
 
-  function setup() {
+  /** history — недавние запросы, уже лежащие в браузере. */
+  function setup(history: string[] = []) {
+    localStorage.clear();
+    if (history.length) localStorage.setItem('harid.searches', JSON.stringify(history));
     replies = [];
     suggest = jest.fn(() => { const s = new Subject<SearchSuggestions>(); replies.push(s); return s; });
     TestBed.configureTestingModule({
@@ -141,4 +144,82 @@ describe('SearchBoxComponent', () => {
     f.detectChanges();
     expect(panel().hidden).toBe(true);
   }));
+
+  describe('недавние запросы', () => {
+    const rows = (el: HTMLElement) => Array.from(el.querySelectorAll('[data-test="recent-search"]')).map((n) => n.textContent?.trim());
+
+    it('пустое поле в фокусе — история вместо подсказок, ссылки ведут на поиск', fakeAsync(() => {
+      const { el, input, type, panel } = setup(['платье', 'кроссовки']);
+      expect(panel().hidden).toBe(true);
+      type('');
+      expect(panel().hidden).toBe(false);
+      expect(input.getAttribute('aria-expanded')).toBe('true');
+      expect(rows(el)).toEqual(['платье', 'кроссовки']);
+      expect(el.querySelector<HTMLAnchorElement>('[data-test="recent-search"]')!.getAttribute('href')).toBe('/search?q=%D0%BF%D0%BB%D0%B0%D1%82%D1%8C%D0%B5');
+      expect(el.querySelector('[aria-live]')?.textContent).toBe('2 недавних запроса');
+      // Начали печатать — история прячется, сервер о ней не спрашивают
+      type('пл');
+      expect(el.querySelector('[data-test="recent-searches"]')).toBeNull();
+      tick(200);
+      expect(suggest).toHaveBeenCalledWith('пл');
+    }));
+
+    it('без истории пустое поле ничего не открывает', fakeAsync(() => {
+      const { type, panel } = setup();
+      type('');
+      expect(panel().hidden).toBe(true);
+    }));
+
+    it('открытый поиск попадает в историю — свежий первым', fakeAsync(() => {
+      const { f, el, type } = setup(['кроссовки']);
+      const router = TestBed.inject(Router);
+      router.resetConfig([{ path: 'search', children: [] }]);
+      router.navigateByUrl('/search?q=%D1%88%D0%B0%D1%80%D1%84'); // «шарф»
+      tick();
+      type('');
+      f.detectChanges();
+      expect(rows(el)).toEqual(['шарф', 'кроссовки']);
+    }));
+
+    it('стрелки ходят по истории, Enter — поиск по запросу, Enter на «Очистить» — всё стирает', fakeAsync(() => {
+      const { el, input, type, key, panel } = setup(['платье', 'шарф']);
+      const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      type('');
+      key('ArrowDown');
+      key('ArrowDown');
+      expect(input.getAttribute('aria-activedescendant')).toBe('sg-1');
+      expect(key('Enter').defaultPrevented).toBe(true);
+      expect(nav).toHaveBeenCalledWith(['/search'], { queryParams: { q: 'шарф' } });
+
+      type('');
+      key('ArrowUp'); // по кругу — на последний пункт, «Очистить историю»
+      expect(el.querySelector('#' + input.getAttribute('aria-activedescendant'))?.getAttribute('data-test')).toBe('clear-history');
+      key('Enter');
+      expect(panel().hidden).toBe(true);
+      expect(localStorage.getItem('harid.searches')).toBeNull();
+    }));
+
+    it('крестик и Delete убирают один запрос, список остаётся открытым', fakeAsync(() => {
+      const { el, input, type, key } = setup(['платье', 'шарф', 'сумка']);
+      type('');
+      el.querySelectorAll<HTMLButtonElement>('[data-test="forget-search"]')[0].click();
+      input.dispatchEvent(new Event('focus'));
+      key('ArrowDown');
+      expect(rows(el)).toEqual(['шарф', 'сумка']);
+      expect(key('Delete').defaultPrevented).toBe(true);
+      expect(rows(el)).toEqual(['сумка']);
+      // Выбор остался на той же строке — теперь это «сумка»
+      expect(input.getAttribute('aria-activedescendant')).toBe('sg-0');
+      expect(JSON.parse(localStorage.getItem('harid.searches')!)).toEqual(['сумка']);
+    }));
+
+    it('Delete в подсказках не перехватывается — стирает текст как обычно', fakeAsync(() => {
+      const { type, key, reply } = setup(['платье']);
+      type('тех');
+      tick(200);
+      reply(answer());
+      key('ArrowDown');
+      expect(key('Delete').defaultPrevented).toBe(false);
+    }));
+  });
 });
