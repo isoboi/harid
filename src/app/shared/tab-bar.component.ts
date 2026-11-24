@@ -42,7 +42,7 @@ export function pathOf(url: string): string {
           <app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl">Избранное</span>
         </a>
         <a class="tab" routerLink="/cart" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.aria-label]="cart.count() ? 'Корзина, товаров: ' + cart.count() : null">
-          <span class="ico"><app-icon name="bag" [size]="22" [stroke]="1.8" />
+          <span class="ico" data-cart-target><app-icon name="bag" [size]="22" [stroke]="1.8" />
             @if (cart.count()) { <span class="badge" aria-hidden="true">{{ badge() }}</span> }
           </span>
           <span class="lbl">Корзина</span>

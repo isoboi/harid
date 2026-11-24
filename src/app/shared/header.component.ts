@@ -41,7 +41,7 @@ import { SearchBoxComponent } from './search-box.component';
           } @else {
             <a routerLink="/login" class="ico-link"><app-icon [name]="ordersIcon()" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Войти</span></a>
           }
-          <a routerLink="/cart" class="cart" [attr.aria-label]="cart.count() ? 'Корзина, товаров: ' + cart.count() : null">
+          <a routerLink="/cart" class="cart" data-cart-target [attr.aria-label]="cart.count() ? 'Корзина, товаров: ' + cart.count() : null">
             <app-icon name="bag" [size]="22" [stroke]="1.8" />
             <span class="lbl hide-sm">Корзина</span>
             @if (cart.count()) { <span class="badge" aria-hidden="true">{{ badge() }}</span> }

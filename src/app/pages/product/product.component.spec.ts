@@ -6,6 +6,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { buyBarVisible, ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
+import { FlyToCart } from '../../core/fly-to-cart.service';
 import { FavoritesService } from '../../core/favorites.service';
 import { HAPTIC } from '../../core/haptics.service';
 import { RecentlyViewedService } from '../../core/recently-viewed.service';
@@ -214,6 +215,15 @@ describe('ProductComponent', () => {
       expect(TestBed.inject(CartService).count()).toBe(1);
       expect(t.q('reel-cta').textContent?.trim()).toBe('Перейти в корзину');
       expect(t.q('reel-cta').getAttribute('href')).toBe('/cart');
+    });
+
+    it('в просмотре товар кладётся без полёта: корзины под ним не видно', async () => {
+      const t = await open(prod({ video: 'v.mp4' }));
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly');
+      t.q('reel-cta').click();
+      t.f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(1);
+      expect(fly).not.toHaveBeenCalled();
     });
 
     it('нет в наличии — кнопка выключена', async () => {
@@ -427,6 +437,51 @@ describe('ProductComponent', () => {
     expect(el.querySelector('app-not-found')).not.toBeNull();
     expect(el.textContent).not.toContain('Не удалось загрузить');
   });
+  describe('полёт в корзину', () => {
+    it('«В корзину» запускает полёт: сначала от фото, запасной источник — нажатая кнопка', async () => {
+      const f = await render(prod());
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly').mockImplementation(() => undefined);
+      const el: HTMLElement = f.nativeElement;
+      const btn = el.querySelector('[data-test="add"]') as HTMLButtonElement;
+      btn.click();
+      f.detectChanges();
+      expect(fly).toHaveBeenCalledTimes(1);
+      expect(fly).toHaveBeenCalledWith(el.querySelector('.main'), btn);
+    });
+
+    it('липкая панель покупки: запасной источник — её кнопка', async () => {
+      const f = await render(prod());
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly').mockImplementation(() => undefined);
+      const el: HTMLElement = f.nativeElement;
+      const bar = el.querySelector('[data-test="buybar"] .bar-btn') as HTMLButtonElement;
+      bar.click();
+      f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(1);
+      expect(fly).toHaveBeenCalledWith(el.querySelector('.main'), bar);
+    });
+
+    it('корзина на лимите — товар не добавлен и не «летит»', async () => {
+      localStorage.clear();
+      const f = await render(prod({ id: '99' }));
+      const cart = TestBed.inject(CartService);
+      for (let n = 1; n <= 30; n++) cart.add(prod({ id: String(n) }), null);
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly').mockImplementation(() => undefined);
+      (f.nativeElement.querySelector('[data-test="add"]') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(cart.items().length).toBe(30);
+      expect(fly).not.toHaveBeenCalled();
+    });
+
+    it('не выбран размер — ничего не добавлено и не «летит»', async () => {
+      const f = await render(prod({ sizes: ['S', 'M'] }));
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly').mockImplementation(() => undefined);
+      ((f.nativeElement as HTMLElement).querySelector('[data-test="buybar"] .bar-btn') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(0);
+      expect(fly).not.toHaveBeenCalled();
+    });
+  });
+
   it('корзина на лимите 30 строк — «В корзину» не добавляет и показывает сообщение', async () => {
     localStorage.clear();
     const api = { product: jest.fn(() => of(prod({ id: '99' }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
