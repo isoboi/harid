@@ -16,7 +16,13 @@ export interface Order { number: string; access_token?: string; created_at: stri
 /** Покупатель как его отдаёт бэкенд (mapBuyer): name может быть пустым. */
 export interface Buyer { id: number; phone: string; name: string | null }
 export interface VerifyResult { token: string; buyer: Buyer; is_new: boolean }
-export interface ProductQuery { category?: string; shop?: string; q?: string; limit?: number; offset?: number }
+/** Сортировка ленты: new — новые сверху; по цене сервер скрывает товары «цена в Direct». */
+export type ProductSort = 'new' | 'price_asc' | 'price_desc';
+/** Фильтры ленты поверх категории/поиска; живут в query-параметрах адреса. */
+export interface FeedFilters { sort?: ProductSort; price_min?: number; price_max?: number; size?: string; in_stock?: boolean }
+export interface ProductQuery extends FeedFilters { category?: string; shop?: string; q?: string; limit?: number; offset?: number }
+/** GET /market/products/facets: варианты (частые первыми) и диапазон цен; null — товаров с ценой нет. */
+export interface ProductFacets { sizes: string[]; price_min: number | null; price_max: number | null }
 /** Отзыв о товаре: GET /market/reviews?product=<id> | ?shop=<handle>, новые первыми. */
 /** Публичный ответ лавки на отзыв (решение 0007). */
 export interface ReviewReply { text: string; created_at: string }

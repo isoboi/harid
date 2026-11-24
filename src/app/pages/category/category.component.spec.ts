@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { CategoryComponent } from './category.component';
 import { MarketApi } from '../../core/market-api.service';
@@ -30,7 +30,7 @@ describe('CategoryComponent: подгрузка ленты', () => {
     const spy = jest.fn(products);
     await TestBed.configureTestingModule({
       imports: [CategoryComponent],
-      providers: [provideRouter([]), { provide: MarketApi, useValue: { products: spy, categories: () => of([{ slug: 'odezhda', name: 'Одежда' }]) } }],
+      providers: [provideRouter([]), { provide: MarketApi, useValue: { products: spy, categories: () => of([{ slug: 'odezhda', name: 'Одежда' }]), productFacets: () => of({ sizes: ['M', 'L'], price_min: 100, price_max: 900 }) } }],
     }).compileComponents();
     const f = TestBed.createComponent(CategoryComponent);
     f.componentRef.setInput('slug', 'odezhda');
@@ -66,5 +66,19 @@ describe('CategoryComponent: подгрузка ленты', () => {
     TestBed.resetTestingModule();
     const short = await render(() => of(page(0, 5)));
     expect(short.el.querySelector('.count')?.textContent).toContain('5 товаров');
+  });
+
+  it('фильтры из адреса уходят в запрос; смена фильтра — лента с начала', async () => {
+    const { f, spy } = await render((q) => of(page(q.offset ?? 0, 3)));
+    await TestBed.inject(Router).navigate([], { queryParams: { sort: 'price_asc', size: 'M', in_stock: '1' } });
+    f.detectChanges();
+    expect(spy).toHaveBeenLastCalledWith({ sort: 'price_asc', size: 'M', in_stock: true, category: 'odezhda', limit: FEED_PAGE_SIZE, offset: 0 });
+  });
+
+  it('пусто при фильтрах — подсказка про фильтры', async () => {
+    const { f, el } = await render(() => of([]));
+    await TestBed.inject(Router).navigate([], { queryParams: { in_stock: '1' } });
+    f.detectChanges();
+    expect(el.textContent).toContain('По этим фильтрам ничего нет');
   });
 });

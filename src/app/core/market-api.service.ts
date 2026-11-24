@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Buyer, Category, CreateOrderInput, MarketReturn, Order, Product, ProductQuery, ReturnableOrder, ReturnInput, Review, Reviewable, ReviewInput, ReviewQuery, ReviewSummary, Shop, VerifyResult } from './models';
+import { Buyer, Category, CreateOrderInput, MarketReturn, Order, Product, ProductFacets, ProductQuery, ReturnableOrder, ReturnInput, Review, Reviewable, ReviewInput, ReviewQuery, ReviewSummary, Shop, VerifyResult } from './models';
 
 /** Все вызовы публичного API витрины /market/*. */
 @Injectable({ providedIn: 'root' })
@@ -15,8 +15,17 @@ export class MarketApi {
   shop(handle: string): Observable<Shop> { return this.http.get<Shop>(`${this.base}/shops/${encodeURIComponent(handle)}`); }
   products(q: ProductQuery = {}): Observable<Product[]> {
     let params = new HttpParams();
-    for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '') params = params.set(k, String(v));
+    // false у флага (in_stock) — то же, что «не задан»: в query не уходит
+    for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '' && v !== false) params = params.set(k, String(v));
     return this.http.get<Product[]>(`${this.base}/products`, { params });
+  }
+  /** Варианты и диапазон цен для панели фильтров — по категории, лавке или поиску. */
+  productFacets(q: Pick<ProductQuery, 'category' | 'shop' | 'q'> = {}): Observable<ProductFacets> {
+    const params: Record<string, string> = {};
+    if (q.category) params['category'] = q.category;
+    if (q.shop) params['shop'] = q.shop;
+    if (q.q) params['q'] = q.q;
+    return this.http.get<ProductFacets>(`${this.base}/products/facets`, { params });
   }
   product(id: string): Observable<Product> { return this.http.get<Product>(`${this.base}/products/${encodeURIComponent(id)}`); }
   placeOrder(body: CreateOrderInput): Observable<Order> { return this.http.post<Order>(`${this.base}/orders`, body); }
