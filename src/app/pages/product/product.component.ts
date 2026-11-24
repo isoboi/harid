@@ -1,5 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { Component, computed, effect, ElementRef, inject, input, PLATFORM_ID, signal, untracked, viewChild } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
@@ -10,6 +11,7 @@ import { FavoritesService } from '../../core/favorites.service';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
+import { productLd, productPath } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { PriceTagComponent } from '../../shared/price-tag.component';
@@ -225,6 +227,7 @@ export class ProductComponent {
   private readonly api = inject(MarketApi);
   private readonly cart = inject(CartService);
   private readonly seo = inject(SeoService);
+  private readonly title = inject(Title);
   readonly fav = inject(FavoritesService);
   readonly id = input.required<string>();
   readonly product = signal<Product | null>(null);
@@ -291,7 +294,7 @@ export class ProductComponent {
         next: (p) => {
           this.product.set(p);
           if (p.sizes.length === 1) this.size.set(p.sizes[0]);
-          this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined });
+          this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined, type: 'product', jsonLd: productLd(p, this.photos(), this.seo.origin()), path: productPath(p.id) });
           nested.push(
             this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8))),
             this.api.shop(p.shop_handle).pipe(catchError(() => of(null))).subscribe((s) => this.shop.set(s)),
@@ -300,7 +303,11 @@ export class ProductComponent {
           );
         },
         // 400 — нечисловой id отклонён валидацией бэкенда: для покупателя это тоже «нет такого товара»
-        error: (e) => { if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) this.missing.set(true); else this.failed.set(true); },
+        error: (e) => {
+          // Теги прошлой страницы SeoService убрал при переходе; заголовок вкладки — свой
+          if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) { this.missing.set(true); this.title.setTitle('Товар не найден — Харид'); }
+          else { this.failed.set(true); this.title.setTitle('Товар не загрузился — Харид'); }
+        },
       }));
       onCleanup(() => { sub.unsubscribe(); nested.forEach((n) => n.unsubscribe()); });
     });

@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -10,6 +11,7 @@ import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
 import { FeedFiltersComponent } from '../../shared/feed-filters.component';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
 import { SeoService } from '../../core/seo.service';
+import { shopLd, shopPath } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { followersCount, followersLabel } from '../../shared/followers';
 import { ProductCardComponent } from '../../shared/product-card.component';
@@ -136,6 +138,7 @@ const FILTERS_FROM = 8;
 export class ShopComponent {
   private readonly api = inject(MarketApi);
   private readonly seo = inject(SeoService);
+  private readonly title = inject(Title);
   readonly followersCount = followersCount;
   readonly followersLabel = followersLabel;
   readonly handle = input.required<string>();
@@ -167,8 +170,12 @@ export class ShopComponent {
       this.missing.set(false); this.failed.set(false); this.shop.set(null); this.reviews.set(null);
       const subs = untracked(() => [
         this.api.shop(h).subscribe({
-          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде` }); },
-          error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
+          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде`, image: s.avatar_url || undefined, jsonLd: shopLd(s, this.seo.origin()), keepParams: ['tab'], path: shopPath(s.handle) }); },
+          error: (e) => {
+            // Теги прошлой страницы SeoService убрал при переходе; заголовок вкладки — свой
+            if (e instanceof HttpErrorResponse && e.status === 404) { this.missing.set(true); this.title.setTitle('Лавка не найдена — Харид'); }
+            else { this.failed.set(true); this.title.setTitle('Лавка не загрузилась — Харид'); }
+          },
         }),
         this.api.reviews({ shop: h }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),
       ]);
