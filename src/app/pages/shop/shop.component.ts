@@ -147,7 +147,8 @@ const FILTERS_FROM = 8;
     @media (prefers-reduced-motion: reduce) { .tab::after { transition: none } }
     .meta { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 20px; row-gap: 4px; font-size: 14px; color: var(--color-ink-soft) }
     .pin { display: inline-flex; align-items: center; gap: 6px }
-    .share { margin-top: 12px }
+    /* Своей строкой под ником, а не вплотную к ссылке Instagram */
+    app-share.share { display: block; width: fit-content; margin-top: 8px }
     /* Заглушка: размеры блоков совпадают с настоящей шапкой (аватар 112, имя 30px, ссылка 44px) */
     .ava-skel { flex: none; width: 112px; height: 112px }
     .name-skel { height: 30px; margin-block: 4px; width: min(256px, 80%) }
