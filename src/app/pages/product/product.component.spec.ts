@@ -436,20 +436,6 @@ describe('ProductComponent', () => {
     expect(el.querySelector('app-not-found')).not.toBeNull();
     expect(el.textContent).not.toContain('Не удалось загрузить');
   });
-  it('корзина на лимите 30 строк — «В корзину» не добавляет и показывает сообщение', async () => {
-    localStorage.clear();
-    const api = { product: jest.fn(() => of(prod({ id: '99' }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
-    await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
-    const cart = TestBed.inject(CartService);
-    for (let n = 1; n <= 30; n++) cart.add(prod({ id: String(n) }), null);
-    const f = TestBed.createComponent(ProductComponent);
-    f.componentRef.setInput('id', '99'); f.detectChanges();
-    (f.nativeElement.querySelector('[data-test="add"]') as HTMLButtonElement).click();
-    f.detectChanges();
-    expect(cart.items().length).toBe(30);
-    expect(f.nativeElement.textContent).toContain('В корзине уже 30 позиций — оформите заказ или уберите лишнее');
-  });
-
   describe('полёт в корзину', () => {
     it('«В корзину» запускает полёт: сначала от фото, запасной источник — нажатая кнопка', async () => {
       const f = await render(prod());
@@ -493,6 +479,20 @@ describe('ProductComponent', () => {
       expect(TestBed.inject(CartService).count()).toBe(0);
       expect(fly).not.toHaveBeenCalled();
     });
+  });
+
+  it('корзина на лимите 30 строк — «В корзину» не добавляет и показывает сообщение', async () => {
+    localStorage.clear();
+    const api = { product: jest.fn(() => of(prod({ id: '99' }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+    await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+    const cart = TestBed.inject(CartService);
+    for (let n = 1; n <= 30; n++) cart.add(prod({ id: String(n) }), null);
+    const f = TestBed.createComponent(ProductComponent);
+    f.componentRef.setInput('id', '99'); f.detectChanges();
+    (f.nativeElement.querySelector('[data-test="add"]') as HTMLButtonElement).click();
+    f.detectChanges();
+    expect(cart.items().length).toBe(30);
+    expect(f.nativeElement.textContent).toContain('В корзине уже 30 позиций — оформите заказ или уберите лишнее');
   });
 
   describe('липкая панель покупки (телефон)', () => {
