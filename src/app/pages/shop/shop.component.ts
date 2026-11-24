@@ -17,6 +17,7 @@ import { followersCount, followersLabel } from '../../shared/followers';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { ShopRating, shopRating } from '../../shared/rating';
 import { ReviewsComponent } from '../../shared/reviews.component';
+import { ShareComponent } from '../../shared/share.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
@@ -27,7 +28,7 @@ const FILTERS_FROM = 8;
 @Component({
   selector: 'app-shop',
   standalone: true,
-  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent],
+  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent, ShareComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -42,6 +43,7 @@ const FILTERS_FROM = 8;
                 <app-icon name="instagram" [size]="16" [stroke]="1.8" />&#64;{{ s.handle }}<span class="sr-only">(откроется Instagram)</span>
               </a>
               @if (s.bio) { <p class="bio">{{ s.bio }}</p> }
+              <app-share class="share" [path]="shopPath(s.handle)" [text]="'Лавка @' + s.handle + ' на Хариде'" />
             </div>
             <dl class="stats">
               <!-- Пункт «Оценка» есть всегда: без оценок пустое место выглядело бы как скрытый плохой рейтинг -->
@@ -133,6 +135,7 @@ const FILTERS_FROM = 8;
     @media (prefers-reduced-motion: reduce) { .tab::after { transition: none } }
     .meta { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 20px; row-gap: 4px; font-size: 14px; color: var(--color-ink-soft) }
     .pin { display: inline-flex; align-items: center; gap: 6px }
+    .share { margin-top: 12px }
   `,
 })
 export class ShopComponent {
@@ -141,6 +144,7 @@ export class ShopComponent {
   private readonly title = inject(Title);
   readonly followersCount = followersCount;
   readonly followersLabel = followersLabel;
+  readonly shopPath = shopPath;
   readonly handle = input.required<string>();
   readonly shop = signal<Shop | null>(null);
   /** Товары лавки по страницам — с фильтрами из адреса. */

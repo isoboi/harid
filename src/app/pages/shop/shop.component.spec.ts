@@ -133,4 +133,11 @@ describe('ShopComponent', () => {
     expect(stat.textContent).toContain('заказы в Direct');
     expect(el.querySelector('.stats')?.textContent).not.toContain('Доставлено');
   });
+
+  it('«Поделиться» в шапке — ссылка на лавку', async () => {
+    const { el, q, f } = await render(SHOP(), []);
+    q('share')!.click(); f.detectChanges();
+    const wa = (el.querySelector('[data-test="share-whatsapp"]') as HTMLAnchorElement).href;
+    expect(decodeURIComponent(wa)).toMatch(/Лавка @zebo\.style на Хариде .*\/shop\/zebo\.style$/);
+  });
 });
