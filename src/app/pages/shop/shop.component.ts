@@ -10,6 +10,7 @@ import { FeedFilters, Review, Shop } from '../../core/models';
 import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
 import { FeedFiltersComponent } from '../../shared/feed-filters.component';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { SeoService } from '../../core/seo.service';
 import { shopLd, shopPath } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
@@ -29,8 +30,9 @@ const FILTERS_FROM = 8;
 @Component({
   selector: 'app-shop',
   standalone: true,
-  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent, ShareComponent, SkelProductsComponent],
+  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent, ShareComponent, SkelProductsComponent, PullRefreshComponent],
   template: `
+    <app-pull-refresh [busy]="feed.refreshing()" (refresh)="feed.refresh()" />
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
     @else {

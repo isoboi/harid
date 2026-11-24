@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { provideRouter } from '@angular/router';
 import { NEVER, of, throwError } from 'rxjs';
 import { HomeComponent } from './home.component';
@@ -44,6 +46,18 @@ describe('HomeComponent: подгрузка ленты', () => {
     const cards = () => (f.nativeElement as HTMLElement).querySelectorAll('app-product-card').length;
     return { f, spy, scrollToEnd, cards };
   }
+
+  it('«потянуть вниз»: лента обновляется с первой страницы', async () => {
+    let fresh = false;
+    const { f, spy, scrollToEnd, cards } = await render((q) => of(page((fresh ? 1000 : 0) + (q.offset ?? 0), HOME_PAGE_SIZE)));
+    scrollToEnd();
+    expect(cards()).toBe(HOME_PAGE_SIZE * 2);
+    fresh = true;
+    f.debugElement.query(By.directive(PullRefreshComponent)).componentInstance.refresh.emit();
+      f.detectChanges();
+    expect(spy).toHaveBeenLastCalledWith({ limit: HOME_PAGE_SIZE, offset: 0 });
+    expect(cards()).toBe(HOME_PAGE_SIZE);
+  });
 
   it('первая страница — с offset 0, следующая — когда низ ленты виден', async () => {
     const { spy, scrollToEnd, cards } = await render((q) => of(page(q.offset ?? 0, HOME_PAGE_SIZE)));

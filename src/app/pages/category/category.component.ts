@@ -10,13 +10,15 @@ import { FeedFiltersComponent } from '../../shared/feed-filters.component';
 import { plural } from '../../shared/plural';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { SkelProductsComponent } from '../../shared/skeleton.component';
 
 @Component({
   selector: 'app-category',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, FeedMoreComponent, FeedFiltersComponent, SkelProductsComponent],
+  imports: [RouterLink, ProductCardComponent, FeedMoreComponent, FeedFiltersComponent, SkelProductsComponent, PullRefreshComponent],
   template: `
+    <app-pull-refresh [busy]="feed.refreshing()" (refresh)="feed.refresh()" />
     <div class="wrap page-top">
       @if (categories()) { <h1 class="page-title">{{ name() }}</h1> }
       @else { <h1 class="page-title"><span class="skel title-skel" aria-hidden="true"></span><span class="sr-only">Загрузка…</span></h1> }
