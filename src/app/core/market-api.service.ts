@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Buyer, Category, CreateOrderInput, MarketReturn, Order, Product, ProductFacets, ProductQuery, ReturnableOrder, ReturnInput, Review, Reviewable, ReviewInput, ReviewQuery, ReviewSummary, Shop, VerifyResult } from './models';
+import { Buyer, Category, CreateOrderInput, MarketReturn, Order, Product, ProductFacets, SearchSuggestions, ProductQuery, ReturnableOrder, ReturnInput, Review, Reviewable, ReviewInput, ReviewQuery, ReviewSummary, Shop, VerifyResult } from './models';
 
 /** Все вызовы публичного API витрины /market/*. */
 @Injectable({ providedIn: 'root' })
@@ -27,6 +27,8 @@ export class MarketApi {
     if (q.q) params['q'] = q.q;
     return this.http.get<ProductFacets>(`${this.base}/products/facets`, { params });
   }
+  /** Подсказки при наборе: до 6 товаров, 3 лавок и 3 категорий; короче 2 символов — пусто. */
+  suggest(q: string): Observable<SearchSuggestions> { return this.http.get<SearchSuggestions>(`${this.base}/search/suggest`, { params: { q } }); }
   product(id: string): Observable<Product> { return this.http.get<Product>(`${this.base}/products/${encodeURIComponent(id)}`); }
   placeOrder(body: CreateOrderInput): Observable<Order> { return this.http.post<Order>(`${this.base}/orders`, body); }
   /**

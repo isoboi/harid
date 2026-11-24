@@ -1,12 +1,12 @@
 import { afterNextRender, ChangeDetectorRef, Component, computed, DestroyRef, inject, NgZone, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
 import { ChatSocket } from '../core/chat-socket.service';
 import { HeaderScrollState, nextHeaderState } from './header-scroll';
 import { IconComponent } from './icon.component';
 import { LogoComponent } from './logo.component';
+import { SearchBoxComponent } from './search-box.component';
 
 /**
  * Шапка как в прототипе: бирка-логотип «харид», поиск и иконки справа.
@@ -17,7 +17,7 @@ import { LogoComponent } from './logo.component';
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [RouterLink, FormsModule, IconComponent, LogoComponent],
+  imports: [RouterLink, IconComponent, LogoComponent, SearchBoxComponent],
   template: `
     <header class="hdr" [class.hdr--up]="hidden()" (focusin)="onFocus(true)" (focusout)="onFocus(false)">
       <div class="wrap row">
@@ -29,13 +29,7 @@ import { LogoComponent } from './logo.component';
             @if (chat.unreadTotal()) { <span class="dm-badge" aria-hidden="true">{{ unread() }}</span> }
           </a>
         }
-        <form class="search" role="search" (ngSubmit)="search()">
-          <label class="box">
-            <app-icon class="search-icon" name="search" [size]="18" />
-            <span class="sr-only">Поиск по товарам</span>
-            <input name="q" type="search" enterkeyhint="search" [(ngModel)]="q" placeholder="Платье, кроссовки, @магазин" />
-          </label>
-        </form>
+        <app-search-box class="search" />
         <nav class="nav" aria-label="Основное меню">
           <a routerLink="/sell" class="sell"><span class="lbl">Продавцам</span></a>
           <a routerLink="/favorites" class="ico-link"><app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl sr-only">Избранное</span></a>
@@ -59,14 +53,8 @@ import { LogoComponent } from './logo.component';
   styles: `
     .hdr { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid var(--color-line); background: rgb(255 255 255 / .95); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px) }
     .row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 16px; row-gap: 0; padding-block: 12px }
-    /* Поиск: h-11 rounded-[10px] bg-mist, кольцо лазури при фокусе */
+    /* Поиск — app-search-box: на телефоне второй строкой во всю ширину, с 768px — между логотипом и меню */
     .search { order: 3; flex: 1 0 100%; padding-top: 12px }
-    .box { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 10px; background: var(--color-mist) }
-    .box:focus-within { box-shadow: 0 0 0 2px var(--color-lapis) }
-    .search-icon { color: var(--color-ink-soft) }
-    /* 16px на всех ширинах: меньший шрифт заставляет iOS Safari увеличивать страницу при фокусе */
-    .box input { width: 100%; min-width: 0; height: 100%; border: 0; background: transparent; font-size: 16px; outline: none; -webkit-appearance: none; appearance: none }
-    .box input::-webkit-search-cancel-button { -webkit-appearance: none }
     .dm { display: none }
     .nav { order: 2; margin-left: auto; display: flex; align-items: center; gap: 2px }
     .nav a { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; min-width: 44px; padding: 0 10px; border-radius: 10px; font-weight: 500; transition: background-color .15s }
@@ -105,7 +93,6 @@ import { LogoComponent } from './logo.component';
   `,
 })
 export class HeaderComponent {
-  private readonly router = inject(Router);
   readonly cart = inject(CartService);
   readonly chat = inject(ChatSocket);
   readonly auth = inject(AuthService);
@@ -115,7 +102,6 @@ export class HeaderComponent {
   /** Непрочитанные сообщения для значка: больше 99 — «99+». */
   readonly unread = computed(() => { const n = this.chat.unreadTotal(); return n > 99 ? '99+' : String(n); });
   readonly badge = computed(() => { const n = this.cart.count(); return n > 99 ? '99+' : String(n); });
-  q = '';
   /** Шапка уехала вверх (действует только на телефоне, см. стили). На сервере и в первом кадре — видна. */
   readonly hidden = signal(false);
   private focused = false;
@@ -155,8 +141,4 @@ export class HeaderComponent {
     }
   }
 
-  search(): void {
-    const q = this.q.trim();
-    if (q) this.router.navigate(['/search'], { queryParams: { q } });
-  }
 }
