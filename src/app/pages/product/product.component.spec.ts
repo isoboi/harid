@@ -7,6 +7,8 @@ import { buyBarVisible, ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
 import { FavoritesService } from '../../core/favorites.service';
+import { RecentlyViewedService } from '../../core/recently-viewed.service';
+import { PLATFORM_ID } from '@angular/core';
 import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { Product, Review } from '../../core/models';
 
@@ -432,6 +434,44 @@ describe('ProductComponent', () => {
       expect(el.querySelector('[data-test="size-hint"]')).toBeNull();
       barBtn(f).click();
       expect(TestBed.inject(CartService).items()[0].size).toBe('M');
+    });
+  });
+
+  describe('недавно просмотренные', () => {
+    const failing = (status: number) => ({ product: jest.fn(() => throwError(() => new HttpErrorResponse({ status }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => of(null)) });
+    async function renderWith(api: object, extra: object[] = []) {
+      await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }, ...extra] }).compileComponents();
+      const f = TestBed.createComponent(ProductComponent);
+      f.componentRef.setInput('id', '16');
+      f.detectChanges();
+      return f;
+    }
+    it('загруженный товар попадает в недавно просмотренные', async () => {
+      await render(prod());
+      expect(TestBed.inject(RecentlyViewedService).items().map((i) => i.id)).toEqual(['16']);
+    });
+    it('на сервере просмотр не записывается', async () => {
+      const api = { product: jest.fn(() => of(prod())), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => of(null)) };
+      await renderWith(api, [{ provide: PLATFORM_ID, useValue: 'server' }]);
+      expect(TestBed.inject(RecentlyViewedService).items()).toEqual([]);
+    });
+    it('товар не найден (404) — убирается из недавно просмотренных', async () => {
+      TestBed.configureTestingModule({});
+      TestBed.inject(RecentlyViewedService).add(prod());
+      TestBed.resetTestingModule();
+      await renderWith(failing(404));
+      const recent = TestBed.inject(RecentlyViewedService);
+      recent.hydrate();
+      expect(recent.items()).toEqual([]);
+    });
+    it('ошибка сети (500) историю не трогает', async () => {
+      TestBed.configureTestingModule({});
+      TestBed.inject(RecentlyViewedService).add(prod());
+      TestBed.resetTestingModule();
+      await renderWith(failing(500));
+      const recent = TestBed.inject(RecentlyViewedService);
+      recent.hydrate();
+      expect(recent.items().map((i) => i.id)).toEqual(['16']);
     });
   });
 });

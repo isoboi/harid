@@ -7,6 +7,7 @@ import { CartService } from '../../core/cart.service';
 import { directLink, directOnly, postLink } from '../../core/direct';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { FavoritesService } from '../../core/favorites.service';
+import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
@@ -226,6 +227,7 @@ export class ProductComponent {
   private readonly cart = inject(CartService);
   private readonly seo = inject(SeoService);
   readonly fav = inject(FavoritesService);
+  private readonly recent = inject(RecentlyViewedService);
   readonly id = input.required<string>();
   readonly product = signal<Product | null>(null);
   /** Лавка товара для плашки продавца; не загрузилась — показываем только ник. */
@@ -290,6 +292,8 @@ export class ProductComponent {
       const sub = untracked(() => this.api.product(id).subscribe({
         next: (p) => {
           this.product.set(p);
+          // Снимок для «Вы смотрели» — только в браузере: на сервере хранилища нет
+          if (this.browser) this.recent.add(p);
           if (p.sizes.length === 1) this.size.set(p.sizes[0]);
           this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined });
           nested.push(
@@ -300,7 +304,11 @@ export class ProductComponent {
           );
         },
         // 400 — нечисловой id отклонён валидацией бэкенда: для покупателя это тоже «нет такого товара»
-        error: (e) => { if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) this.missing.set(true); else this.failed.set(true); },
+        // Товара больше нет — убираем его и из «Вы смотрели»; сетевые ошибки историю не трогают
+        error: (e) => {
+          if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) { this.missing.set(true); if (this.browser) this.recent.remove(id); }
+          else this.failed.set(true);
+        },
       }));
       onCleanup(() => { sub.unsubscribe(); nested.forEach((n) => n.unsubscribe()); });
     });
