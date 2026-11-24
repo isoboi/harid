@@ -31,9 +31,9 @@ const MORE = 12;
   template: `
     @if (reviews()) {
       <section class="rv" aria-labelledby="reviews-title">
-        <h2 id="reviews-title" class="title">Отзывы</h2>
+        <h2 id="reviews-title" class="title" [class.sr-only]="hideTitle()">Отзывы</h2>
 
-        <div class="grid" [class.grid--empty]="!total()">
+        <div class="grid" [class.grid--empty]="!total()" [class.grid--flush]="hideTitle()">
           <aside class="sum" data-test="summary">
             @if (total()) {
               <div class="score">
@@ -126,6 +126,7 @@ const MORE = 12;
     :host { display: block }
     .title { font-size: 22px; font-weight: 700 }
     .grid { margin-top: 20px; display: grid; gap: 24px }
+    .grid--flush { margin-top: 0 }
     @media (min-width: 900px) {
       .grid { grid-template-columns: 300px minmax(0, 1fr); gap: 48px; align-items: start }
       .sum { position: sticky; top: 92px }
@@ -200,6 +201,8 @@ export class ReviewsComponent {
   readonly product = input<string>('');
   /** Ник лавки — для сводки и фильтров на странице лавки. */
   readonly shop = input<string>('');
+  /** Заголовок уже есть снаружи (вкладка «Отзывы») — видимый h2 прячем, для чтения с экрана он остаётся. */
+  readonly hideTitle = input(false);
 
   protected readonly stars: Star[] = [5, 4, 3, 2, 1];
   protected readonly more = MORE;

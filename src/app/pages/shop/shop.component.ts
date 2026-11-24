@@ -1,23 +1,31 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { dayMonth } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
-import { Product, Review, Shop } from '../../core/models';
+import { FeedFilters, Review, Shop } from '../../core/models';
+import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
+import { FeedFiltersComponent } from '../../shared/feed-filters.component';
+import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
 import { SeoService } from '../../core/seo.service';
 import { IconComponent } from '../../shared/icon.component';
 import { followersCount, followersLabel } from '../../shared/followers';
-import { plural } from '../../shared/plural';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { ShopRating, shopRating } from '../../shared/rating';
 import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
+type ShopTab = 'goods' | 'reviews';
+/** Фильтры появляются, когда товаров больше этого числа. */
+const FILTERS_FROM = 8;
+
 @Component({
   selector: 'app-shop',
   standalone: true,
-  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent],
+  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -40,7 +48,7 @@ import { NotFoundComponent } from '../not-found/not-found.component';
                 @let r = rate();
                 @if (r.kind === 'rated') {
                   <dd class="rating"><app-icon class="star" name="star" [size]="17" [filled]="true" />{{ r.value }}</dd>
-                  <dd class="count">{{ r.count }}</dd>
+                  <dd class="count"><button type="button" class="to-reviews" data-test="to-reviews" (click)="setTab('reviews')">{{ r.count }}</button></dd>
                 } @else if (r.kind === 'direct') { <dd class="quiet">Нет</dd><dd class="count">заказы в Direct</dd> }
                 @else { <dd class="quiet">Пока без оценок</dd> }
               </div>
@@ -54,12 +62,29 @@ import { NotFoundComponent } from '../not-found/not-found.component';
             @if (joined()) { <span>На Хариде с {{ joined() }}</span> }
             <span>Оценка и заказы — только по доставкам через Харид</span>
           </p>
-          <section class="goods">
-            <h2 class="section-title">{{ products().length }} {{ plural(products().length, productForms) }}</h2>
-            @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
-            @else { <p class="muted">Пока пусто</p> }
-          </section>
-          <app-reviews class="reviews" [reviews]="reviews()" [rating]="s.rating" [count]="s.reviews_count ?? 0" [showProduct]="true" [shop]="s.handle" />
+          <!-- Товары и отзывы — вкладки: длинная лента больше не прячет отзывы в самый низ. Вкладка — в адресе (?tab=reviews) -->
+          <div class="tabs" role="tablist" aria-label="Разделы лавки" (keydown)="onTabKey($event)">
+            <button type="button" role="tab" id="tab-goods" class="tab" data-test="tab-goods" aria-controls="panel-goods"
+              [attr.aria-selected]="tab() === 'goods'" [attr.tabindex]="tab() === 'goods' ? 0 : -1" (click)="setTab('goods')">
+              Товары @if (goodsCount() !== null) { <span class="tab-n">{{ goodsCount() }}</span> }
+            </button>
+            <button type="button" role="tab" id="tab-reviews" class="tab" data-test="tab-reviews" aria-controls="panel-reviews"
+              [attr.aria-selected]="tab() === 'reviews'" [attr.tabindex]="tab() === 'reviews' ? 0 : -1" (click)="setTab('reviews')">
+              Отзывы @if (reviewsCount()) { <span class="tab-n">{{ reviewsCount() }}</span> }
+            </button>
+          </div>
+          @if (tab() === 'goods') {
+            <section id="panel-goods" class="panel" role="tabpanel" aria-labelledby="tab-goods" data-test="panel-goods">
+              @if (showFilters()) { <app-feed-filters class="filters" [base]="base()" [value]="filters()" /> }
+              @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
+              @else if (!feed.loading()) { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Пока пусто' }}</p> }
+              @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
+            </section>
+          } @else {
+            <section id="panel-reviews" class="panel" role="tabpanel" aria-labelledby="tab-reviews" data-test="panel-reviews">
+              <app-reviews [reviews]="reviews()" [rating]="s.rating" [count]="s.reviews_count ?? 0" [showProduct]="true" [shop]="s.handle" [hideTitle]="true" />
+            </section>
+          }
         </div>
       } @else {
         <!-- Заглушка загрузки, как в прототипе: кружок-строки и сетка серых квадратов -->
@@ -89,24 +114,47 @@ import { NotFoundComponent } from '../not-found/not-found.component';
     .rating { display: flex; align-items: center; gap: 4px }
     .count { margin-top: 0; font-size: 13px; font-weight: 400; color: var(--color-ink-soft) }
     .quiet { font-size: 16px; font-weight: 600; line-height: 30px; color: var(--color-ink-soft) }
-    .reviews { margin-top: 64px }
+    .to-reviews { padding: 0; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--color-line); cursor: pointer }
+    @media (hover: hover) { .to-reviews:hover { color: var(--color-ink); text-decoration-color: currentColor } }
     .star { color: var(--color-saffron) }
+    /* Вкладки: подчёркивание чернилами под активной, общая линия под рядом */
+    .tabs { margin-top: 32px; display: flex; gap: 28px; border-bottom: 1px solid var(--color-line) }
+    .tab { position: relative; display: inline-flex; align-items: baseline; gap: 8px; min-height: 48px; padding: 12px 0; font-size: 17px; font-weight: 600; color: var(--color-ink-soft); cursor: pointer; transition: color .15s }
+    .tab::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: var(--color-ink); transform: scaleX(0); transition: transform .25s cubic-bezier(.16, 1, .3, 1) }
+    .tab[aria-selected="true"] { color: var(--color-ink) }
+    .tab[aria-selected="true"]::after { transform: scaleX(1) }
+    @media (hover: hover) { .tab:hover { color: var(--color-ink) } }
+    .tab:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 2px; border-radius: 4px }
+    .tab-n { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-ink-soft) }
+    .panel { margin-top: 24px }
+    .filters { display: block; margin-bottom: 24px }
+    @media (prefers-reduced-motion: reduce) { .tab::after { transition: none } }
     .meta { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 20px; row-gap: 4px; font-size: 14px; color: var(--color-ink-soft) }
     .pin { display: inline-flex; align-items: center; gap: 6px }
-    .goods { margin-top: 32px }
-    .goods h2 { margin-bottom: 20px }
   `,
 })
 export class ShopComponent {
   private readonly api = inject(MarketApi);
   private readonly seo = inject(SeoService);
-  readonly plural = plural;
   readonly followersCount = followersCount;
   readonly followersLabel = followersLabel;
-  readonly productForms: [string, string, string] = ['товар', 'товара', 'товаров'];
   readonly handle = input.required<string>();
   readonly shop = signal<Shop | null>(null);
-  readonly products = signal<Product[]>([]);
+  /** Товары лавки по страницам — с фильтрами из адреса. */
+  readonly feed = new ProductFeed();
+  readonly products = this.feed.items;
+  readonly base = computed(() => ({ shop: this.handle() }));
+  private readonly params = toSignal(inject(ActivatedRoute).queryParamMap, { requireSync: true });
+  /** Сравнение по значению: смена ?tab= даёт новый объект фильтров, но ленту перезапускать незачем. */
+  readonly filters = computed<FeedFilters>(() => parseFeedFilters(this.params()), { equal: (a, b) => JSON.stringify(a) === JSON.stringify(b) });
+  readonly filtered = computed(() => activeFilterCount(this.filters()) > 0 || !!this.filters().sort);
+  readonly tab = computed<ShopTab>(() => (this.params().get('tab') === 'reviews' ? 'reviews' : 'goods'));
+  /** Число на вкладке — только когда лента загружена целиком, иначе оно было бы неверным. */
+  readonly goodsCount = computed(() => (this.feed.done() && !this.feed.loading() ? this.products().length : null));
+  readonly reviewsCount = computed(() => this.shop()?.reviews_count ?? this.reviews()?.length ?? 0);
+  /** У лавки с парой товаров фильтры — шум; показываем, когда товаров много или фильтр уже включён. */
+  readonly showFilters = computed(() => this.filtered() || !this.feed.done() || this.products().length > FILTERS_FROM);
+  private readonly router = inject(Router);
   readonly missing = signal(false);
   readonly failed = signal(false);
   readonly joined = computed(() => dayMonth(this.shop()?.joined_at ?? ''));
@@ -116,16 +164,36 @@ export class ShopComponent {
   constructor() {
     effect((onCleanup) => {
       const h = this.handle();
-      this.missing.set(false); this.failed.set(false); this.shop.set(null); this.products.set([]); this.reviews.set(null);
+      this.missing.set(false); this.failed.set(false); this.shop.set(null); this.reviews.set(null);
       const subs = untracked(() => [
         this.api.shop(h).subscribe({
           next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде` }); },
           error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
         }),
-        this.api.products({ shop: h }).pipe(catchError(() => of([]))).subscribe((p) => this.products.set(p)),
         this.api.reviews({ shop: h }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),
       ]);
       onCleanup(() => subs.forEach((x) => x.unsubscribe()));
     });
+    // Другая лавка или фильтры — лента с начала (смена вкладки ленту не трогает)
+    effect(() => {
+      const query = { ...this.filters(), ...this.base() };
+      untracked(() => this.feed.reset(query));
+    });
+  }
+
+  setTab(tab: ShopTab): void {
+    if (tab === this.tab()) return;
+    void this.router.navigate([], { queryParams: { tab: tab === 'reviews' ? 'reviews' : null }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+
+  /** Стрелки и Home/End переключают вкладки и переводят на них фокус — как у системных вкладок. */
+  onTabKey(event: KeyboardEvent): void {
+    const order: ShopTab[] = ['goods', 'reviews'];
+    const i = order.indexOf(this.tab());
+    const next = { ArrowRight: order[(i + 1) % 2], ArrowLeft: order[(i + 1) % 2], Home: order[0], End: order[1] }[event.key];
+    if (!next) return;
+    event.preventDefault();
+    this.setTab(next);
+    (event.currentTarget as HTMLElement).querySelector<HTMLElement>(`#tab-${next}`)?.focus();
   }
 }
