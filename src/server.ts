@@ -18,7 +18,13 @@ const allowedHosts = allowedHostsFromEnv(process.env['NG_ALLOWED_HOSTS']);
 if (process.env['NODE_ENV'] === 'production' && !(process.env['NG_ALLOWED_HOSTS'] ?? '').trim()) {
   console.warn('[harid] NG_ALLOWED_HOSTS пуст: сервер ответит HTTP 400 на все страницы, кроме localhost. Укажите боевой домен.');
 }
-const angularApp = new AngularNodeAppEngine({ allowedHosts });
+/**
+ * Заголовки прокси, которым SSR доверяет. Любой другой X-Forwarded-* (nginx по умолчанию шлёт
+ * X-Forwarded-For) Angular считает подозрительным и отдаёт пустую CSR-страницу без SEO-тегов.
+ * X-Forwarded-Prefix не берём: он меняет базовый путь приложения. Переопределяется NG_TRUST_PROXY_HEADERS.
+ */
+const trustProxyHeaders = ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port'];
+const angularApp = new AngularNodeAppEngine({ allowedHosts, trustProxyHeaders });
 /** Адрес сайта для canonical, og:url и карты сайта; на проде задайте SITE_URL=https://harid.tj. */
 const siteUrl = process.env['SITE_URL'];
 
@@ -44,12 +50,22 @@ app.get('/sitemap.xml', (req, res) => {
     .catch((e) => { console.error('[harid] sitemap.xml:', e); res.status(503).set('Retry-After', '600').end(); });
 });
 
-/** Статика из /browser. */
+/** Имя с хэшем сборки (main-6YBIB7PB.js, chunk-…, styles-…): при изменении файла меняется и адрес. */
+const HASHED = /-[A-Z0-9]{8}\.[a-z0-9]+$/;
+
+/**
+ * Статика из /browser. Файлы сборки с хэшем в имени кэшируются на год.
+ * Файлы из public/ (favicon, иконки, manifest) имя не меняют, поэтому браузер
+ * проверяет их при каждом заходе (no-cache + ETag, обычно ответ 304).
+ */
 app.use(
   express.static(browserDistFolder, {
     maxAge: '1y',
     index: false,
     redirect: false,
+    setHeaders: (res, path) => {
+      if (!HASHED.test(path)) res.setHeader('Cache-Control', 'no-cache');
+    },
   }),
 );
 

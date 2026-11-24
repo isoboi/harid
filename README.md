@@ -27,6 +27,8 @@ node dist/harid/server/server.mjs
 
 `SITE_URL` — адрес сайта для `canonical`, `og:url`, JSON-LD и карты сайта. Без него адрес берётся из `Host` и `X-Forwarded-Proto` запроса; за прокси без `X-Forwarded-Proto` ссылки получатся `http://`, поэтому на проде переменную лучше задать.
 
+За прокси SSR доверяет заголовкам `X-Forwarded-For`, `-Host`, `-Proto` и `-Port`. Если прокси шлёт другие `X-Forwarded-*` (например, `X-Forwarded-Prefix` или `X-Forwarded-Server`), Angular молча отдаёт пустую CSR-страницу без SEO-тегов и пишет в лог `Received "…" header but "trustProxyHeaders" was not set up`. Тогда задайте полный список в `NG_TRUST_PROXY_HEADERS` (через запятую) или уберите лишние заголовки на прокси.
+
 ## SEO
 
 - `/robots.txt` и `/sitemap.xml` собирает SSR-сервер (`src/seo-files.ts`): главная, каталог, категории, лавки и товары из `/api/market/*`. Данные карты сайта обновляются из API не чаще раза в час; если API недоступен, отдаются прошлые.
