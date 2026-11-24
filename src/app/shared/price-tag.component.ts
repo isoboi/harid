@@ -1,14 +1,14 @@
 import { Component, computed, input } from '@angular/core';
 import { amount } from './money.pipe';
 
+const UNTIL_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Asia/Dushanbe' });
+
 /**
  * Ценник-бирка прототипа: шафрановый ярлык с рукописной ценой.
  * Старая цена — зачёркнутой внутри бирки; для скринридера — «Было N смн».
  * swing=true раскачивает бирку один раз (tag-swing), например после «В корзину».
  * price=null — цены нет (лавка называет её в Direct): бирка не выводится.
  */
-const UNTIL_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Asia/Dushanbe' });
-
 @Component({
   selector: 'app-price-tag',
   standalone: true,
