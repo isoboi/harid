@@ -8,13 +8,15 @@ import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
 import { FeedFiltersComponent } from '../../shared/feed-filters.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { SkelProductsComponent } from '../../shared/skeleton.component';
 
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [ProductCardComponent, FeedMoreComponent, FeedFiltersComponent, SkelProductsComponent],
+  imports: [ProductCardComponent, FeedMoreComponent, FeedFiltersComponent, SkelProductsComponent, PullRefreshComponent],
   template: `
+    <app-pull-refresh [busy]="feed.refreshing()" (refresh)="feed.refresh()" />
     <div class="wrap page-top">
       @if (!q()) { <p class="muted">Введите запрос</p> }
       @else {

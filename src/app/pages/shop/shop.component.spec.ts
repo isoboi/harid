@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -35,6 +37,16 @@ async function render(shop: Shop, reviews: Review[], opts: { products?: Product[
 
 describe('ShopComponent', () => {
   afterEach(() => TestBed.resetTestingModule());
+
+  it('«потянуть вниз»: товары лавки запрашиваются заново с первой страницы', async () => {
+    const { f, api } = await render(SHOP(), [], { products: goods(5) });
+    expect(api.products).toHaveBeenCalledTimes(1);
+    f.debugElement.query(By.directive(PullRefreshComponent)).componentInstance.refresh.emit();
+      f.detectChanges();
+    expect(api.products).toHaveBeenCalledTimes(2);
+    expect(api.products).toHaveBeenLastCalledWith(expect.objectContaining({ shop: 'zebo.style', limit: FEED_PAGE_SIZE, offset: 0 }));
+    expect(f.nativeElement.querySelectorAll('app-product-card').length).toBe(5);
+  });
 
   it('лавка не найдена или не загрузилась — свой заголовок вкладки, а не прошлой страницы', async () => {
     const { f, api } = await render(SHOP(), []);

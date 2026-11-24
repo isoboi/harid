@@ -10,6 +10,7 @@ import { PriceTagComponent } from '../../shared/price-tag.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { plural } from '../../shared/plural';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { ShopStripComponent } from '../../shared/shop-strip.component';
 import { RecentStripComponent } from '../../shared/recent-strip.component';
 import { SkelProductsComponent } from '../../shared/skeleton.component';
@@ -28,8 +29,9 @@ const CASH_STEPS = [
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent, RecentStripComponent, SkelProductsComponent],
+  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent, RecentStripComponent, SkelProductsComponent, PullRefreshComponent],
   template: `
+    <app-pull-refresh [busy]="feed.refreshing()" (refresh)="feed.refresh()" />
     <div class="wrap">
       <app-shop-strip [shops]="shops()" />
       <section class="hero" [class.solo]="!collage().length && !collageWait()">

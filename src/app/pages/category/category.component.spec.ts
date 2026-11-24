@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { CategoryComponent } from './category.component';
@@ -49,6 +51,19 @@ describe('CategoryComponent: подгрузка ленты', () => {
     scrollToEnd();
     expect(spy).toHaveBeenLastCalledWith({ category: 'odezhda', limit: FEED_PAGE_SIZE, offset: FEED_PAGE_SIZE });
     expect(cards()).toBe(FEED_PAGE_SIZE * 2);
+  });
+
+  it('«потянуть вниз»: первая страница той же категории заменяет ленту, подгруженное пропадает', async () => {
+    let fresh = false;
+    const { f, spy, scrollToEnd, cards, el } = await render((q) => of(page((fresh ? 1000 : 0) + (q.offset ?? 0), FEED_PAGE_SIZE)));
+    scrollToEnd();
+    expect(cards()).toBe(FEED_PAGE_SIZE * 2);
+    fresh = true;
+    f.debugElement.query(By.directive(PullRefreshComponent)).componentInstance.refresh.emit();
+      f.detectChanges();
+    expect(spy).toHaveBeenLastCalledWith({ category: 'odezhda', limit: FEED_PAGE_SIZE, offset: 0 });
+    expect(cards()).toBe(FEED_PAGE_SIZE);
+    expect(el.querySelector('app-product-card a')?.getAttribute('href')).toBe('/product/1000');
   });
 
   it('другая категория — лента с начала', async () => {
