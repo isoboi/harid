@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { MarketApi } from '../../core/market-api.service';
+import { Category, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
 import { websiteLd } from '../../core/structured-data';
 import { PriceTagComponent } from '../../shared/price-tag.component';
@@ -11,6 +12,7 @@ import { plural } from '../../shared/plural';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
 import { ShopStripComponent } from '../../shared/shop-strip.component';
 import { RecentStripComponent } from '../../shared/recent-strip.component';
+import { SkelProductsComponent } from '../../shared/skeleton.component';
 
 /** 8 товаров — 4 ряда на телефоне: полоса после них заведомо ниже первого экрана и не сдвигает его при появлении. */
 const MOBILE_STRIP_AT = 8;
@@ -26,14 +28,18 @@ const CASH_STEPS = [
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent, RecentStripComponent],
+  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent, RecentStripComponent, SkelProductsComponent],
   template: `
     <div class="wrap">
       <app-shop-strip [shops]="shops()" />
-      <section class="hero" [class.solo]="!collage().length">
+      <section class="hero" [class.solo]="!collage().length && !collageWait()">
         <div>
           <h1 class="hero-title">Покупайте в Instagram-магазинах Таджикистана без предоплаты на чужую карту</h1>
-          <p class="hero-lead">{{ shops().length }} {{ plural(shops().length, shopForms) }} уже здесь. Платите наличными курьеру, когда заказ у вас в руках.</p>
+          @if (shops(); as list) {
+            <p class="hero-lead">{{ list.length }} {{ plural(list.length, shopForms) }} уже здесь. Платите наличными курьеру, когда заказ у вас в руках.</p>
+          } @else {
+            <p class="hero-lead">Платите наличными курьеру, когда заказ у вас в руках.</p>
+          }
           <div class="cta"><a class="btn" href="#fresh">Смотреть товары</a><a class="btn btn--ghost" routerLink="/sell">У меня Instagram-магазин</a></div>
         </div>
         <!-- Коллаж из реальных товаров: большое фото и до двух квадратных -->
@@ -49,6 +55,10 @@ const CASH_STEPS = [
               </a>
             }
           </div>
+        } @else if (collageWait()) {
+          <div class="collage" aria-hidden="true" data-test="skel-collage">
+            <span class="skel tile big"></span><span class="skel tile"></span><span class="skel tile"></span>
+          </div>
         }
       </section>
       <!-- «Вы смотрели» из браузера появляется после гидратации. На десктопе — над лентой, под первым экраном с героем;
@@ -58,11 +68,16 @@ const CASH_STEPS = [
         <div class="fresh-head"><h2 class="fresh-title">Новое в лавках</h2></div>
         <nav class="chips" aria-label="Категории">
           <a class="chip chip--on" routerLink="/" aria-current="page">Всё</a>
-          @for (c of categories(); track c.slug) { <a class="chip" [routerLink]="['/c', c.slug]">{{ c.name }}</a> }
+          @if (categories(); as list) {
+            @for (c of list; track c.slug) { <a class="chip" [routerLink]="['/c', c.slug]">{{ c.name }}</a> }
+          } @else {
+            @for (w of chipSkeleton; track $index) { <span class="skel chip" aria-hidden="true" [style.width.px]="w"></span> }
+          }
         </nav>
         <div class="list">
           @if (products().length) { <div class="products">@for (p of head(); track p.id) { <app-product-card [product]="p" /> }</div> }
-          @else if (!feed.loading()) { <p class="muted">Пока пусто</p> }
+          @else if (feed.loading()) { <app-skel-products /> }
+          @else { <p class="muted">Пока пусто</p> }
           <app-recent-strip class="recent-m" />
           @if (tail().length) { <div class="products tail">@for (p of tail(); track p.id) { <app-product-card [product]="p" /> }</div> }
           @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
@@ -136,8 +151,11 @@ export class HomeComponent {
   readonly shopForms: [string, string, string] = ['лавка', 'лавки', 'лавок'];
   readonly steps = CASH_STEPS;
   private readonly api = inject(MarketApi);
-  readonly shops = toSignal(this.api.shops().pipe(catchError(() => of([]))), { initialValue: [] });
-  readonly categories = toSignal(this.api.categories().pipe(catchError(() => of([]))), { initialValue: [] });
+  /** undefined — ещё грузятся (на месте лент — заглушки), при ошибке — пустой список. */
+  readonly shops = toSignal<Shop[] | undefined>(this.api.shops().pipe(catchError(() => of([]))), { initialValue: undefined });
+  readonly categories = toSignal<Category[] | undefined>(this.api.categories().pipe(catchError(() => of([]))), { initialValue: undefined });
+  /** Ширины серых чипов категорий, пока список не пришёл. */
+  readonly chipSkeleton = [96, 120, 84, 132, 104];
   /** Лента «Новое в лавках»: догружается при прокрутке. */
   readonly feed = new ProductFeed();
   readonly products = this.feed.items;
@@ -146,6 +164,8 @@ export class HomeComponent {
   readonly head = computed(() => this.products().slice(0, MOBILE_STRIP_AT));
   readonly tail = computed(() => this.products().slice(MOBILE_STRIP_AT));
   readonly collage = computed(() => this.products().filter((p) => !!p.image).slice(0, 3));
+  /** Первая страница ленты ещё не пришла — на месте коллажа серые плитки. */
+  readonly collageWait = computed(() => this.feed.loading() && !this.products().length);
   constructor() {
     const seo = inject(SeoService);
     seo.set({ title: 'Харид — Instagram-магазины Таджикистана', description: 'Товары Instagram-лавок Таджикистана с оплатой наличными курьеру.', jsonLd: websiteLd(seo.origin()) });

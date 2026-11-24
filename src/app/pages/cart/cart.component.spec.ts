@@ -20,6 +20,7 @@ describe('CartComponent', () => {
     const t: string = f.nativeElement.textContent;
     expect(t).toContain('Загрузка');
     expect(t).not.toContain('пока пусто');
+    expect(f.nativeElement.querySelector('[data-test="skel-cart"]')).not.toBeNull();
   });
   it('после гидратации пустой корзины — призыв к товарам', async () => {
     const f = await setup();

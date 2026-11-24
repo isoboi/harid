@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { NEVER, of, throwError } from 'rxjs';
 import { HomeComponent } from './home.component';
 import { MarketApi } from '../../core/market-api.service';
 import { RecentlyViewedService } from '../../core/recently-viewed.service';
@@ -91,6 +91,20 @@ describe('HomeComponent: подгрузка ленты', () => {
     f.detectChanges();
     expect(spy).toHaveBeenCalledTimes(3);
     expect(cards()).toBe(HOME_PAGE_SIZE * 2);
+  });
+
+  it('первая страница ещё грузится — заглушки карточек и коллажа, без «Пока пусто»', async () => {
+    const { f } = await render(() => NEVER);
+    const el = f.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-test="skel-products"]')).not.toBeNull();
+    expect(el.querySelector('[data-test="skel-collage"]')).not.toBeNull();
+    expect(el.textContent).not.toContain('Пока пусто');
+  });
+
+  it('пришла первая страница — заглушек нет', async () => {
+    const { f, cards } = await render(() => of(page(1, 3)));
+    expect(cards()).toBe(3);
+    expect((f.nativeElement as HTMLElement).querySelector('[data-test="skel-products"]')).toBeNull();
   });
 });
 

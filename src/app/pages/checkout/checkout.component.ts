@@ -13,6 +13,7 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { plural } from '../../shared/plural';
+import { SkelSummaryComponent } from '../../shared/skeleton.component';
 
 type Field = 'name' | 'phone' | 'district' | 'address' | 'slot' | 'comment';
 /** Порядок полей на странице: фокус после неудачной отправки идёт на первое неверное. */
@@ -22,11 +23,27 @@ const money = new MoneyPipe();
 @Component({
   selector: 'app-checkout',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, MoneyPipe, IconComponent],
+  imports: [ReactiveFormsModule, RouterLink, MoneyPipe, IconComponent, SkelSummaryComponent],
   template: `
     <div class="wrap page-top">
       <h1 class="page-title head">Оформление заказа</h1>
-      @if (!cart.ready()) { <p class="muted">Загрузка…</p> }
+      @if (!cart.ready()) {
+        <!-- Заглушка до чтения корзины: два блока полей формы и сводка справа -->
+        <div class="layout" role="status" data-test="skel-checkout">
+          <span class="sr-only">Загрузка…</span>
+          <div class="sets" aria-hidden="true">
+            @for (set of skelSets; track $index) {
+              <div class="skel-set">
+                <span class="skel skel--line legend-skel"></span>
+                <div class="grid two">
+                  @for (n of set; track $index) { <div class="field"><span class="skel skel--line label-skel"></span><span class="skel control-skel"></span></div> }
+                </div>
+              </div>
+            }
+          </div>
+          <app-skel-summary class="side" />
+        </div>
+      }
       @else if (!cart.count()) { <p class="empty">Корзина пуста. <a routerLink="/">К товарам</a></p> }
       @else {
         <!-- novalidate: ошибки показываем свои, по-русски и под полем, а не всплывашкой браузера -->
@@ -113,6 +130,11 @@ const money = new MoneyPipe();
     .opt { font-weight: 400; color: var(--color-ink-soft) }
     .promise { margin-top: 20px; font-size: 14px }
     .err { margin-top: 12px }
+    /* Заглушка загрузки: легенда 20px, подпись 14px и поле 48px — как у настоящих полей */
+    .skel-set { display: flex; flex-direction: column; gap: 16px }
+    .legend-skel { width: 140px; height: 20px; margin-block: 5px 11px }
+    .label-skel { width: 90px; margin-block: 3px }
+    .control-skel { display: block; height: 48px }
     .submit { min-height: 48px; height: auto; padding-block: 12px; text-wrap: balance }
   `,
 })
@@ -123,6 +145,8 @@ export class CheckoutComponent {
   private readonly auth = inject(AuthService);
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
   readonly cart = inject(CartService);
+  /** Сколько полей в каждом блоке заглушки: «Кто получит» и «Куда и когда». */
+  readonly skelSets = [[1, 2], [1, 2, 3, 4]];
   readonly plural = plural;
   readonly shopForms: [string, string, string] = ['лавка', 'лавки', 'лавок'];
   readonly districts = DISTRICTS;
