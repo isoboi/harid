@@ -1,18 +1,26 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { PwaService } from '../core/pwa.service';
+import { IconComponent } from './icon.component';
 import { LogoComponent } from './logo.component';
 
 /** Подвал прототипа: тёмно-синий, логотип с обещанием и две колонки ссылок, внизу строка ©. */
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [RouterLink, LogoComponent],
+  imports: [RouterLink, LogoComponent, IconComponent],
   template: `
     <footer class="ftr">
       <div class="wrap cols">
         <div class="about">
           <app-logo class="logo" />
           <p class="pitch">Instagram-магазины Таджикистана в одном месте. Платите наличными курьеру, когда заказ у вас в руках.</p>
+          <!-- Только там, где браузер разрешил установку (Chrome, Edge, Samsung Internet); в Safari — «Поделиться → На экран Домой» -->
+          @if (pwa.canInstall()) {
+            <button type="button" class="install" data-test="install-app" (click)="pwa.install()">
+              <app-icon name="smartphone" [size]="18" />Установить приложение
+            </button>
+          }
         </div>
         <div>
           <h2 class="h">Покупателям</h2>
@@ -43,6 +51,9 @@ import { LogoComponent } from './logo.component';
     .about { max-width: 34ch }
     .logo { color: var(--color-paper) }
     .pitch { margin-top: 16px; font-size: 15px; line-height: 1.625 }
+    .install { display: inline-flex; align-items: center; gap: 8px; height: 44px; margin-top: 20px; padding: 0 16px; border: 1px solid rgb(255 255 255 / .3); border-radius: 10px; color: var(--color-paper); font-size: 15px; font-weight: 600; cursor: pointer }
+    @media (hover: hover) { .install:hover { border-color: var(--color-paper) } }
+    .install:focus-visible { outline: 2px solid var(--color-saffron); outline-offset: 2px }
     .h { font-weight: 600; color: var(--color-paper) }
     .links { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 15px }
     .links a { display: inline-block }
@@ -56,6 +67,7 @@ import { LogoComponent } from './logo.component';
   `,
 })
 export class FooterComponent {
+  protected readonly pwa = inject(PwaService);
   /** Год для строки ©. Сервер и браузер рендерят в один день — расхождения при гидратации нет. */
   readonly year = new Date().getFullYear();
 }
