@@ -172,6 +172,7 @@ describe('CheckoutComponent', () => {
     const t: string = f.nativeElement.textContent;
     expect(t).not.toContain('Корзина пуста');
     expect(t).toContain('Загрузка');
+    expect(f.nativeElement.querySelector('[data-test="skel-checkout"]')).not.toBeNull();
   });
   it('префилл имени и телефона после готовности auth, введённое пользователем не перетирается', async () => {
     localStorage.clear();

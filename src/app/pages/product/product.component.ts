@@ -151,6 +151,28 @@ export function buyBarVisible(e: ButtonView): boolean {
           </section>
         }
       </div>
+    } @else {
+      <!-- Заглушка загрузки в той же сетке: фото с превью слева, продавец, название, цена и кнопки справа -->
+      <div class="wrap top" role="status" data-test="skel-product">
+        <span class="sr-only">Загрузка…</span>
+        <div class="layout" aria-hidden="true">
+          <div class="gallery">
+            <div class="main skel"></div>
+            <div class="thumbs">@for (n of [1, 2, 3, 4]; track n) { <span class="skel thumb-skel"></span> }</div>
+          </div>
+          <div class="info">
+            <div class="seller-skel">
+              <span class="skel skel--round ava-skel"></span>
+              <span class="seller-t"><span class="skel skel--line seller-name-skel"></span><span class="skel skel--line seller-h-skel"></span></span>
+            </div>
+            <span class="skel skel--line title-skel"></span>
+            <span class="skel skel--line title-skel title-skel--short"></span>
+            <span class="skel price-skel"></span>
+            <span class="skel skel--line promise-skel"></span>
+            <div class="actions"><span class="skel btn-skel btn-skel--add"></span><span class="skel btn-skel"></span></div>
+          </div>
+        </div>
+      </div>
     } }
   `,
   styles: `
@@ -196,6 +218,20 @@ export function buyBarVisible(e: ButtonView): boolean {
     .direct-note app-icon { flex: none; margin-top: 2px; color: var(--color-lapis) }
     .actions { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 12px }
     .add { min-width: 220px }
+    /* Заглушка загрузки: размеры по настоящим блокам (превью 64, аватар 44, строка названия 30/36px, кнопки 48) */
+    .seller-skel { display: flex; align-items: center; gap: 12px; padding-block: 4px }
+    .thumb-skel { flex: none; width: 64px; height: 64px }
+    .ava-skel { flex: none; width: 44px; height: 44px }
+    .seller-name-skel { width: 140px; height: 15px; margin-block: 2px }
+    .seller-h-skel { width: 96px; height: 12px; margin-top: 6px }
+    .title-skel { margin-top: 24px; width: min(100%, 420px); height: 30px }
+    .title-skel--short { margin-top: 8px; width: min(70%, 280px) }
+    @media (min-width: 640px) { .title-skel { height: 36px } }
+    .price-skel { display: block; margin-top: 28px; width: 150px; height: 44px }
+    .promise-skel { margin-top: 28px; width: min(100%, 360px) }
+    .btn-skel { width: 160px; height: 48px }
+    .btn-skel--add { width: 220px }
+    @media (max-width: 639.98px) { .btn-skel--add { flex: 1 1 100% } }
     .fav { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border: 1px solid var(--color-line); border-radius: 10px; font-size: 15px; font-weight: 600 }
     @media (hover: hover) { .fav:hover { border-color: var(--color-ink) } }
     .fav app-icon.on { color: var(--color-anor) }

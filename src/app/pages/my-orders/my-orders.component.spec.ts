@@ -31,8 +31,24 @@ describe('MyOrdersComponent', () => {
     const f = TestBed.createComponent(MyOrdersComponent);
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Загрузка');
+    expect(f.nativeElement.querySelector('[data-test="skel-orders"]')).not.toBeNull();
     expect(nav).not.toHaveBeenCalled();
     expect(myOrders).not.toHaveBeenCalled();
+  });
+
+  it('вошёл, список ещё не пришёл — заглушка строк, а не «Заказов пока нет»', async () => {
+    const res = new Subject<never[]>();
+    const myOrders = jest.fn(() => res);
+    await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders, reviewable, myReturns, returnable } }] }).compileComponents();
+    TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
+    const f = TestBed.createComponent(MyOrdersComponent);
+    f.detectChanges();
+    expect(myOrders).toHaveBeenCalledTimes(1);
+    expect(f.nativeElement.querySelector('[data-test="skel-orders"]')).not.toBeNull();
+    expect(f.nativeElement.textContent).not.toContain('Заказов пока нет');
+    res.next([]); f.detectChanges();
+    expect(f.nativeElement.querySelector('[data-test="skel-orders"]')).toBeNull();
+    expect(f.nativeElement.textContent).toContain('Заказов пока нет');
   });
 
   it('список заказов со ссылками без телефона в адресе (владелец — по Bearer)', async () => {
