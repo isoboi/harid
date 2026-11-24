@@ -42,7 +42,7 @@ export class SearchComponent {
     const seo = inject(SeoService);
     effect(() => {
       const q = this.q();
-      seo.set({ title: q ? `«${q}» — поиск на Хариде` : 'Поиск — Харид', description: 'Поиск по товарам Instagram-лавок Таджикистана' });
+      seo.set({ title: q ? `«${q}» — поиск на Хариде` : 'Поиск — Харид', description: 'Поиск по товарам Instagram-лавок Таджикистана', noindex: true });
     });
     // Новый запрос или фильтры — результаты с начала; пустой запрос — без запроса
     effect(() => {

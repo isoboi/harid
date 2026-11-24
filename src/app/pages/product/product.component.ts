@@ -10,6 +10,7 @@ import { FavoritesService } from '../../core/favorites.service';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
 import { SeoService } from '../../core/seo.service';
+import { productLd } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { PriceTagComponent } from '../../shared/price-tag.component';
@@ -291,7 +292,7 @@ export class ProductComponent {
         next: (p) => {
           this.product.set(p);
           if (p.sizes.length === 1) this.size.set(p.sizes[0]);
-          this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined });
+          this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined, type: 'product', jsonLd: productLd(p, this.photos(), this.seo.origin()) });
           nested.push(
             this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8))),
             this.api.shop(p.shop_handle).pipe(catchError(() => of(null))).subscribe((s) => this.shop.set(s)),

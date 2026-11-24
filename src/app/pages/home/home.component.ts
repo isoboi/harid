@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { MarketApi } from '../../core/market-api.service';
 import { SeoService } from '../../core/seo.service';
+import { websiteLd } from '../../core/structured-data';
 import { PriceTagComponent } from '../../shared/price-tag.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { plural } from '../../shared/plural';
@@ -127,7 +128,8 @@ export class HomeComponent {
   /** Для коллажа в первом экране — первые три товара с фото. */
   readonly collage = computed(() => this.products().filter((p) => !!p.image).slice(0, 3));
   constructor() {
-    inject(SeoService).set({ title: 'Харид — Instagram-магазины Таджикистана', description: 'Товары Instagram-лавок Таджикистана с оплатой наличными курьеру.' });
+    const seo = inject(SeoService);
+    seo.set({ title: 'Харид — Instagram-магазины Таджикистана', description: 'Товары Instagram-лавок Таджикистана с оплатой наличными курьеру.', jsonLd: websiteLd(seo.origin()) });
     this.feed.reset({});
   }
 }
