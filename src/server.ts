@@ -3,7 +3,7 @@ import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { environment } from './environments/environment';
-import { allowedHostsFromEnv, isAllowedHost, loadSitemapData, requestOrigin, robotsTxt, sitemapCache, sitemapXml } from './seo-files';
+import { allowedHostsFromEnv, loadSitemapData, requestOrigin, robotsTxt, siteOrigin, sitemapCache, sitemapXml } from './seo-files';
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
@@ -26,7 +26,7 @@ if (process.env['NODE_ENV'] === 'production' && !(process.env['NG_ALLOWED_HOSTS'
 const trustProxyHeaders = ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port'];
 const angularApp = new AngularNodeAppEngine({ allowedHosts, trustProxyHeaders });
 /** Адрес сайта для canonical, og:url и карты сайта; на проде задайте SITE_URL=https://harid.tj. */
-const siteUrl = process.env['SITE_URL'];
+const siteUrl = siteOrigin(process.env['SITE_URL']);
 
 /** Товары, лавки и категории для sitemap.xml — из API не чаще раза в час. */
 const sitemapData = sitemapCache(
@@ -35,19 +35,27 @@ const sitemapData = sitemapCache(
     if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
     return r.json();
   }),
-  60 * 60 * 1000,
+  {
+    ttlMs: 60 * 60 * 1000,
+    retryMs: 10 * 60 * 1000,
+    onStaleError: (e) => console.error('[harid] sitemap.xml: API недоступен, отдаём прошлые данные:', e),
+  },
 );
 
 /** robots.txt и sitemap.xml: адреса в них абсолютные, поэтому файлы собираются на лету. */
 app.get('/robots.txt', (req, res) => {
-  if (!siteUrl && !isAllowedHost(req.headers.host, allowedHosts)) { res.status(400).end(); return; }
-  res.type('text/plain').set('Cache-Control', 'public, max-age=86400').send(robotsTxt(requestOrigin(siteUrl, req)));
+  const origin = requestOrigin(siteUrl, req, allowedHosts);
+  if (!origin) { res.status(400).end(); return; }
+  res.type('text/plain').set('Cache-Control', 'public, max-age=86400').send(robotsTxt(origin));
 });
 app.get('/sitemap.xml', (req, res) => {
-  if (!siteUrl && !isAllowedHost(req.headers.host, allowedHosts)) { res.status(400).end(); return; }
+  const origin = requestOrigin(siteUrl, req, allowedHosts);
+  if (!origin) { res.status(400).end(); return; }
   sitemapData()
-    .then((data) => res.type('application/xml').set('Cache-Control', 'public, max-age=3600').send(sitemapXml(requestOrigin(siteUrl, req), data)))
-    .catch((e) => { console.error('[harid] sitemap.xml:', e); res.status(503).set('Retry-After', '600').end(); });
+    // XML собирается до заголовков: ошибка не уйдёт клиенту с Cache-Control на час
+    .then((data) => sitemapXml(origin, data))
+    .then((xml) => res.type('application/xml').set('Cache-Control', 'public, max-age=3600').send(xml))
+    .catch((e) => { console.error('[harid] sitemap.xml:', e); res.status(503).set({ 'Cache-Control': 'no-store', 'Retry-After': '600' }).end(); });
 });
 
 /** Имя с хэшем сборки (main-6YBIB7PB.js, chunk-…, styles-…): при изменении файла меняется и адрес. */
@@ -72,7 +80,7 @@ app.use(
 /** Всё остальное рендерит Angular (серверные маршруты из app.routes.server.ts). */
 app.use('/**', (req, res, next) => {
   angularApp
-    .handle(req, { origin: requestOrigin(siteUrl, req) })
+    .handle(req, { origin: requestOrigin(siteUrl, req, allowedHosts) ?? undefined })
     .then((response) => (response ? writeResponseToNodeResponse(response, res) : next()))
     .catch(next);
 });

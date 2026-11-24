@@ -10,7 +10,7 @@ import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
 import { FeedFiltersComponent } from '../../shared/feed-filters.component';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
 import { SeoService } from '../../core/seo.service';
-import { shopLd } from '../../core/structured-data';
+import { shopLd, shopPath } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { followersCount, followersLabel } from '../../shared/followers';
 import { ProductCardComponent } from '../../shared/product-card.component';
@@ -168,7 +168,7 @@ export class ShopComponent {
       this.missing.set(false); this.failed.set(false); this.shop.set(null); this.reviews.set(null);
       const subs = untracked(() => [
         this.api.shop(h).subscribe({
-          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде`, image: s.avatar_url || undefined, jsonLd: shopLd(s, this.seo.origin()), keepParams: ['tab'] }); },
+          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде`, image: s.avatar_url || undefined, jsonLd: shopLd(s, this.seo.origin()), keepParams: ['tab'], path: shopPath(s.handle) }); },
           error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
         }),
         this.api.reviews({ shop: h }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),

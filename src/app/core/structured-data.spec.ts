@@ -23,14 +23,20 @@ describe('structured-data', () => {
   });
 
   it('«цена в Direct» — без предложения, а не с выдуманной ценой; без фото — без image', () => {
-    const ld = productLd(product({ price: null }), [], ORIGIN);
+    const ld = productLd(product({ price: null, rating: 4.5, reviews_count: 3 }), [], ORIGIN)!;
     expect(ld['offers']).toBeUndefined();
+    expect(ld['aggregateRating']).toBeDefined();
     expect('image' in ld).toBe(false);
   });
 
+  it('ни цены, ни отзывов — разметки Product нет (Google счёл бы её ошибкой)', () => {
+    expect(productLd(product({ price: null }), [], ORIGIN)).toBeUndefined();
+    expect(productLd(product({ price: null, rating: 4.5, reviews_count: 0 }), [], ORIGIN)).toBeUndefined();
+  });
+
   it('оценка — только когда есть отзывы', () => {
-    expect(productLd(product({ rating: 4.5, reviews_count: 0 }), [], ORIGIN)['aggregateRating']).toBeUndefined();
-    expect(productLd(product({ rating: 4.5, reviews_count: 12 }), [], ORIGIN)['aggregateRating']).toMatchObject({ ratingValue: 4.5, reviewCount: 12 });
+    expect(productLd(product({ rating: 4.5, reviews_count: 0 }), [], ORIGIN)?.['aggregateRating']).toBeUndefined();
+    expect(productLd(product({ rating: 4.5, reviews_count: 12 }), [], ORIGIN)?.['aggregateRating']).toMatchObject({ ratingValue: 4.5, reviewCount: 12 });
   });
 
   it('лавка: имя, ник, Instagram; пустое имя — ник', () => {

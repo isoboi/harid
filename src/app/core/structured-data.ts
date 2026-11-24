@@ -20,6 +20,11 @@ function compact(o: JsonLd): JsonLd {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && !(Array.isArray(v) && v.length === 0)));
 }
 
+/** Адрес страницы товара — один для canonical, разметки и карты сайта. */
+export const productPath = (id: string) => `/product/${encodeURIComponent(id)}`;
+/** Адрес страницы лавки — один для canonical, разметки и карты сайта. */
+export const shopPath = (handle: string) => `/shop/${encodeURIComponent(handle)}`;
+
 /** Главная: сайт и поиск по нему (поле поиска в выдаче Google). */
 export function websiteLd(origin: string): JsonLd {
   return {
@@ -39,9 +44,11 @@ export function websiteLd(origin: string): JsonLd {
 /**
  * Товар: цена в сомони и наличие. Без цены («цена в Direct») предложения нет —
  * выдумывать цену нельзя. Оценка — только если есть отзывы.
+ * Ни цены, ни отзывов — разметки нет: Google считает Product без offers,
+ * review и aggregateRating ошибкой.
  */
-export function productLd(p: Product, photos: string[], origin: string): JsonLd {
-  const url = `${origin}/product/${encodeURIComponent(p.id)}`;
+export function productLd(p: Product, photos: string[], origin: string): JsonLd | undefined {
+  const url = origin + productPath(p.id);
   const offer = p.price === null ? undefined : {
     '@type': 'Offer',
     url,
@@ -51,6 +58,7 @@ export function productLd(p: Product, photos: string[], origin: string): JsonLd 
     seller: { '@type': 'Organization', name: `@${p.shop_handle}` },
   };
   const rating = p.rating && p.reviews_count ? { '@type': 'AggregateRating', ratingValue: p.rating, reviewCount: p.reviews_count, bestRating: 5, worstRating: 1 } : undefined;
+  if (!offer && !rating) return undefined;
   return compact({
     '@context': CONTEXT,
     '@type': 'Product',
@@ -71,7 +79,7 @@ export function shopLd(s: Shop, origin: string): JsonLd {
     '@type': 'Organization',
     name: clean(s.name) ?? `@${s.handle}`,
     alternateName: `@${s.handle}`,
-    url: `${origin}/shop/${encodeURIComponent(s.handle)}`,
+    url: origin + shopPath(s.handle),
     logo: s.avatar_url || undefined,
     description: clean(s.bio),
     sameAs: [`https://instagram.com/${s.handle}`],

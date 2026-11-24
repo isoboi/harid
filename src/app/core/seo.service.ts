@@ -19,6 +19,11 @@ export interface SeoPage {
    * они остаются в canonical и og:url, остальной query отбрасывается.
    */
   keepParams?: string[];
+  /**
+   * Путь страницы для canonical и og:url, если он известен точнее адресной строки:
+   * /product/042 и /product/42;utm=x — тот же товар, что /product/42.
+   */
+  path?: string;
 }
 
 /** Контекст запроса, который SSR-сервер передаёт в приложение (src/server.ts). */
@@ -48,6 +53,7 @@ export class SeoService {
   /** Путь страницы, чьи теги сейчас в <head>; null — тегов страницы нет. */
   private owner: string | null = null;
   private keep: string[] = [];
+  private path: string | null = null;
 
   constructor() {
     const serverOrigin = this.trimSlash(this.ctx?.origin ?? '');
@@ -75,9 +81,14 @@ export class SeoService {
   }
 
   set(p: SeoPage): void {
-    const tree = this.currentTree();
+    // Идёт переход, а адрес ещё прежний: set() вызвала уходящая страница (поздний ответ API).
+    // Новая страница создаётся уже после смены router.url, так что её вызовы сюда не попадают.
+    const nav = this.router.getCurrentNavigation();
+    const tree = this.router.parseUrl(this.router.url);
+    if (nav && this.pathOf(nav.finalUrl ?? nav.extractedUrl) !== this.pathOf(tree)) return;
     this.owner = this.pathOf(tree);
     this.keep = p.keepParams ?? [];
+    this.path = p.path ?? null;
     this.title.setTitle(p.title);
     this.meta.updateTag({ name: 'description', content: p.description });
     this.meta.updateTag({ property: 'og:site_name', content: 'Харид' });
@@ -102,18 +113,13 @@ export class SeoService {
     this.setJsonLd(p.jsonLd);
   }
 
-  /** Адрес страницы, которую сейчас открывают (во время перехода router.url ещё старый). */
-  private currentTree(): UrlTree {
-    return this.router.getCurrentNavigation()?.finalUrl ?? this.router.parseUrl(this.router.url);
-  }
-
   private pathOf(tree: UrlTree): string {
     return this.router.serializeUrl(tree).split(/[?#]/)[0] || '/';
   }
 
-  /** Полный адрес для canonical и og:url: путь и только keepParams из query. */
+  /** Полный адрес для canonical и og:url: путь (или path страницы) и только keepParams из query. */
   private pageUrl(tree: UrlTree): string {
-    const copy = this.router.parseUrl(this.pathOf(tree));
+    const copy = this.router.parseUrl(this.path ?? this.pathOf(tree));
     const params: Params = {};
     for (const k of this.keep) {
       const v = tree.queryParams[k];
@@ -138,6 +144,7 @@ export class SeoService {
   private clear(): void {
     this.owner = null;
     this.keep = [];
+    this.path = null;
     this.doc.head.querySelector('link[rel="canonical"]')?.remove();
     this.meta.removeTag('property="og:url"');
     this.meta.removeTag('name="robots"');

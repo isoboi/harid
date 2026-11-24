@@ -1,8 +1,9 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, makeStateKey, REQUEST_CONTEXT, TransferState } from '@angular/core';
+import { Component, inject, makeStateKey, REQUEST_CONTEXT, TransferState } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Meta, Title } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { SeoService } from './seo.service';
 
 @Component({ standalone: true, template: '' })
@@ -60,13 +61,37 @@ describe('SeoService', () => {
     expect(doc.head.querySelectorAll('link[rel="canonical"]').length).toBe(1);
   });
 
-  it('во время перехода берёт адрес новой страницы, а не прошлой', async () => {
+  it('страница, созданная во время перехода, получает свой адрес', async () => {
+    @Component({ standalone: true, template: '' })
+    class PageComponent { constructor() { inject(SeoService).set({ title: 'Товар', description: '' }); } }
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'product/:id', component: PageComponent }, { path: '**', component: BlankComponent }])] });
+    const harness = await RouterTestingHarness.create('/catalog');
+    await harness.navigateByUrl('/product/42', PageComponent);
+    expect(canonical(TestBed.inject(DOCUMENT))).toBe('http://localhost/product/42');
+  });
+
+  it('поздний set() уходящей страницы во время перехода не применяется', async () => {
+    let seo!: SeoService;
+    const lateResponse = () => { seo.set({ title: 'Лавка', description: '', jsonLd: { '@type': 'Organization' } }); return true; };
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'sell', component: BlankComponent, canActivate: [lateResponse] }, { path: '**', component: BlankComponent }])] });
+    seo = TestBed.inject(SeoService);
+    const router = TestBed.inject(Router);
+    const doc = TestBed.inject(DOCUMENT);
+    await router.navigateByUrl('/shop/lola');
+    seo.set({ title: 'Каталог', description: '' });
+    await router.navigateByUrl('/sell');
+    expect(TestBed.inject(Title).getTitle()).toBe('Каталог');
+    expect(canonical(doc)).toBeUndefined();
+    expect(jsonLd(doc).length).toBe(0);
+  });
+
+  it('path страницы важнее адресной строки: /product/042 — canonical /product/42', async () => {
     const { seo, doc, router } = setup();
-    await router.navigateByUrl('/catalog');
-    let during = '';
-    router.events.subscribe(() => { if (router.getCurrentNavigation()?.finalUrl) { seo.set({ title: 't', description: '' }); during = canonical(doc) ?? ''; } });
-    await router.navigateByUrl('/product/42');
-    expect(during).toBe('http://localhost/product/42');
+    await router.navigateByUrl('/product/042;utm=x?ref=ig');
+    seo.set({ title: 't', description: '', path: '/product/42' });
+    expect(canonical(doc)).toBe('http://localhost/product/42');
+    await router.navigateByUrl('/product/042;utm=x');
+    expect(canonical(doc)).toBe('http://localhost/product/42');
   });
 
   it('на сервере адрес сайта — из контекста запроса', async () => {

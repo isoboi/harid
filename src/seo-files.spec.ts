@@ -1,4 +1,4 @@
-import { allowedHostsFromEnv, isAllowedHost, loadSitemapData, requestOrigin, robotsTxt, sitemapCache, SitemapData, sitemapXml } from './seo-files';
+import { allowedHostsFromEnv, isAllowedHost, loadSitemapData, requestOrigin, robotsTxt, siteOrigin, sitemapCache, SitemapData, sitemapXml } from './seo-files';
 
 describe('robots.txt', () => {
   it('закрывает личные разделы и указывает карту сайта', () => {
@@ -49,6 +49,36 @@ describe('loadSitemapData', () => {
     expect(calls).toContain('https://api/api/market/products?limit=100&offset=100');
     expect(calls.filter((c) => c.includes('/products')).length).toBe(2);
   });
+
+  it('новый товар сдвинул страницы во время обхода — повтор отбрасывается', async () => {
+    const all = Array.from({ length: 150 }, (_, i) => ({ id: String(150 - i) }));
+    let published = false;
+    const getJson = async (url: string) => {
+      if (!url.includes('/products')) return [];
+      const offset = Number(new URL(url).searchParams.get('offset'));
+      const feed = published ? [{ id: '151' }, ...all] : all;
+      published = true; // после первой страницы опубликован ещё один
+      return feed.slice(offset, offset + 100);
+    };
+    const d = await loadSitemapData('https://api/api', getJson);
+    const ids = d.products.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.length).toBe(150);
+  });
+
+  it('страница без новых товаров заканчивает обход', async () => {
+    let calls = 0;
+    const page = Array.from({ length: 100 }, (_, i) => ({ id: String(i) }));
+    const getJson = async (url: string) => (url.includes('/products') ? (calls++, page) : []);
+    const d = await loadSitemapData('https://api/api', getJson);
+    expect(d.products.length).toBe(100);
+    expect(calls).toBe(2);
+  });
+
+  it('ответ не массив — ошибка, а не кэш мусора', async () => {
+    const getJson = async (url: string) => (url.endsWith('/shops') ? { items: [] } : []);
+    await expect(loadSitemapData('https://api/api', getJson)).rejects.toThrow('/shops');
+  });
 });
 
 describe('sitemapCache', () => {
@@ -57,7 +87,7 @@ describe('sitemapCache', () => {
   it('в пределах ttl API не дёргает, одновременные запросы ждут одну загрузку', async () => {
     let t = 0;
     const load = jest.fn(async () => sample);
-    const get = sitemapCache(load, 1000, () => t);
+    const get = sitemapCache(load, { ttlMs: 1000, retryMs: 100, now: () => t });
     await Promise.all([get(), get()]);
     expect(load).toHaveBeenCalledTimes(1);
     t = 500; await get();
@@ -66,26 +96,56 @@ describe('sitemapCache', () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it('API упал — прошлые данные; данных ещё нет — ошибка', async () => {
+  it('API упал — прошлые данные, ошибка в лог, повтор не раньше retryMs; данных ещё нет — ошибка', async () => {
     let t = 0;
     let fail = false;
-    const get = sitemapCache(async () => { if (fail) throw new Error('down'); return sample; }, 1000, () => t);
+    const errors: unknown[] = [];
+    const load = jest.fn(async () => { if (fail) throw new Error('down'); return sample; });
+    const get = sitemapCache(load, { ttlMs: 1000, retryMs: 100, now: () => t, onStaleError: (e) => errors.push(e) });
     await get();
     fail = true; t = 2000;
     await expect(get()).resolves.toBe(sample);
-    const empty = sitemapCache(async () => { throw new Error('down'); }, 1000);
+    expect(errors).toHaveLength(1);
+    t = 2050; await get();
+    expect(load).toHaveBeenCalledTimes(2);
+    t = 2100; await get();
+    expect(load).toHaveBeenCalledTimes(3);
+    const empty = sitemapCache(async () => { throw new Error('down'); }, { ttlMs: 1000, retryMs: 100 });
     await expect(empty()).rejects.toThrow('down');
   });
 });
 
+describe('siteOrigin', () => {
+  it('«/» в конце убирается, пустой или из пробелов — не задан', () => {
+    expect(siteOrigin(' https://harid.tj/ ')).toBe('https://harid.tj');
+    expect(siteOrigin(' ')).toBeUndefined();
+    expect(siteOrigin(undefined)).toBeUndefined();
+  });
+});
+
 describe('requestOrigin', () => {
-  it('SITE_URL важнее запроса, «/» в конце убирается', () => {
-    expect(requestOrigin('https://harid.tj/', { protocol: 'http', headers: { host: 'evil.com' } })).toBe('https://harid.tj');
+  const ALLOWED = ['harid.tj', '*.harid.tj', 'localhost'];
+  const req = (headers: Record<string, string>) => ({ protocol: 'http', headers });
+
+  it('SITE_URL важнее запроса', () => {
+    expect(requestOrigin('https://harid.tj', req({ host: 'evil.com' }), ALLOWED)).toBe('https://harid.tj');
   });
 
-  it('за прокси: https из X-Forwarded-Proto, хост — из Host, X-Forwarded-Host игнорируется', () => {
-    expect(requestOrigin(undefined, { protocol: 'http', headers: { host: 'harid.tj', 'x-forwarded-proto': 'https', 'x-forwarded-host': 'evil.com' } })).toBe('https://harid.tj');
-    expect(requestOrigin('', { protocol: 'http', headers: { host: 'localhost:4000' } })).toBe('http://localhost:4000');
+  it('за прокси — как у Angular: X-Forwarded-Host и -Proto (в любом регистре)', () => {
+    expect(requestOrigin(undefined, req({ host: 'harid.tj', 'x-forwarded-proto': 'HTTPS', 'x-forwarded-host': 'www.harid.tj' }), ALLOWED)).toBe('https://www.harid.tj');
+    expect(requestOrigin(undefined, req({ host: 'localhost:4000' }), ALLOWED)).toBe('http://localhost:4000');
+  });
+
+  it('хост не из списка — в Host или X-Forwarded-Host — null', () => {
+    expect(requestOrigin(undefined, req({ host: 'evil.com' }), ALLOWED)).toBeNull();
+    expect(requestOrigin(undefined, req({ host: 'harid.tj', 'x-forwarded-host': 'evil.com' }), ALLOWED)).toBeNull();
+    expect(requestOrigin(undefined, req({ host: '127.0.0.1:4000', 'x-forwarded-host': 'harid.tj' }), ALLOWED)).toBeNull();
+  });
+
+  it('порт — только у локальных адресов', () => {
+    expect(requestOrigin(undefined, req({ host: 'harid.tj:6666' }), ALLOWED)).toBe('http://harid.tj');
+    expect(requestOrigin(undefined, req({ host: 'harid.tj', 'x-forwarded-port': '8443', 'x-forwarded-proto': 'https' }), ALLOWED)).toBe('https://harid.tj');
+    expect(requestOrigin(undefined, req({ host: 'localhost', 'x-forwarded-port': '4200' }), ALLOWED)).toBe('http://localhost:4200');
   });
 });
 
