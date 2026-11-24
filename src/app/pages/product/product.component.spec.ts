@@ -7,6 +7,7 @@ import { buyBarVisible, ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
 import { FavoritesService } from '../../core/favorites.service';
+import { HAPTIC } from '../../core/haptics.service';
 import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { PLATFORM_ID } from '@angular/core';
 import { VideoPlayerComponent } from '../../shared/video-player.component';
@@ -438,6 +439,51 @@ describe('ProductComponent', () => {
     f.detectChanges();
     expect(cart.items().length).toBe(30);
     expect(f.nativeElement.textContent).toContain('В корзине уже 30 позиций — оформите заказ или уберите лишнее');
+  });
+
+  describe('вибрация', () => {
+    afterEach(() => { delete (navigator as { vibrate?: unknown }).vibrate; });
+    const spyVibrate = () => {
+      const spy = jest.fn(() => true);
+      Object.defineProperty(navigator, 'vibrate', { configurable: true, value: spy });
+      return spy;
+    };
+    const click = (f: { nativeElement: unknown; detectChanges(): void }, test: string) => {
+      ((f.nativeElement as HTMLElement).querySelector(`[data-test="${test}"]`) as HTMLButtonElement).click();
+      f.detectChanges();
+    };
+
+    it('товар лёг в корзину — короткая вибрация успеха', async () => {
+      const spy = spyVibrate();
+      const f = await render(prod());
+      click(f, 'add');
+      expect(TestBed.inject(CartService).count()).toBe(1);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(HAPTIC.success);
+    });
+
+    it('корзина на лимите — вибрация отказа, а не успеха', async () => {
+      localStorage.clear();
+      const spy = spyVibrate();
+      const f = await render(prod({ id: '99' }));
+      const cart = TestBed.inject(CartService);
+      for (let n = 1; n <= 30; n++) cart.add(prod({ id: String(n) }), null);
+      click(f, 'add');
+      expect(cart.items().length).toBe(30);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith([20, 50, 20]);
+    });
+
+    it('«В избранное» вибрирует при добавлении, а при удалении молчит', async () => {
+      const spy = spyVibrate();
+      const f = await render(prod());
+      const fav = (f.nativeElement as HTMLElement).querySelector('.fav') as HTMLButtonElement;
+      fav.click(); f.detectChanges();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(HAPTIC.light);
+      fav.click(); f.detectChanges();
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('липкая панель покупки (телефон)', () => {
