@@ -18,6 +18,16 @@ describe('PriceTagComponent', () => {
     expect(render({ price: 425, old: 500, endsAt: '2026-11-30T18:59:59Z' }).textContent).toContain('до 30 ноября');
   });
 
+  it('20:00Z уже 1 декабря по Душанбе (UTC+5)', () => {
+    expect(render({ price: 425, old: 500, endsAt: '2026-11-30T20:00:00Z' }).textContent).toContain('до 1 декабря');
+  });
+
+  it('невалидная дата — без срока и без исключения', () => {
+    let el!: HTMLElement;
+    expect(() => { el = render({ price: 425, old: 500, endsAt: 'не дата' }); }).not.toThrow();
+    expect(el.querySelector('.until')).toBeNull();
+  });
+
   it('без старой цены — ни бейджа, ни срока', () => {
     const el = render({ price: 425, old: null, endsAt: null });
     expect(el.textContent).not.toContain('%');
