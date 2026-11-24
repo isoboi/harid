@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { RecentItem, RecentlyViewedService } from '../core/recently-viewed.service';
 import { PriceTagComponent } from './price-tag.component';
@@ -6,18 +6,21 @@ import { PriceTagComponent } from './price-tag.component';
 /**
  * «Вы смотрели»: снимки недавно открытых товаров полосой вбок, как лента лавок.
  * Данные — из браузера (снимок на момент просмотра); актуальные цену и наличие показывает страница товара.
- * Пусто (или всё исключено) — компонент ничего не выводит.
+ * Пусто (или всё исключено) — компонент ничего не выводит, кроме пустого живого региона:
+ * страницы задают отступы хосту через :has(section).
  */
 @Component({
   selector: 'app-recent-strip',
   standalone: true,
   imports: [RouterLink, PriceTagComponent],
   template: `
+    <!-- Живой регион есть всегда: после «Очистить» секция исчезает вместе с кнопкой, диктор озвучит итог -->
+    <p class="sr-only" aria-live="polite">{{ announce() }}</p>
     @if (visible().length) {
       <section class="recent" aria-labelledby="recent-title">
         <div class="head">
           <h2 id="recent-title" class="title">Вы смотрели</h2>
-          <button type="button" class="clear" (click)="recent.clear()">Очистить</button>
+          <button type="button" class="clear" aria-label="Очистить историю просмотров" (click)="clear()">Очистить</button>
         </div>
         <ul class="strip">
           @for (i of visible(); track i.id) {
@@ -66,4 +69,11 @@ export class RecentStripComponent {
     const skip = new Set(this.exclude());
     return this.recent.items().filter((i) => !skip.has(i.id));
   });
+  /** Сообщение для диктора; заполняется только после очистки. */
+  readonly announce = signal('');
+
+  clear(): void {
+    this.recent.clear();
+    this.announce.set('История просмотров очищена');
+  }
 }

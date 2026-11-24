@@ -102,6 +102,8 @@ const CASH_STEPS = [
     .fresh-head { margin-bottom: 20px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px }
     .fresh-title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em }
     .list { margin-top: 24px }
+    /* На десктопе у «Новое в лавках» нет своего верхнего отступа (его давал низ героя) — отделяем от полосы «Вы смотрели» */
+    @media (min-width: 641px) { app-recent-strip:has(section) + .fresh { margin-top: 40px } }
     /* Полоса на всю ширину: bg-mist, слева заголовок, справа четыре шага сеткой с линиями 1px */
     .how { scroll-margin-top: 96px; background: var(--color-mist) }
     .how-grid { display: grid; gap: 40px; padding-block: 56px }

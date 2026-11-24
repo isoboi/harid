@@ -72,4 +72,18 @@ describe('RecentStripComponent', () => {
     expect(recent.items()).toEqual([]);
     expect(el.querySelector('section')).toBeNull();
   });
+
+  it('после «Очистить» диктор слышит «История просмотров очищена»', async () => {
+    const { f, el } = await setup([p('16')]);
+    const live = () => el.querySelector('[aria-live="polite"]');
+    expect(live()?.textContent?.trim()).toBe('');
+    [...el.querySelectorAll('button')].find((b) => b.textContent!.includes('Очистить'))!.click();
+    f.detectChanges();
+    expect(live()?.textContent?.trim()).toBe('История просмотров очищена');
+  });
+  it('кнопка «Очистить» подписана для диктора', async () => {
+    const { el } = await setup([p('16')]);
+    const btn = [...el.querySelectorAll('button')].find((b) => b.textContent!.includes('Очистить'))!;
+    expect(btn.getAttribute('aria-label')).toBe('Очистить историю просмотров');
+  });
 });

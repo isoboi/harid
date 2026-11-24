@@ -87,7 +87,7 @@ const UNDO_MS = 6000;
   `,
   styles: `
     .head { margin-bottom: 32px }
-    .recent:not(:empty) { margin-top: 48px }
+    .recent:has(section) { margin-top: 20px }
     .undo-slot:empty { display: none }
     .undo { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; padding-left: 16px; border-radius: 10px; background: var(--color-ink); color: var(--color-paper); font-size: 15px }
     .dot { opacity: .6 }
