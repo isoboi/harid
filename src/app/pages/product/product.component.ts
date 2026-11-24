@@ -8,6 +8,7 @@ import { CartService } from '../../core/cart.service';
 import { directLink, directOnly, postLink } from '../../core/direct';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { FavoritesService } from '../../core/favorites.service';
+import { Haptics } from '../../core/haptics.service';
 import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
@@ -284,6 +285,7 @@ export function buyBarVisible(e: ButtonView): boolean {
 export class ProductComponent {
   private readonly api = inject(MarketApi);
   private readonly cart = inject(CartService);
+  private readonly haptics = inject(Haptics);
   private readonly seo = inject(SeoService);
   private readonly title = inject(Title);
   readonly fav = inject(FavoritesService);
@@ -481,6 +483,7 @@ export class ProductComponent {
   add(p: Product): void {
     if (!this.canAdd()) return;
     const ok = this.cart.add(p, p.sizes.length ? this.size() : null);
+    if (ok) this.haptics.success(); else this.haptics.warning();
     this.limitError.set(!ok);
     this.added.set(ok);
   }
