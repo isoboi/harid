@@ -60,10 +60,12 @@ app.get('/sitemap.xml', (req, res) => {
 
 /** Имя с хэшем сборки (main-6YBIB7PB.js, chunk-…, styles-…): при изменении файла меняется и адрес. */
 const HASHED = /-[A-Z0-9]{8}\.[a-z0-9]+$/;
+/** Шрифты из public/fonts: версия в имени (golos-text-v7-latin.woff2), при обновлении шрифта меняется имя. */
+const VERSIONED_FONT = /[\\/]fonts[\\/][a-z0-9-]+-v\d+[a-z0-9-]*\.woff2$/;
 
 /**
- * Статика из /browser. Файлы сборки с хэшем в имени кэшируются на год.
- * Файлы из public/ (favicon, иконки, manifest) имя не меняют, поэтому браузер
+ * Статика из /browser. Файлы сборки с хэшем в имени и шрифты с версией в имени кэшируются на год.
+ * Остальные файлы из public/ (favicon, иконки, manifest) имя не меняют, поэтому браузер
  * проверяет их при каждом заходе (no-cache + ETag, обычно ответ 304).
  */
 app.use(
@@ -72,7 +74,7 @@ app.use(
     index: false,
     redirect: false,
     setHeaders: (res, path) => {
-      if (!HASHED.test(path)) res.setHeader('Cache-Control', 'no-cache');
+      if (!HASHED.test(path) && !VERSIONED_FONT.test(path)) res.setHeader('Cache-Control', 'no-cache');
     },
   }),
 );
