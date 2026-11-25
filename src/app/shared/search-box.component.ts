@@ -1,6 +1,5 @@
 import { Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, of, Subject, switchMap } from 'rxjs';
 import { MarketApi } from '../core/market-api.service';
@@ -34,11 +33,13 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
 @Component({
   selector: 'app-search-box',
   standalone: true,
-  imports: [FormsModule, RouterLink, IconComponent, ShopAvatarComponent, MoneyPipe],
+  imports: [RouterLink, IconComponent, ShopAvatarComponent, MoneyPipe],
   host: { '(focusout)': 'onFocusOut($event)' },
   template: `
     <div class="anchor">
-    <form role="search" (ngSubmit)="submit()">
+    <!-- Без FormsModule: поиск в шапке есть на каждой странице, а модуль форм (~40 КБ) иначе попадал бы в начальную загрузку.
+         preventDefault — вместо NgForm: отправка формы не перезагружает страницу -->
+    <form role="search" (submit)="$event.preventDefault(); submit()">
       <label class="box">
         <app-icon class="search-icon" name="search" [size]="18" />
         <span class="sr-only">Поиск по товарам</span>
@@ -47,7 +48,7 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
           role="combobox" aria-autocomplete="list" aria-controls="search-suggest"
           [attr.aria-expanded]="visible()"
           [attr.aria-activedescendant]="visible() && active() >= 0 ? 'sg-' + active() : null"
-          [ngModel]="q()" (ngModelChange)="onInput($event)"
+          [value]="q()" (input)="onInput(field.value)"
           (focus)="open.set(true)" (keydown)="onKey($event)" />
         @if (q()) {
           <button type="button" class="clear" aria-label="Очистить поиск" (click)="clear()"><app-icon name="x" [size]="16" /></button>

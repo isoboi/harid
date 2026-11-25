@@ -28,7 +28,7 @@ describe('SearchBoxComponent', () => {
     });
     const f = TestBed.createComponent(SearchBoxComponent);
     f.detectChanges();
-    tick(); // ngModel в форме подключается микрозадачей
+    tick();
     const el: HTMLElement = f.nativeElement;
     const input = el.querySelector('input')!;
     const type = (v: string) => { input.dispatchEvent(new Event('focus')); input.value = v; input.dispatchEvent(new Event('input')); f.detectChanges(); };
@@ -37,6 +37,46 @@ describe('SearchBoxComponent', () => {
     const panel = () => el.querySelector<HTMLElement>('#search-suggest')!;
     return { f, el, input, type, key, reply, panel };
   }
+
+  describe('поле без FormsModule', () => {
+    it('отправка формы не перезагружает страницу и открывает /search?q', fakeAsync(() => {
+      const { el, type } = setup();
+      const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      type('  платье ');
+      const e = new Event('submit', { cancelable: true });
+      el.querySelector('form')!.dispatchEvent(e);
+      expect(e.defaultPrevented).toBe(true);
+      expect(nav).toHaveBeenCalledWith(['/search'], { queryParams: { q: 'платье' } });
+    }));
+
+    it('пустой запрос — форма тоже не уходит, перехода нет', fakeAsync(() => {
+      const { el } = setup();
+      const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const e = new Event('submit', { cancelable: true });
+      el.querySelector('form')!.dispatchEvent(e);
+      expect(e.defaultPrevented).toBe(true);
+      expect(nav).not.toHaveBeenCalled();
+    }));
+
+    it('«Очистить» стирает текст в поле', fakeAsync(() => {
+      const { f, el, input, type } = setup();
+      type('кроссовки');
+      el.querySelector<HTMLButtonElement>('.clear')!.click();
+      f.detectChanges();
+      expect(input.value).toBe('');
+      expect(el.querySelector('.clear')).toBeNull();
+    }));
+
+    it('переход на /search?q — запрос появляется в поле', fakeAsync(() => {
+      const { f, input } = setup();
+      const router = TestBed.inject(Router);
+      router.resetConfig([{ path: 'search', children: [] }]);
+      router.navigateByUrl('/search?q=%D1%88%D0%B0%D1%80%D1%84'); // «шарф»
+      tick();
+      f.detectChanges();
+      expect(input.value).toBe('шарф');
+    }));
+  });
 
   it('одна буква — без запроса; с двух — один запрос через 200 мс после последней клавиши', fakeAsync(() => {
     const { type } = setup();
