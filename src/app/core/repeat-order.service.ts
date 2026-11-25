@@ -9,7 +9,10 @@ import { MarketApi } from './market-api.service';
 import { Order, OrderLine, Product } from './models';
 import { ToastService } from './toast.service';
 
-/** Итог повтора: сколько позиций добавлено из скольких, что недоступно и что не влезло в корзину. */
+/**
+ * Итог повтора. added, total и overflow — в штуках, как «3 товара» в шапке заказа и значок корзины:
+ * иначе заказ «3 товара» из одной позиции дал бы «Добавили 1 товар».
+ */
 export interface RepeatResult { added: number; total: number; unavailable: string[]; overflow: number; offline: boolean }
 
 /** Ответ по одному товару: сам товар или ошибка запроса. */
@@ -41,7 +44,8 @@ export function repeatMessage(r: RepeatResult): { text: string; kind: 'info' | '
  * несколько — выбирать за покупателя нельзя.
  */
 function sizeFor(line: OrderLine, p: Product): string | null | undefined {
-  if (!p.sizes.length) return line.size;
+  // Размеров у товара больше нет — старый размер не отправляем, бэкенд мог бы его отклонить
+  if (!p.sizes.length) return null;
   if (line.size) return p.sizes.includes(line.size) ? line.size : undefined;
   return p.sizes.length === 1 ? p.sizes[0] : undefined;
 }
@@ -73,14 +77,14 @@ export class RepeatOrderService {
   }
 
   private apply(order: Order, byId: Map<string, Fetched>): RepeatResult {
-    const r: RepeatResult = { added: 0, total: order.lines.length, unavailable: [], overflow: 0, offline: false };
+    const r: RepeatResult = { added: 0, total: order.lines.reduce((n, l) => n + l.qty, 0), unavailable: [], overflow: 0, offline: false };
     for (const line of order.lines) {
       const f = byId.get(line.product_id);
       const p = f && 'p' in f ? f.p : null;
       const size = p ? sizeFor(line, p) : undefined;
       if (!p || !p.in_stock || directOnly(p) || p.price === null || size === undefined) { r.unavailable.push(line.title); continue; }
-      if (this.cart.add(p, size, line.qty)) r.added++;
-      else r.overflow++;
+      if (this.cart.add(p, size, line.qty)) r.added += line.qty;
+      else r.overflow += line.qty;
     }
     // «Нет интернета» — только если не пришёл ни один товар и ни одна ошибка не говорит «товара нет»
     const results = [...byId.values()];

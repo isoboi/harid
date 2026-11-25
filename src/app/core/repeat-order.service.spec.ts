@@ -55,8 +55,9 @@ describe('RepeatOrderService', () => {
     const t = setup({ '1': prod(), '2': prod({ id: '2', sizes: ['S', 'M'] }) });
     const res = await firstValueFrom(t.svc.repeat(order([line({ qty: 2 }), line({ product_id: '2', size: 'M' })])));
     expect(rows(t.cart)).toEqual([['1', null, 2], ['2', 'M', 1]]);
-    expect(res).toEqual({ added: 2, total: 2, unavailable: [], overflow: 0, offline: false });
-    expect(t.toasts.current()?.text).toBe('Добавили в корзину 2 товара');
+    // Считаем штуки, как шапка заказа («3 товара») и значок корзины
+    expect(res).toEqual({ added: 3, total: 3, unavailable: [], overflow: 0, offline: false });
+    expect(t.toasts.current()?.text).toBe('Добавили в корзину 3 товара');
     expect(t.nav).toHaveBeenCalledWith('/cart');
   });
   it('цена в корзине — текущая, не из заказа', async () => {
@@ -82,6 +83,16 @@ describe('RepeatOrderService', () => {
     await firstValueFrom(t.svc.repeat(order([line({ size: 'S' }), line({ size: 'M' })])));
     expect(t.product).toHaveBeenCalledTimes(1);
     expect(rows(t.cart)).toEqual([['1', 'S', 1], ['1', 'M', 1]]);
+  });
+  it('часть — в штуках, как в шапке заказа', async () => {
+    const t = setup({ '1': prod(), '2': 404 });
+    await firstValueFrom(t.svc.repeat(order([line({ qty: 3 }), line({ product_id: '2', title: 'Шарф', qty: 2 })])));
+    expect(t.toasts.current()?.text).toBe('Добавили 3 из 5. Нет в наличии: «Шарф»');
+  });
+  it('у товара пропали размеры — старый размер в корзину не идёт', async () => {
+    const t = setup({ '1': prod({ sizes: [] }) });
+    await firstValueFrom(t.svc.repeat(order([line({ size: 'M' })])));
+    expect(rows(t.cart)).toEqual([['1', null, 1]]);
   });
   it('корзина почти полная', async () => {
     const t = setup({ a: prod({ id: 'a' }), b: prod({ id: 'b' }), c: prod({ id: 'c' }) });
