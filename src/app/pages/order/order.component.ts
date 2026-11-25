@@ -4,11 +4,12 @@ import { Component, computed, DestroyRef, effect, ElementRef, inject, input, sig
 import { Title } from '@angular/platform-browser';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { finalize, Subscription } from 'rxjs';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { dayMonth, slotWithDate, STAGE_LABEL } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
+import { RepeatOrderService } from '../../core/repeat-order.service';
 import { Order, OrderLine, OrderStage, Reviewable } from '../../core/models';
 import { PHONE_PATTERN, phone9 } from '../../core/phone';
 import { IconComponent } from '../../shared/icon.component';
@@ -167,7 +168,11 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
     </div>
     <ng-template #actions>
       <div class="actions">
-        <a class="btn" routerLink="/">Продолжить покупки</a>
+        <!-- Купить то же самое снова — у заказов, которые уже закончились -->
+        @if (canRepeat()) {
+          <button type="button" class="btn" data-test="repeat" [disabled]="repeating()" (click)="repeat(order()!)">{{ repeating() ? 'Добавляем…' : 'Повторить заказ' }}</button>
+        }
+        <a class="btn" [class.btn--ghost]="canRepeat()" routerLink="/">Продолжить покупки</a>
         <!-- Гостю: вход связывает заказы с номером, и их видно в «Мои заказы» без ссылки -->
         @if (auth.ready() && !auth.loggedIn()) {
           <a class="btn btn--ghost" routerLink="/login" [queryParams]="{ return: '/me/orders' }">Войти, чтобы следить за заказами</a>
@@ -254,6 +259,7 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
 })
 export class OrderComponent {
   private readonly api = inject(MarketApi);
+  private readonly repeater = inject(RepeatOrderService);
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
   readonly auth = inject(AuthService);
   readonly number = input.required<string>();
@@ -265,6 +271,10 @@ export class OrderComponent {
   readonly fresh = input<string>('');
   readonly isFresh = computed(() => this.fresh() === '1');
   readonly order = signal<Order | null>(null);
+  /** Повтор только у завершённых заказов: доставлен или отменён. */
+  readonly canRepeat = computed(() => { const s = this.order()?.stage; return s === 'delivered' || s === 'cancelled'; });
+  /** Идёт повтор: кнопка недоступна, второе нажатие не запускает его снова. */
+  readonly repeating = signal(false);
   readonly error = signal('');
   /** Показать форму «Найти заказ». */
   readonly lookup = signal(false);
@@ -305,6 +315,12 @@ export class OrderComponent {
     return out;
   });
 
+  /** Товары заказа — в корзину; тост и переход делает сервис. Ошибка тоже возвращает кнопку. */
+  repeat(o: Order): void {
+    if (this.repeating()) return;
+    this.repeating.set(true);
+    this.repeater.repeat(o).pipe(finalize(() => this.repeating.set(false))).subscribe({ error: () => undefined });
+  }
   label(s: OrderStage): string { return STAGE_LABEL[s]; }
   day(iso: string): string { return dayMonth(iso); }
   count(o: Order): string {
