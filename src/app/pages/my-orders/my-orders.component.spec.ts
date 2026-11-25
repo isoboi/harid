@@ -5,6 +5,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { MyOrdersComponent } from './my-orders.component';
 import { MarketApi } from '../../core/market-api.service';
 import { AuthService } from '../../core/auth.service';
+import { RepeatOrderService, RepeatResult } from '../../core/repeat-order.service';
 
 const reviewable = jest.fn(() => of([]));
 const myReturns = jest.fn(() => of([]));
@@ -128,5 +129,43 @@ describe('MyOrdersComponent', () => {
     jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     TestBed.createComponent(MyOrdersComponent).detectChanges();
     expect(items).not.toHaveBeenCalled();
+  });
+
+  describe('«Повторить» в списке', () => {
+    async function list() {
+      const subject = new Subject<RepeatResult>();
+      const repeat = jest.fn(() => subject);
+      const orders = [{ ...ORDER, number: 'R-1', stage: 'delivered' }, { ...ORDER, number: 'R-2', stage: 'cancelled' }, { ...ORDER, number: 'R-3', stage: 'in_delivery' }];
+      await TestBed.configureTestingModule({ imports: [MyOrdersComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { myOrders: jest.fn(() => of(orders)), reviewable, myReturns, returnable } }, { provide: RepeatOrderService, useValue: { repeat } }] }).compileComponents();
+      TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false });
+      const f = TestBed.createComponent(MyOrdersComponent);
+      f.detectChanges();
+      const btns = () => [...(f.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[data-test="repeat"]')];
+      return { f, btns, repeat, subject };
+    }
+
+    it('«Повторить» в списке — только у доставленных и отменённых, вне ссылки на заказ', async () => {
+      const { btns } = await list();
+      expect(btns()).toHaveLength(2);
+      for (const b of btns()) {
+        expect(b.closest('a')).toBeNull();
+        expect(b.textContent?.trim()).toBe('Повторить заказ');
+      }
+      // Кнопки — у R-1 и R-2, у заказа в пути нет
+      expect(btns().map((b) => b.closest('li')!.querySelector('a.row')!.getAttribute('href'))).toEqual(['/order/R-1', '/order/R-2']);
+    });
+    it('«Повторить» в списке: повтор именно этого заказа, «Добавляем…» только у него', async () => {
+      const { f, btns, repeat, subject } = await list();
+      btns()[1].click(); f.detectChanges();
+      expect(repeat).toHaveBeenCalledWith(expect.objectContaining({ number: 'R-2' }));
+      expect(btns()[1].textContent?.trim()).toBe('Добавляем…');
+      expect(btns()[1].disabled).toBe(true);
+      expect(btns()[0].textContent?.trim()).toBe('Повторить заказ');
+      btns()[0].click(); f.detectChanges();
+      expect(repeat).toHaveBeenCalledTimes(1);
+      subject.next({ added: 1, total: 1, unavailable: [], overflow: 0, offline: false }); subject.complete();
+      f.detectChanges();
+      expect(btns().map((b) => [b.textContent?.trim(), b.disabled])).toEqual([['Повторить заказ', false], ['Повторить заказ', false]]);
+    });
   });
 });
