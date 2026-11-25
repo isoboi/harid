@@ -1,4 +1,4 @@
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, effect, ElementRef, inject, input, PLATFORM_ID, signal, untracked, viewChild } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -27,6 +27,7 @@ import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 import { PhotoViewerComponent, SWIPE_X } from '../../shared/photo-viewer.component';
 import { ReelAction, ReelViewerComponent } from '../../shared/reel-viewer.component';
 import { ShareComponent } from '../../shared/share.component';
+import { rankSimilar } from '../../shared/similar';
 import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
@@ -54,7 +55,7 @@ export function buyBarVisible(e: ButtonView): boolean {
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent, SellerCardComponent, ShareComponent, PhotoViewerComponent],
+  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent, SellerCardComponent, ShareComponent, PhotoViewerComponent, NgTemplateOutlet],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -148,6 +149,8 @@ export function buyBarVisible(e: ButtonView): boolean {
             @if (shop(); as s) { <app-seller-card class="seller-card" [shop]="s" /> }
           </div>
         </div>
+        <!-- Товара нет в наличии — замена нужна сразу, а не после отзывов -->
+        @if (!p.in_stock && similar().length >= 2) { <ng-container *ngTemplateOutlet="similarBlock; context: { top: true }" /> }
         <!-- Телефон: цена и кнопка у нижнего края, над панелью вкладок; появляется, когда основная кнопка ушла вверх -->
         <div class="buybar" [class.on]="barShown()" data-test="buybar">
           @if (p.price !== null) { <app-price-tag class="bar-price" [price]="p.price" [old]="p.old_price" size="sm" /> }
@@ -169,6 +172,14 @@ export function buyBarVisible(e: ButtonView): boolean {
             <div class="products">@for (m of more(); track m.id) { <app-product-card [product]="m" /> }</div>
           </section>
         }
+        @if (p.in_stock && similar().length >= 2) { <ng-container *ngTemplateOutlet="similarBlock; context: { top: false }" /> }
+        <!-- Похожие из других лавок — альтернатива, если этот товар не подошёл; один шаблон на оба места -->
+        <ng-template #similarBlock let-top="top">
+          <section class="similar" data-test="similar" [class.top]="top">
+            <h2 class="section-title">Похожие в других лавках</h2>
+            <div class="products">@for (m of similar(); track m.id) { <app-product-card [product]="m" /> }</div>
+          </section>
+        </ng-template>
       </div>
     } @else {
       <!-- Заглушка загрузки в той же сетке: фото с превью слева, продавец, название, цена и кнопки справа -->
@@ -276,8 +287,9 @@ export function buyBarVisible(e: ButtonView): boolean {
     .ig-post:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 2px; border-radius: 6px }
     @media (hover: hover) { .ig-post:hover span { text-decoration: underline; text-underline-offset: 2px } }
     .seller-card { margin-top: 32px }
-    .more { margin-top: 80px }
-    .more h2 { margin-bottom: 20px }
+    .more, .similar { margin-top: 80px }
+    .similar.top { margin-top: 48px }
+    .more h2, .similar h2 { margin-bottom: 20px }
     @media (hover: hover) { .more h2 a:hover { text-decoration: underline } }
     /* Телефон: «В корзину» во всю ширину, ссылка в тексте с полем нажатия 44px */
     @media (max-width: 639.98px) { .add { flex: 1 1 100%; min-width: 0 } .trust a { display: inline-block; padding-block: 12px; margin-block: -12px } }
@@ -299,6 +311,9 @@ export class ProductComponent {
   /** Лавка товара для плашки продавца; не загрузилась — показываем только ник. */
   readonly shop = signal<Shop | null>(null);
   readonly more = signal<Product[]>([]);
+  /** Ответ API по категории как есть; подборка пересобирается при выборе размера без нового запроса. */
+  private readonly similarRaw = signal<Product[]>([]);
+  readonly similar = computed(() => { const p = this.product(); return p ? rankSimilar(this.similarRaw(), p, this.size()) : []; });
   readonly missing = signal(false);
   readonly photo = signal(0);
   /** Открыт вертикальный просмотр видео (как в Instagram) поверх страницы. */
@@ -366,7 +381,7 @@ export class ProductComponent {
     effect((onCleanup) => {
       const id = this.id();
       this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false); this.copied.set(false); this.reel.set(false); this.viewer.set(false);
-      this.product.set(null); this.more.set([]); this.shop.set(null); this.reviews.set(null);
+      this.product.set(null); this.more.set([]); this.similarRaw.set([]); this.shop.set(null); this.reviews.set(null);
       const nested: { unsubscribe(): void }[] = [];
       const sub = untracked(() => this.api.product(id).subscribe({
         next: (p) => {
@@ -381,6 +396,8 @@ export class ProductComponent {
             // Ошибка отзывов не ломает страницу товара: раздел просто не выводится
             this.api.reviews({ product: p.id }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),
           );
+          // Похожие — по категории; без категории подбирать не по чему. Ошибка — блока просто нет
+          if (p.category) nested.push(this.api.products({ category: p.category, limit: 24 }).pipe(catchError(() => of([]))).subscribe((list) => this.similarRaw.set(list)));
         },
         // 400 — нечисловой id отклонён валидацией бэкенда: для покупателя это тоже «нет такого товара»
         error: (e) => {
