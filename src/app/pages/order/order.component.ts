@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, effect, ElementRef, inject, input, signal, untracked } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -13,6 +14,7 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { plural } from '../../shared/plural';
+import { SkelSummaryComponent } from '../../shared/skeleton.component';
 import { RateItemComponent } from '../my-orders/rate-purchases.component';
 import { ReturnsComponent } from '../my-orders/returns.component';
 
@@ -27,7 +29,7 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
 @Component({
   selector: 'app-order',
   standalone: true,
-  imports: [RouterLink, ReactiveFormsModule, NgTemplateOutlet, MoneyPipe, IconComponent, RateItemComponent, ReturnsComponent],
+  imports: [RouterLink, ReactiveFormsModule, NgTemplateOutlet, MoneyPipe, IconComponent, RateItemComponent, ReturnsComponent, SkelSummaryComponent],
   template: `
     <div class="wrap page-top">
     @if (lookup()) {
@@ -138,7 +140,30 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
         </aside>
       </div>
       <ng-container [ngTemplateOutlet]="actions" />
-    } @else { <p class="muted">Загрузка…</p> } }
+    } @else {
+      <!-- Заглушка загрузки: номер и дата, этапы, строки состава и сводка доставки справа -->
+      <div role="status" data-test="skel-order">
+        <span class="sr-only">Загрузка…</span>
+        <div aria-hidden="true">
+          <span class="skel skel--line title-skel"></span>
+          <span class="skel skel--line sub-skel"></span>
+          <div class="steps-skel">@for (w of stepSkeleton; track $index) { <span class="skel" [style.width.px]="w"></span> }</div>
+          <div class="layout">
+            <div class="main">
+              <div class="shop-head"><span class="skel skel--line shop-skel"></span></div>
+              @for (n of [1, 2]; track n) {
+                <div class="line">
+                  <span class="skel thumb"></span>
+                  <div class="info"><span class="skel skel--line t-skel"></span><span class="skel skel--line meta-skel"></span></div>
+                  <span class="skel skel--line price-skel"></span>
+                </div>
+              }
+            </div>
+            <app-skel-summary class="side" [actions]="false" />
+          </div>
+        </div>
+      </div>
+    } }
     </div>
     <ng-template #actions>
       <div class="actions">
@@ -171,6 +196,16 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
       .steps li::before { content: ''; position: absolute; left: 2px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; border: 2px solid var(--color-line); background: var(--color-paper) }
       .steps li.done { background: none; color: var(--color-ink) } .steps li.done::before { border-color: var(--color-lapis); background: var(--color-lapis) }
     }
+    /* Заглушка загрузки: заголовок 34px, этапы-пилюли 40px (на телефоне — строки списка), строки состава */
+    .title-skel { height: 34px; width: min(280px, 80%); margin-block: 4px }
+    .sub-skel { margin-top: 10px; width: 180px }
+    .steps-skel { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px }
+    .steps-skel .skel { height: 40px; border-radius: 9999px }
+    @media (max-width: 640px) { .steps-skel { flex-direction: column; gap: 14px } .steps-skel .skel { height: 20px; border-radius: 10px } }
+    .shop-skel { width: 120px; height: 17px; margin-block: 14px 13px }
+    .t-skel { width: 75%; margin-top: 3px }
+    .meta-skel { width: 45%; margin-top: 10px; height: 12px }
+    .price-skel { width: 64px; margin-top: 4px }
     .back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin: -8px 0 4px -4px; padding-right: 8px; font-size: 15px; font-weight: 600; color: var(--color-lapis) }
     @media (hover: hover) { .back:hover { text-decoration: underline; text-underline-offset: 3px } }
     .sub { margin-top: 4px; color: var(--color-ink-soft) }
@@ -236,6 +271,8 @@ export class OrderComponent {
   /** Форма открыта после неудачного запроса — объясняем, что заказ не найден. */
   readonly lookupMiss = signal(false);
   readonly steps = STEPS;
+  /** Ширины серых пилюль этапов, пока заказ грузится. */
+  readonly stepSkeleton = [104, 132, 120, 112];
   readonly lookupForm = inject(FormBuilder).nonNullable.group({
     number: ['', [Validators.required, Validators.pattern(/\S/)]],
     phone: ['', [Validators.required, Validators.pattern(PHONE_PATTERN)]],
@@ -291,6 +328,12 @@ export class OrderComponent {
         else if (src.kind === 'lookup') this.showLookup(src.number, false);
         else this.reset();
       });
+    });
+    // Заголовок вкладки — по тому, что на экране: номер заказа или форма поиска
+    const title = inject(Title);
+    effect(() => {
+      const o = this.order();
+      title.setTitle(o ? `Заказ ${o.number} — Харид` : this.lookup() ? 'Найти заказ — Харид' : 'Заказ — Харид');
     });
     inject(DestroyRef).onDestroy(() => this.current?.unsubscribe());
   }

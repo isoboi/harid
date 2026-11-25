@@ -1,6 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { provideRouter, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Title } from '@angular/platform-browser';
 import { ShopComponent } from './shop.component';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
@@ -33,6 +37,28 @@ async function render(shop: Shop, reviews: Review[], opts: { products?: Product[
 
 describe('ShopComponent', () => {
   afterEach(() => TestBed.resetTestingModule());
+
+  it('«потянуть вниз»: товары лавки запрашиваются заново с первой страницы', async () => {
+    const { f, api } = await render(SHOP(), [], { products: goods(5) });
+    expect(api.products).toHaveBeenCalledTimes(1);
+    f.debugElement.query(By.directive(PullRefreshComponent)).componentInstance.refresh.emit();
+      f.detectChanges();
+    expect(api.products).toHaveBeenCalledTimes(2);
+    expect(api.products).toHaveBeenLastCalledWith(expect.objectContaining({ shop: 'zebo.style', limit: FEED_PAGE_SIZE, offset: 0 }));
+    expect(f.nativeElement.querySelectorAll('app-product-card').length).toBe(5);
+  });
+
+  it('лавка не найдена или не загрузилась — свой заголовок вкладки, а не прошлой страницы', async () => {
+    const { f, api } = await render(SHOP(), []);
+    const title = TestBed.inject(Title);
+    title.setTitle('Платье — Харид');
+    api.shop.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+    f.componentRef.setInput('handle', 'nobody'); f.detectChanges();
+    expect(title.getTitle()).toBe('Лавка не найдена — Харид');
+    api.shop.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 502 })));
+    f.componentRef.setInput('handle', 'down'); f.detectChanges();
+    expect(title.getTitle()).toBe('Лавка не загрузилась — Харид');
+  });
 
   it('оценка в шапке: число и количество отзывов', async () => {
     const { q } = await render(SHOP(), [REVIEW]);
@@ -118,5 +144,12 @@ describe('ShopComponent', () => {
     expect(stat.textContent).toContain('Нет');
     expect(stat.textContent).toContain('заказы в Direct');
     expect(el.querySelector('.stats')?.textContent).not.toContain('Доставлено');
+  });
+
+  it('«Поделиться» в шапке — ссылка на лавку', async () => {
+    const { el, q, f } = await render(SHOP(), []);
+    q('share')!.click(); f.detectChanges();
+    const wa = (el.querySelector('[data-test="share-whatsapp"]') as HTMLAnchorElement).href;
+    expect(decodeURIComponent(wa)).toMatch(/Лавка @zebo\.style на Хариде .*\/shop\/zebo\.style$/);
   });
 });

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, of, Subject, switchMap } from 'rxjs';
 import { MarketApi } from '../core/market-api.service';
+import { RecentSearchesService } from '../core/recent-searches.service';
 import { SearchSuggestions } from '../core/models';
 import { IconComponent } from './icon.component';
 import { MoneyPipe } from './money.pipe';
@@ -13,6 +14,9 @@ import { ShopAvatarComponent } from './shop-avatar.component';
 
 /** Ответ сервера вместе с запросом, на который он пришёл: подсветка — по нему, а не по полю. */
 interface Answer { query: string; data: SearchSuggestions }
+
+/** Пункты истории: недавний запрос и последним — «Очистить историю». */
+type HistoryOption = { kind: 'recent'; query: string } | { kind: 'clear-history' };
 
 const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
   { kind: 'shop', label: 'Лавки' },
@@ -25,6 +29,7 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
  * последней клавиши; новый ответ отменяет старый запрос, а пока он идёт — виден прежний список.
  * Ошибка сервера подсказки просто прячет: искать по Enter можно всегда.
  * Клавиатура как у combobox: ↑/↓ — пункты по кругу, Enter — выбранный пункт или полный поиск, Esc — закрыть.
+ * В пустом поле вместо подсказок — недавние запросы из этого браузера; Delete убирает выбранный.
  */
 @Component({
   selector: 'app-search-box',
@@ -51,7 +56,29 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
     </form>
 
     <div id="search-suggest" class="panel" role="listbox" aria-label="Подсказки поиска" [hidden]="!visible()" (mousedown)="$event.preventDefault()">
-      @if (visible()) {
+      @if (history()) {
+        <div class="group" role="group" aria-label="Недавние запросы" data-test="recent-searches">
+          <p class="group-label" aria-hidden="true">Недавние запросы</p>
+          @for (r of recent.items(); track r; let i = $index) {
+            <div class="recent">
+              <a class="opt" role="option" tabindex="-1" data-test="recent-search" [id]="'sg-' + i" [attr.aria-selected]="i === active()"
+                [class.is-active]="i === active()" routerLink="/search" [queryParams]="{ q: r }" (click)="picked()" (mousemove)="active.set(i)">
+                <app-icon class="hist-ico" name="history" [size]="18" />
+                <span class="txt"><span class="title">{{ r }}</span></span>
+              </a>
+              <!-- С клавиатуры и в скринридере запрос убирает Delete, поэтому кнопка от них скрыта -->
+              <button type="button" class="forget" tabindex="-1" aria-hidden="true" data-test="forget-search" [title]="'Удалить «' + r + '» из истории'" (click)="forget(r)">
+                <app-icon name="x" [size]="16" />
+              </button>
+            </div>
+          }
+        </div>
+        <div class="opt opt--clear" role="option" tabindex="-1" data-test="clear-history" [id]="'sg-' + recent.items().length"
+          [attr.aria-selected]="recent.items().length === active()" [class.is-active]="recent.items().length === active()"
+          (click)="clearHistory()" (mousemove)="active.set(recent.items().length)">
+          <span class="txt"><span class="title">Очистить историю</span></span>
+        </div>
+      } @else if (visible()) {
         @if (empty()) {
           <p class="empty">Ничего не нашлось — попробуйте иначе</p>
         }
@@ -128,6 +155,13 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
     .price { flex-shrink: 0; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap }
     .opt--all { color: var(--color-lapis); font-weight: 600 }
     .opt--all .chev { margin-left: auto }
+    /* Недавние запросы: крестик справа поверх строки, сама строка — ссылка на поиск */
+    .recent { position: relative }
+    .recent .opt { padding-right: 48px }
+    .hist-ico { color: var(--color-ink-soft) }
+    .forget { position: absolute; top: 50%; right: 6px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; color: var(--color-ink-soft); transform: translateY(-50%) }
+    @media (hover: hover) { .forget:hover { background: var(--color-line); color: var(--color-ink) } }
+    .opt--clear { margin-top: 4px; border-top: 1px solid var(--color-mist); border-radius: 0 0 8px 8px; color: var(--color-ink-soft); font-size: 14px; font-weight: 600 }
     /* Телефон: список до нижней панели вкладок, не под ней */
     @media (max-width: 640px) {
       .panel { max-height: calc(100dvh - 140px - var(--tabbar-h)) }
@@ -136,6 +170,7 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
 })
 export class SearchBoxComponent {
   private readonly api = inject(MarketApi);
+  protected readonly recent = inject(RecentSearchesService);
   private readonly router = inject(Router);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
@@ -156,14 +191,28 @@ export class SearchBoxComponent {
     return GROUPS.map((g) => ({ ...g, items: items.filter((it) => it.opt.kind === g.kind) })).filter((g) => g.items.length);
   });
   readonly empty = computed(() => this.options().length === 1);
-  readonly visible = computed(() => this.open() && this.answer() !== null && this.q().trim().length >= SUGGEST_MIN_LENGTH);
+  /** Поле пустое и есть история — показываем её вместо подсказок. */
+  readonly history = computed(() => this.open() && !this.q().trim() && this.recent.items().length > 0);
+  private readonly historyOptions = computed((): HistoryOption[] => [
+    ...this.recent.items().map((query): HistoryOption => ({ kind: 'recent', query })),
+    { kind: 'clear-history' },
+  ]);
+  /** То, по чему ходят стрелками сейчас: история или подсказки. */
+  private readonly current = computed((): (SuggestOption | HistoryOption)[] => (this.history() ? this.historyOptions() : this.options()));
+  private readonly suggesting = computed(() => this.open() && this.answer() !== null && this.q().trim().length >= SUGGEST_MIN_LENGTH);
+  readonly visible = computed(() => this.history() || this.suggesting());
   readonly announce = computed(() => {
+    if (this.history()) {
+      const n = this.recent.items().length;
+      return `${n} ${plural(n, ['недавний запрос', 'недавних запроса', 'недавних запросов'])}`;
+    }
     if (!this.visible()) return '';
     const n = this.options().length - 1;
     return n ? `${n} ${plural(n, ['подсказка', 'подсказки', 'подсказок'])}` : 'Ничего не нашлось';
   });
 
   constructor() {
+    this.recent.hydrate();
     this.typed$.pipe(
       map((v) => v.trim()),
       debounceTime(SUGGEST_DEBOUNCE_MS),
@@ -181,13 +230,19 @@ export class SearchBoxComponent {
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), takeUntilDestroyed()).subscribe((e) => {
       const tree = this.router.parseUrl(e.urlAfterRedirects);
       const path = tree.root.children['primary']?.segments.map((s) => s.path).join('/');
-      if (path === 'search') this.q.set(tree.queryParams['q'] ?? '');
+      if (path !== 'search') return;
+      const q = tree.queryParams['q'] ?? '';
+      this.q.set(q);
+      // В историю — любой открытый поиск: из поля, из «Все результаты», по ссылке или «назад»
+      if (typeof q === 'string' && q.trim()) this.recent.add(q);
     });
   }
 
   marks(label: string) { return highlight(label, this.query()); }
 
   onInput(value: string): void {
+    // История и подсказки — разные списки: выбранный пункт одного в другом ничего не значит
+    if (!value.trim() !== !this.q().trim()) this.active.set(-1);
     this.q.set(value);
     this.open.set(true);
     this.typed$.next(value);
@@ -199,14 +254,21 @@ export class SearchBoxComponent {
       case 'ArrowUp':
         e.preventDefault();
         if (!this.visible()) { this.open.set(true); return; }
-        this.active.set(moveActive(this.active(), e.key === 'ArrowDown' ? 1 : -1, this.options().length));
+        this.active.set(moveActive(this.active(), e.key === 'ArrowDown' ? 1 : -1, this.current().length));
         this.scrollToActive();
         return;
       case 'Enter': {
-        const opt = this.visible() ? this.options()[this.active()] : undefined;
+        const opt = this.visible() ? this.current()[this.active()] : undefined;
         if (!opt) return; // обычная отправка формы — полный поиск
         e.preventDefault();
         this.go(opt);
+        return;
+      }
+      case 'Delete': {
+        const opt = this.history() ? this.current()[this.active()] : undefined;
+        if (opt?.kind !== 'recent') return;
+        e.preventDefault();
+        this.forget(opt.query);
         return;
       }
       case 'Escape':
@@ -228,6 +290,20 @@ export class SearchBoxComponent {
     this.field().nativeElement.focus();
   }
 
+  /** Убрать запрос из истории; выбор остаётся на той же строке — теперь на следующем запросе. */
+  forget(query: string): void {
+    this.recent.remove(query);
+    const last = this.recent.items().length; // индекс «Очистить историю»
+    if (this.active() > last) this.active.set(last);
+    this.field().nativeElement.focus();
+  }
+
+  clearHistory(): void {
+    this.recent.clear();
+    this.active.set(-1);
+    this.field().nativeElement.focus();
+  }
+
   /** Клик по пункту: переход делает routerLink, здесь — закрыть и убрать клавиатуру телефона. */
   picked(): void {
     this.close();
@@ -240,9 +316,11 @@ export class SearchBoxComponent {
     if (!next || !this.host.nativeElement.contains(next)) this.close();
   }
 
-  private go(opt: SuggestOption): void {
+  private go(opt: SuggestOption | HistoryOption): void {
+    if (opt.kind === 'clear-history') { this.clearHistory(); return; }
     this.picked();
-    if (opt.kind === 'all') this.router.navigate(opt.link, { queryParams: { q: opt.query } });
+    if (opt.kind === 'recent') this.router.navigate(['/search'], { queryParams: { q: opt.query } });
+    else if (opt.kind === 'all') this.router.navigate(opt.link, { queryParams: { q: opt.query } });
     else this.router.navigate(opt.link);
   }
 

@@ -20,6 +20,8 @@ export class ProductFeed {
   readonly failed = signal(false);
   /** Сервер вернул неполную страницу (или запроса нет) — догружать нечего. */
   readonly done = signal(true);
+  /** Идёт обновление жестом «потянуть вниз»: прежние карточки остаются, пока не придёт свежая первая страница. */
+  readonly refreshing = signal(false);
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.sub?.unsubscribe());
@@ -32,8 +34,31 @@ export class ProductFeed {
     this.items.set([]);
     this.loading.set(false);
     this.failed.set(false);
+    this.refreshing.set(false);
     this.done.set(query === null);
     this.more();
+  }
+
+  /**
+   * Обновить ленту, не очищая её: первая страница по тому же запросу заменяет список, когда придёт.
+   * Подгрузка, что шла в этот момент, отменяется (список всё равно заменяется). Ошибка сети —
+   * прежняя лента остаётся как есть. Повторный вызов во время обновления игнорируется.
+   */
+  refresh(): void {
+    const query = this.query;
+    if (!query || this.refreshing()) return;
+    this.sub?.unsubscribe();
+    this.loading.set(false);
+    this.failed.set(false);
+    this.refreshing.set(true);
+    this.sub = this.api.products({ ...query, limit: FEED_PAGE_SIZE, offset: 0 }).subscribe({
+      next: (page) => {
+        this.items.set(page);
+        this.done.set(page.length < FEED_PAGE_SIZE);
+        this.refreshing.set(false);
+      },
+      error: () => this.refreshing.set(false),
+    });
   }
 
   /** Следующая страница. Повторы на стыке страниц (новый товар сдвинул offset) отбрасываются. */

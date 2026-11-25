@@ -4,11 +4,14 @@ import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { HeaderComponent } from './shared/header.component';
 import { FooterComponent } from './shared/footer.component';
+import { OfflineBannerComponent } from './shared/offline-banner.component';
 import { isChatThread, pathOf, TabBarComponent } from './shared/tab-bar.component';
 import { AuthService } from './core/auth.service';
 import { CartService } from './core/cart.service';
 import { FavoritesService } from './core/favorites.service';
+import { RecentlyViewedService } from './core/recently-viewed.service';
 import { ChatSocket } from './core/chat-socket.service';
+import { PwaService } from './core/pwa.service';
 
 /**
  * Каркас как в прототипе: шапка, main на всю ширину (каждая страница сама задаёт контейнер .wrap,
@@ -20,8 +23,8 @@ import { ChatSocket } from './core/chat-socket.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, HeaderComponent, FooterComponent, TabBarComponent],
-  template: `<app-header [class.chat-hide]="chatThread()" /><main class="page"><router-outlet /></main>@if (!chatThread()) { <app-footer /> }<app-tab-bar />`,
+  imports: [RouterOutlet, HeaderComponent, FooterComponent, TabBarComponent, OfflineBannerComponent],
+  template: `<app-header [class.chat-hide]="chatThread()" /><main class="page"><router-outlet /></main>@if (!chatThread()) { <app-footer /> }<app-tab-bar /><app-offline-banner />`,
   styles: `
     :host { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom) }
     .page { flex: 1 }
@@ -39,12 +42,17 @@ export class AppComponent {
   constructor() {
     const cart = inject(CartService);
     const fav = inject(FavoritesService);
+    const recent = inject(RecentlyViewedService);
     const auth = inject(AuthService);
     const chat = inject(ChatSocket);
+    // Создаётся сразу: предложение установки может прийти раньше первого рендера
+    const pwa = inject(PwaService);
     // Только в браузере и после гидратации: сервер и первый рендер клиента одинаковы (пустое состояние).
     afterNextRender(() => {
       cart.hydrate();
       fav.hydrate();
+      recent.hydrate();
+      pwa.hydrate();
       auth.hydrate();
       // Сокет чата: подключается после входа, на сервере не стартует
       chat.start();

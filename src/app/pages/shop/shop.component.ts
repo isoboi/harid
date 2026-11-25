@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -9,13 +10,17 @@ import { FeedFilters, Review, Shop } from '../../core/models';
 import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
 import { FeedFiltersComponent } from '../../shared/feed-filters.component';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { SeoService } from '../../core/seo.service';
+import { shopLd, shopPath } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { followersCount, followersLabel } from '../../shared/followers';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { ShopRating, shopRating } from '../../shared/rating';
 import { ReviewsComponent } from '../../shared/reviews.component';
+import { ShareComponent } from '../../shared/share.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
+import { SkelProductsComponent } from '../../shared/skeleton.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
 type ShopTab = 'goods' | 'reviews';
@@ -25,8 +30,9 @@ const FILTERS_FROM = 8;
 @Component({
   selector: 'app-shop',
   standalone: true,
-  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent],
+  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent, ShareComponent, SkelProductsComponent, PullRefreshComponent],
   template: `
+    <app-pull-refresh [busy]="feed.refreshing()" (refresh)="feed.refresh()" />
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
     @else {
@@ -40,6 +46,7 @@ const FILTERS_FROM = 8;
                 <app-icon name="instagram" [size]="16" [stroke]="1.8" />&#64;{{ s.handle }}<span class="sr-only">(откроется Instagram)</span>
               </a>
               @if (s.bio) { <p class="bio">{{ s.bio }}</p> }
+              <app-share class="share" [path]="shopPath(s.handle)" [text]="'Лавка @' + s.handle + ' на Хариде'" />
             </div>
             <dl class="stats">
               <!-- Пункт «Оценка» есть всегда: без оценок пустое место выглядело бы как скрытый плохой рейтинг -->
@@ -77,7 +84,8 @@ const FILTERS_FROM = 8;
             <section id="panel-goods" class="panel" role="tabpanel" aria-labelledby="tab-goods" data-test="panel-goods">
               @if (showFilters()) { <app-feed-filters class="filters" [base]="base()" [value]="filters()" /> }
               @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
-              @else if (!feed.loading()) { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Пока пусто' }}</p> }
+              @else if (feed.loading()) { <app-skel-products /> }
+              @else { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Пока пусто' }}</p> }
               @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
             </section>
           } @else {
@@ -87,14 +95,24 @@ const FILTERS_FROM = 8;
           }
         </div>
       } @else {
-        <!-- Заглушка загрузки, как в прототипе: кружок-строки и сетка серых квадратов -->
-        <div class="wrap page-top" role="status">
-          <span class="sr-only">Загружаем…</span>
-          <div class="skel" style="height:36px;width:256px"></div>
-          <div class="skel" style="height:16px;width:192px;margin-top:12px"></div>
-          <div class="products" style="margin-top:32px">
-            @for (i of [1, 2, 3, 4]; track i) { <div><div class="skel" style="aspect-ratio:1;border-radius:var(--radius-photo)"></div><div class="skel" style="height:16px;width:80%;margin-top:12px"></div></div> }
+        <!-- Заглушка загрузки по форме шапки лавки: аватар, имя, @ник, три показателя, вкладки и сетка товаров -->
+        <!-- «Загрузка…» для экранных чтецов объявляет app-skel-products -->
+        <div class="wrap page-top" data-test="skel-shop">
+          <div aria-hidden="true">
+            <div class="head">
+              <span class="skel skel--round ava-skel"></span>
+              <div class="who">
+                <span class="skel skel--line name-skel"></span>
+                <span class="skel skel--line ig-skel"></span>
+              </div>
+              <div class="stats">
+                @for (n of [1, 2, 3]; track n) { <div><span class="skel skel--line dt-skel"></span><span class="skel skel--line dd-skel"></span></div> }
+              </div>
+            </div>
+            <span class="skel skel--line meta-skel"></span>
+            <div class="tabs"><span class="tab"><span class="skel skel--line tab-skel"></span></span><span class="tab"><span class="skel skel--line tab-skel"></span></span></div>
           </div>
+          <app-skel-products class="panel" />
         </div>
       }
     }
@@ -131,13 +149,26 @@ const FILTERS_FROM = 8;
     @media (prefers-reduced-motion: reduce) { .tab::after { transition: none } }
     .meta { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 20px; row-gap: 4px; font-size: 14px; color: var(--color-ink-soft) }
     .pin { display: inline-flex; align-items: center; gap: 6px }
+    /* Своей строкой под ником, а не вплотную к ссылке Instagram */
+    app-share.share { display: block; width: fit-content; margin-top: 8px }
+    /* Заглушка: размеры блоков совпадают с настоящей шапкой (аватар 112, имя 30px, ссылка 44px) */
+    .ava-skel { flex: none; width: 112px; height: 112px }
+    .name-skel { height: 30px; margin-block: 4px; width: min(256px, 80%) }
+    .ig-skel { margin-top: 19px; margin-bottom: 15px; width: 140px }
+    .dt-skel { height: 12px; width: 64px; margin-block: 3px }
+    .dd-skel { height: 20px; width: 48px; margin-top: 6px }
+    .meta-skel { margin-top: 20px; width: min(420px, 90%) }
+    .tab-skel { width: 88px; height: 17px; align-self: center }
+    app-skel-products.panel { display: block }
   `,
 })
 export class ShopComponent {
   private readonly api = inject(MarketApi);
   private readonly seo = inject(SeoService);
+  private readonly title = inject(Title);
   readonly followersCount = followersCount;
   readonly followersLabel = followersLabel;
+  readonly shopPath = shopPath;
   readonly handle = input.required<string>();
   readonly shop = signal<Shop | null>(null);
   /** Товары лавки по страницам — с фильтрами из адреса. */
@@ -167,8 +198,12 @@ export class ShopComponent {
       this.missing.set(false); this.failed.set(false); this.shop.set(null); this.reviews.set(null);
       const subs = untracked(() => [
         this.api.shop(h).subscribe({
-          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде` }); },
-          error: (e) => { if (e instanceof HttpErrorResponse && e.status === 404) this.missing.set(true); else this.failed.set(true); },
+          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде`, image: s.avatar_url || undefined, jsonLd: shopLd(s, this.seo.origin()), keepParams: ['tab'], path: shopPath(s.handle) }); },
+          error: (e) => {
+            // Теги прошлой страницы SeoService убрал при переходе; заголовок вкладки — свой
+            if (e instanceof HttpErrorResponse && e.status === 404) { this.missing.set(true); this.title.setTitle('Лавка не найдена — Харид'); }
+            else { this.failed.set(true); this.title.setTitle('Лавка не загрузилась — Харид'); }
+          },
         }),
         this.api.reviews({ shop: h }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),
       ]);

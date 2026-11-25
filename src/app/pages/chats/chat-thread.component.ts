@@ -39,7 +39,8 @@ interface Row { message: ChatMessage; day: string | null; grouped: boolean }
             </span>
           </a>
         } @else {
-          <span class="who who--wait" aria-hidden="true"><span class="ph-ava"></span><span class="ph-line"></span></span>
+          <!-- Пульс — только пока грузимся; чата нет в списке — остаётся тихая серая плашка -->
+          <span class="who who--wait" aria-hidden="true"><span class="ph-ava" [class.skel]="!loaded()"></span><span class="ph-line" [class.skel]="!loaded()"></span></span>
         }
       </header>
 
@@ -52,6 +53,13 @@ interface Row { message: ChatMessage; day: string | null; grouped: boolean }
             <app-shop-avatar [name]="s.name" [color]="s.avatar_color" [handle]="s.handle" [size]="64" />
             <p class="intro-name">{{ s.name }}</p>
             <p class="intro-note">Начало переписки с лавкой &#64;{{ s.handle }}. Ответы продавца приходят сюда же.</p>
+          </div>
+        }
+        @if (!loaded()) {
+          <!-- Заглушка переписки: пузыри лавки слева и свои справа, как в настоящей ленте -->
+          <div class="skel-feed" role="status" data-test="skel-thread">
+            <span class="sr-only">Загрузка…</span>
+            @for (b of skeleton; track $index) { <span class="skel bubble-skel" aria-hidden="true" [class.mine]="b.mine" [style.width.%]="b.w"></span> }
           </div>
         }
         @for (r of rows(); track r.message.id) {
@@ -92,6 +100,9 @@ interface Row { message: ChatMessage; day: string | null; grouped: boolean }
     .who-handle { overflow: hidden; font-size: 13px; line-height: 1.3; color: var(--color-ink-soft); text-overflow: ellipsis; white-space: nowrap }
     .ph-ava { width: 46px; height: 46px; border-radius: 50%; background: var(--color-mist) }
     .ph-line { width: 140px; height: 14px; border-radius: 7px; background: var(--color-mist) }
+    .skel-feed { display: flex; flex-direction: column }
+    .bubble-skel { align-self: flex-start; max-width: 480px; height: 36px; margin-top: 10px; border-radius: 18px 18px 18px 6px }
+    .bubble-skel.mine { align-self: flex-end; border-radius: 18px 18px 6px 18px }
 
     /* Мало сообщений — прижаты к полю ввода, как в мессенджере */
     .feed { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px 16px 8px }
@@ -135,6 +146,8 @@ export class ChatThreadComponent implements OnInit {
   readonly failed = signal(false);
   readonly error = signal('');
   readonly hasOlder = signal(false);
+  /** Пузыри заглушки переписки: чья сторона и ширина. */
+  readonly skeleton = [{ mine: false, w: 55 }, { mine: true, w: 40 }, { mine: false, w: 65 }, { mine: true, w: 50 }, { mine: false, w: 35 }];
 
   /** Подпись дня — у первого сообщения дня; серия — подряд одна сторона в пределах дня. */
   readonly rows = computed<Row[]>(() => {

@@ -8,12 +8,15 @@ import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
 import { FeedFiltersComponent } from '../../shared/feed-filters.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
+import { SkelProductsComponent } from '../../shared/skeleton.component';
 
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [ProductCardComponent, FeedMoreComponent, FeedFiltersComponent],
+  imports: [ProductCardComponent, FeedMoreComponent, FeedFiltersComponent, SkelProductsComponent, PullRefreshComponent],
   template: `
+    <app-pull-refresh [busy]="feed.refreshing()" (refresh)="feed.refresh()" />
     <div class="wrap page-top">
       @if (!q()) { <p class="muted">Введите запрос</p> }
       @else {
@@ -21,7 +24,8 @@ import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
         <app-feed-filters class="filters" [base]="base()" [value]="filters()" />
         <div class="list">
           @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
-          @else if (!feed.loading()) { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Ничего не нашлось' }}</p> }
+          @else if (feed.loading()) { <app-skel-products /> }
+          @else { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Ничего не нашлось' }}</p> }
           @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
         </div>
       }
@@ -42,7 +46,7 @@ export class SearchComponent {
     const seo = inject(SeoService);
     effect(() => {
       const q = this.q();
-      seo.set({ title: q ? `«${q}» — поиск на Хариде` : 'Поиск — Харид', description: 'Поиск по товарам Instagram-лавок Таджикистана' });
+      seo.set({ title: q ? `«${q}» — поиск на Хариде` : 'Поиск — Харид', description: 'Поиск по товарам Instagram-лавок Таджикистана', noindex: true, keepParams: ['q'] });
     });
     // Новый запрос или фильтры — результаты с начала; пустой запрос — без запроса
     effect(() => {

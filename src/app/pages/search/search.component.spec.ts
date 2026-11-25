@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { SearchComponent } from './search.component';
@@ -39,6 +41,18 @@ describe('SearchComponent: подгрузка результатов', () => {
     };
     return { f, el, spy, scrollToEnd, cards: () => el.querySelectorAll('app-product-card').length };
   }
+
+  it('«потянуть вниз»: результаты того же запроса обновляются с первой страницы', async () => {
+    let fresh = false;
+    const { f, spy, scrollToEnd, cards } = await render('платье', (q) => of(page((fresh ? 1000 : 0) + (q.offset ?? 0), FEED_PAGE_SIZE)));
+    scrollToEnd();
+    expect(cards()).toBe(FEED_PAGE_SIZE * 2);
+    fresh = true;
+    f.debugElement.query(By.directive(PullRefreshComponent)).componentInstance.refresh.emit();
+      f.detectChanges();
+    expect(spy).toHaveBeenLastCalledWith({ q: 'платье', limit: FEED_PAGE_SIZE, offset: 0 });
+    expect(cards()).toBe(FEED_PAGE_SIZE);
+  });
 
   it('догружает следующую страницу результатов того же запроса', async () => {
     const { spy, scrollToEnd, cards } = await render('  платье ', (q) => of(page(q.offset ?? 0, FEED_PAGE_SIZE)));

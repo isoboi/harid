@@ -1,12 +1,16 @@
 import { TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
+import { By, Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { buyBarVisible, ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
+import { FlyToCart } from '../../core/fly-to-cart.service';
 import { FavoritesService } from '../../core/favorites.service';
+import { HAPTIC } from '../../core/haptics.service';
+import { RecentlyViewedService } from '../../core/recently-viewed.service';
+import { PLATFORM_ID } from '@angular/core';
 import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { Product, Review } from '../../core/models';
 
@@ -23,6 +27,18 @@ async function render(p: Product, reviews: Review[] = []) {
 
 describe('ProductComponent', () => {
   beforeEach(() => localStorage.clear());
+  it('товар не найден или не загрузился — свой заголовок вкладки, а не прошлой страницы', async () => {
+    const f = await render(prod());
+    const title = TestBed.inject(Title);
+    title.setTitle('@lola — Харид');
+    f.api.product.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+    f.componentRef.setInput('id', '999'); f.detectChanges();
+    expect(title.getTitle()).toBe('Товар не найден — Харид');
+    f.api.product.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 502 })));
+    f.componentRef.setInput('id', '998'); f.detectChanges();
+    expect(title.getTitle()).toBe('Товар не загрузился — Харид');
+    TestBed.resetTestingModule();
+  });
   it('«Написать продавцу» ведёт в новый чат с лавкой и товаром', async () => {
     const f = await render(prod());
     const a = (f.nativeElement as HTMLElement).querySelector('[data-test="write-seller"]') as HTMLAnchorElement;
@@ -91,6 +107,68 @@ describe('ProductComponent', () => {
     f.detectChanges();
     expect(el.querySelector('[data-test="video"]')).toBeNull();
   });
+  describe('галерея: свайп, фото на весь экран, «Поделиться»', () => {
+    /** В jsdom нет PointerEvent: собираем из MouseEvent с нужными полями. */
+    const ptr = (type: string, x: number, y = 100, pointerType = 'touch') => {
+      const e = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true });
+      Object.defineProperties(e, { pointerId: { value: 1 }, pointerType: { value: pointerType }, isPrimary: { value: true } });
+      return e;
+    };
+    const swipe = (f: Awaited<ReturnType<typeof render>>, from: number, to: number, pointerType = 'touch') => {
+      const main = (f.nativeElement as HTMLElement).querySelector('.main') as HTMLElement;
+      main.dispatchEvent(ptr('pointerdown', from, 100, pointerType));
+      main.dispatchEvent(ptr('pointermove', (from + to) / 2, 100, pointerType));
+      main.dispatchEvent(ptr('pointermove', to, 100, pointerType));
+      main.dispatchEvent(ptr('pointerup', to, 100, pointerType));
+      f.detectChanges();
+    };
+    const mainSrc = (f: Awaited<ReturnType<typeof render>>) => ((f.nativeElement as HTMLElement).querySelector('.main img') as HTMLImageElement).getAttribute('src');
+
+    it('свайп пальцем листает фото, счётчик «2 / 2»; мышью — нет', async () => {
+      const f = await render(prod());
+      const el = f.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-test="photo-count"]')?.textContent?.trim()).toBe('1 / 2');
+      swipe(f, 300, 150, 'mouse');
+      expect(mainSrc(f)).toBe('a.jpg');
+      swipe(f, 300, 150);
+      expect(mainSrc(f)).toBe('b.jpg');
+      expect(el.querySelector('[data-test="photo-count"]')?.textContent?.trim()).toBe('2 / 2');
+      swipe(f, 150, 300);
+      expect(mainSrc(f)).toBe('a.jpg');
+    });
+
+    it('нажатие на фото открывает просмотр на весь экран; закрыли на другом фото — галерея на нём', async () => {
+      const f = await render(prod());
+      const el = f.nativeElement as HTMLElement;
+      (el.querySelector('[data-test="open-viewer"]') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(el.querySelector('app-photo-viewer')).not.toBeNull();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      f.detectChanges();
+      expect(el.querySelector('app-photo-viewer')).toBeNull();
+      expect(mainSrc(f)).toBe('b.jpg');
+    });
+
+    it('после свайпа click не открывает просмотр', async () => {
+      const f = await render(prod());
+      const el = f.nativeElement as HTMLElement;
+      swipe(f, 300, 150);
+      (el.querySelector('[data-test="open-viewer"]') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(el.querySelector('app-photo-viewer')).toBeNull();
+    });
+
+    it('«Поделиться» — ссылка на товар с названием и ценой', async () => {
+      const f = await render(prod());
+      const el = f.nativeElement as HTMLElement;
+      (el.querySelector('[data-test="share"]') as HTMLButtonElement).click();
+      f.detectChanges();
+      const tg = new URL((el.querySelector('[data-test="share-telegram"]') as HTMLAnchorElement).href);
+      expect(tg.searchParams.get('url')).toMatch(/\/product\/16$/);
+      expect(tg.searchParams.get('text')).toContain('Наушники — 540');
+    });
+  });
   describe('вертикальный просмотр видео (как в Instagram)', () => {
     const open = async (p: Product) => {
       jest.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
@@ -137,6 +215,15 @@ describe('ProductComponent', () => {
       expect(TestBed.inject(CartService).count()).toBe(1);
       expect(t.q('reel-cta').textContent?.trim()).toBe('Перейти в корзину');
       expect(t.q('reel-cta').getAttribute('href')).toBe('/cart');
+    });
+
+    it('в просмотре товар кладётся без полёта: корзины под ним не видно', async () => {
+      const t = await open(prod({ video: 'v.mp4' }));
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly');
+      t.q('reel-cta').click();
+      t.f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(1);
+      expect(fly).not.toHaveBeenCalled();
     });
 
     it('нет в наличии — кнопка выключена', async () => {
@@ -312,6 +399,19 @@ describe('ProductComponent', () => {
     expect(text).toContain('Второй');
     expect(text).not.toContain('Первый');
   });
+  it('до ответа — заглушка страницы, после — товар', async () => {
+    const res = new Subject<Product>();
+    const api = { product: jest.fn(() => res), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+    await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+    const f = TestBed.createComponent(ProductComponent);
+    f.componentRef.setInput('id', '1'); f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-test="skel-product"]')).not.toBeNull();
+    expect(el.querySelector('h1')).toBeNull();
+    res.next(prod({ id: '1', title: 'Платье' })); f.detectChanges();
+    expect(el.querySelector('[data-test="skel-product"]')).toBeNull();
+    expect(el.querySelector('h1')?.textContent).toContain('Платье');
+  });
   it('500 — не 404, а сообщение об ошибке', async () => {
     const api = { product: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 500 }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
     await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
@@ -337,6 +437,51 @@ describe('ProductComponent', () => {
     expect(el.querySelector('app-not-found')).not.toBeNull();
     expect(el.textContent).not.toContain('Не удалось загрузить');
   });
+  describe('полёт в корзину', () => {
+    it('«В корзину» запускает полёт: сначала от фото, запасной источник — нажатая кнопка', async () => {
+      const f = await render(prod());
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly').mockImplementation(() => undefined);
+      const el: HTMLElement = f.nativeElement;
+      const btn = el.querySelector('[data-test="add"]') as HTMLButtonElement;
+      btn.click();
+      f.detectChanges();
+      expect(fly).toHaveBeenCalledTimes(1);
+      expect(fly).toHaveBeenCalledWith(el.querySelector('.main'), btn);
+    });
+
+    it('липкая панель покупки: запасной источник — её кнопка', async () => {
+      const f = await render(prod());
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly').mockImplementation(() => undefined);
+      const el: HTMLElement = f.nativeElement;
+      const bar = el.querySelector('[data-test="buybar"] .bar-btn') as HTMLButtonElement;
+      bar.click();
+      f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(1);
+      expect(fly).toHaveBeenCalledWith(el.querySelector('.main'), bar);
+    });
+
+    it('корзина на лимите — товар не добавлен и не «летит»', async () => {
+      localStorage.clear();
+      const f = await render(prod({ id: '99' }));
+      const cart = TestBed.inject(CartService);
+      for (let n = 1; n <= 30; n++) cart.add(prod({ id: String(n) }), null);
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly').mockImplementation(() => undefined);
+      (f.nativeElement.querySelector('[data-test="add"]') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(cart.items().length).toBe(30);
+      expect(fly).not.toHaveBeenCalled();
+    });
+
+    it('не выбран размер — ничего не добавлено и не «летит»', async () => {
+      const f = await render(prod({ sizes: ['S', 'M'] }));
+      const fly = jest.spyOn(TestBed.inject(FlyToCart), 'fly').mockImplementation(() => undefined);
+      ((f.nativeElement as HTMLElement).querySelector('[data-test="buybar"] .bar-btn') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(TestBed.inject(CartService).count()).toBe(0);
+      expect(fly).not.toHaveBeenCalled();
+    });
+  });
+
   it('корзина на лимите 30 строк — «В корзину» не добавляет и показывает сообщение', async () => {
     localStorage.clear();
     const api = { product: jest.fn(() => of(prod({ id: '99' }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
@@ -349,6 +494,51 @@ describe('ProductComponent', () => {
     f.detectChanges();
     expect(cart.items().length).toBe(30);
     expect(f.nativeElement.textContent).toContain('В корзине уже 30 позиций — оформите заказ или уберите лишнее');
+  });
+
+  describe('вибрация', () => {
+    afterEach(() => { delete (navigator as { vibrate?: unknown }).vibrate; });
+    const spyVibrate = () => {
+      const spy = jest.fn(() => true);
+      Object.defineProperty(navigator, 'vibrate', { configurable: true, value: spy });
+      return spy;
+    };
+    const click = (f: { nativeElement: unknown; detectChanges(): void }, test: string) => {
+      ((f.nativeElement as HTMLElement).querySelector(`[data-test="${test}"]`) as HTMLButtonElement).click();
+      f.detectChanges();
+    };
+
+    it('товар лёг в корзину — короткая вибрация успеха', async () => {
+      const spy = spyVibrate();
+      const f = await render(prod());
+      click(f, 'add');
+      expect(TestBed.inject(CartService).count()).toBe(1);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(HAPTIC.success);
+    });
+
+    it('корзина на лимите — вибрация отказа, а не успеха', async () => {
+      localStorage.clear();
+      const spy = spyVibrate();
+      const f = await render(prod({ id: '99' }));
+      const cart = TestBed.inject(CartService);
+      for (let n = 1; n <= 30; n++) cart.add(prod({ id: String(n) }), null);
+      click(f, 'add');
+      expect(cart.items().length).toBe(30);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith([20, 50, 20]);
+    });
+
+    it('«В избранное» вибрирует при добавлении, а при удалении молчит', async () => {
+      const spy = spyVibrate();
+      const f = await render(prod());
+      const fav = (f.nativeElement as HTMLElement).querySelector('.fav') as HTMLButtonElement;
+      fav.click(); f.detectChanges();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(HAPTIC.light);
+      fav.click(); f.detectChanges();
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('липкая панель покупки (телефон)', () => {
@@ -432,6 +622,47 @@ describe('ProductComponent', () => {
       expect(el.querySelector('[data-test="size-hint"]')).toBeNull();
       barBtn(f).click();
       expect(TestBed.inject(CartService).items()[0].size).toBe('M');
+    });
+  });
+
+  describe('недавно просмотренные', () => {
+    const failing = (status: number) => ({ product: jest.fn(() => throwError(() => new HttpErrorResponse({ status }))), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => of(null)) });
+    async function renderWith(api: object, extra: object[] = []) {
+      await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }, ...extra] }).compileComponents();
+      const f = TestBed.createComponent(ProductComponent);
+      f.componentRef.setInput('id', '16');
+      f.detectChanges();
+      return f;
+    }
+    it('загруженный товар попадает в недавно просмотренные', async () => {
+      await render(prod());
+      expect(TestBed.inject(RecentlyViewedService).items().map((i) => i.id)).toEqual(['16']);
+    });
+    it('на сервере просмотр не записывается', async () => {
+      const api = { product: jest.fn(() => of(prod())), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => of(null)) };
+      await renderWith(api, [{ provide: PLATFORM_ID, useValue: 'server' }]);
+      expect(TestBed.inject(RecentlyViewedService).items()).toEqual([]);
+    });
+    it('товар не найден (404) — убирается из недавно просмотренных', async () => {
+      TestBed.configureTestingModule({});
+      TestBed.inject(RecentlyViewedService).add(prod({ id: '17' }));
+      TestBed.inject(RecentlyViewedService).add(prod());
+      TestBed.resetTestingModule();
+      await renderWith(failing(404));
+      const recent = TestBed.inject(RecentlyViewedService);
+      recent.hydrate();
+      // Убран только ненайденный товар — и в памяти, и в хранилище
+      expect(recent.items().map((i) => i.id)).toEqual(['17']);
+      expect(JSON.parse(localStorage.getItem('harid.recent')!).map((i: { id: string }) => i.id)).toEqual(['17']);
+    });
+    it('ошибка сети (500) историю не трогает', async () => {
+      TestBed.configureTestingModule({});
+      TestBed.inject(RecentlyViewedService).add(prod());
+      TestBed.resetTestingModule();
+      await renderWith(failing(500));
+      const recent = TestBed.inject(RecentlyViewedService);
+      recent.hydrate();
+      expect(recent.items().map((i) => i.id)).toEqual(['16']);
     });
   });
 });

@@ -33,7 +33,27 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
   template: `
     <div class="wrap page-top">
       <h1 class="page-title head">Мои заказы</h1>
-      @if (!auth.ready()) { <p class="muted">Загрузка…</p> }
+      <!-- Заглушка и до чтения сессии, и пока список заказов не пришёл: строки в той же сетке, что настоящие -->
+      @if (!auth.ready() || (!loaded() && !error())) {
+        <div class="group" role="status" data-test="skel-orders">
+          <span class="sr-only">Загрузка…</span>
+          <ul class="list" aria-hidden="true">
+            @for (n of [1, 2, 3]; track n) {
+              <li>
+                <div class="row">
+                  <div class="thumbs">@for (t of [1, 2, 3]; track t) { <span class="thumb skel"></span> }</div>
+                  <div class="body">
+                    <span class="skel skel--line top-skel"></span>
+                    <span class="skel skel--line what-skel"></span>
+                    <span class="skel skel--line meta-skel"></span>
+                  </div>
+                  <div class="end"><span class="skel skel--line sum-skel"></span></div>
+                </div>
+              </li>
+            }
+          </ul>
+        </div>
+      }
       @else {
         @if (error()) { <p class="error">{{ error() }}</p> }
         @if (loaded() && !orders().length && !error()) {
@@ -131,6 +151,12 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
       .what { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical }
     }
     .out { margin-top: 40px }
+    /* Заглушка: на фоне mist превью обведены как настоящие, строки текста — по их высоте */
+    .thumb.skel { border-radius: 12px }
+    .top-skel { width: 140px; margin-block: 3px }
+    .what-skel { width: min(320px, 85%); height: 16px; margin-top: 10px }
+    .meta-skel { width: 160px; height: 12px; margin-top: 9px }
+    .sum-skel { width: 80px; height: 16px }
   `,
 })
 export class MyOrdersComponent {

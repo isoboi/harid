@@ -4,8 +4,10 @@ import { RouterLink } from '@angular/router';
 import { CartItem, CartService, MAX_QTY } from '../../core/cart.service';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { IconComponent } from '../../shared/icon.component';
+import { RecentStripComponent } from '../../shared/recent-strip.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { plural } from '../../shared/plural';
+import { SkelSummaryComponent } from '../../shared/skeleton.component';
 
 const money = new MoneyPipe();
 /** Сколько висит плашка «Товар убран · Вернуть». */
@@ -15,7 +17,7 @@ const UNDO_MS = 6000;
 @Component({
   selector: 'app-cart',
   standalone: true,
-  imports: [RouterLink, MoneyPipe, IconComponent],
+  imports: [RouterLink, MoneyPipe, IconComponent, RecentStripComponent, SkelSummaryComponent],
   template: `
     <div class="wrap page-top">
       <h1 class="page-title head">Корзина</h1>
@@ -25,7 +27,31 @@ const UNDO_MS = 6000;
           <p class="undo" data-test="undo"><span>Товар убран</span><span class="dot" aria-hidden="true">·</span><button type="button" class="undo-btn" (click)="restoreRemoved()">Вернуть</button></p>
         }
       </div>
-      @if (!cart.ready()) { <p class="muted">Загрузка…</p> }
+      @if (!cart.ready()) {
+        <!-- Заглушка до чтения корзины из браузера: лавка с двумя строками и сводка справа -->
+        <div class="layout" role="status" data-test="skel-cart">
+          <span class="sr-only">Загрузка…</span>
+          <div class="groups" aria-hidden="true">
+            <section>
+              <span class="skel skel--line shop-skel"></span>
+              <span class="skel skel--line note-skel"></span>
+              <div class="rows">
+                @for (n of [1, 2]; track n) {
+                  <div class="row">
+                    <span class="skel thumb"></span>
+                    <div class="body">
+                      <span class="skel skel--line t-skel"></span>
+                      <span class="skel skel--line t-skel t-skel--short"></span>
+                      <div class="foot"><span class="skel qty-skel"></span><span class="skel skel--line sum-skel"></span></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </section>
+          </div>
+          <app-skel-summary class="side" />
+        </div>
+      }
       @else if (!cart.count()) {
         <div class="empty">
           <p>В корзине пока пусто. Загляните в лавки — новые товары появляются каждый день.</p>
@@ -80,10 +106,13 @@ const UNDO_MS = 6000;
           </aside>
         </div>
       }
+      <!-- «Вы смотрели» под содержимым корзины; то, что уже в корзине, не повторяем -->
+      @if (cart.ready()) { <app-recent-strip class="recent" [exclude]="inCart()" /> }
     </div>
   `,
   styles: `
     .head { margin-bottom: 32px }
+    .recent:has(section) { margin-top: 20px }
     .undo-slot:empty { display: none }
     .undo { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; padding-left: 16px; border-radius: 10px; background: var(--color-ink); color: var(--color-paper); font-size: 15px }
     .dot { opacity: .6 }
@@ -118,6 +147,13 @@ const UNDO_MS = 6000;
     .n { width: 32px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums }
     .sum { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap }
     .promise { margin-top: 20px; font-size: 14px }
+    /* Заглушка загрузки: строки в размер настоящих (превью 96, степпер 44px) */
+    .shop-skel { width: 120px; height: 16px; margin-block: 2px }
+    .note-skel { width: 210px; height: 12px; margin-top: 4px }
+    .t-skel { width: 80%; margin-top: 5px }
+    .t-skel--short { width: 50%; margin-top: 8px }
+    .qty-skel { width: 122px; height: 46px }
+    .sum-skel { width: 72px }
     /* Телефон: текстовые ссылки получают поле нажатия 44px без сдвига вёрстки */
     @media (max-width: 639.98px) { .t, .shop a { display: inline-block; padding-block: 10px; margin-block: -10px } }
   `,
@@ -130,6 +166,8 @@ export class CartComponent {
   /** Доставка по Душанбе за каждую лавку; пригород дороже — уточним на оформлении. */
   readonly delivery = computed(() => this.cart.deliveryTotal(DISTRICTS[0]));
   readonly suburbNote = `Доставка в ${SUBURBS.join(' и ')} — ${money.transform(deliveryFor(SUBURBS[0]))} за лавку. Точная сумма будет на следующем шаге.`;
+  /** id товаров в корзине — их полоса «Вы смотрели» не показывает. */
+  readonly inCart = computed(() => this.cart.items().map((i) => i.product.id));
   /** Последняя убранная строка и её место — для «Вернуть». */
   readonly undo = signal<{ item: CartItem; index: number } | null>(null);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));

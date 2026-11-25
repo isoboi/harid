@@ -4,6 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { AppComponent } from './app.component';
 import { CartService } from './core/cart.service';
+import { RecentlyViewedService } from './core/recently-viewed.service';
 import { Product } from './core/models';
 
 describe('AppComponent', () => {
@@ -46,6 +47,19 @@ describe('AppComponent', () => {
     f.detectChanges();
     await f.whenStable();
     expect(TestBed.inject(CartService).count()).toBe(3);
+  });
+
+  it('после первого рендера загружает «Вы смотрели» из хранилища', async () => {
+    localStorage.setItem('harid.recent', JSON.stringify([{ id: '1', shop_handle: 'a', title: 'T', price: 100, old_price: null, image: '', in_stock: true }]));
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [provideRouter([]), provideHttpClient()],
+    }).compileComponents();
+    const f = TestBed.createComponent(AppComponent);
+    expect(TestBed.inject(RecentlyViewedService).items()).toEqual([]);
+    f.detectChanges();
+    await f.whenStable();
+    expect(TestBed.inject(RecentlyViewedService).items().map((i) => i.id)).toEqual(['1']);
   });
 
   it('на обычных страницах есть нижняя панель «Основная навигация»', async () => {
