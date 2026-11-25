@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PwaService } from '../core/pwa.service';
 import { IconComponent } from './icon.component';
@@ -6,6 +6,7 @@ import { LogoComponent } from './logo.component';
 
 /** Подвал прототипа: тёмно-синий, логотип с обещанием и две колонки ссылок, внизу строка ©. */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-footer',
   standalone: true,
   imports: [RouterLink, LogoComponent, IconComponent],

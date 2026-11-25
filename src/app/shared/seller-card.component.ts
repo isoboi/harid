@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { dayMonth } from '../core/checkout-options';
 import { Shop } from '../core/models';
@@ -12,6 +12,7 @@ import { ShopAvatarComponent } from './shop-avatar.component';
  * факты о лавке и переход ко всем её товарам.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-seller-card',
   standalone: true,
   imports: [RouterLink, IconComponent, ShopAvatarComponent],

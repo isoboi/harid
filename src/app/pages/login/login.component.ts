@@ -1,4 +1,4 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { apiErrorMessage } from '../../core/api-error';
@@ -17,6 +17,7 @@ const SAFE_PATH = /^\/(?![\/\\])/;
 const safeReturn = (v: string): string => (SAFE_PATH.test(v) ? v : DEFAULT_RETURN);
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-login',
   standalone: true,
   imports: [FormsModule],

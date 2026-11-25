@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { environment } from '../../../environments/environment';
 import { apiErrorMessage } from '../../core/api-error';
@@ -8,6 +8,7 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
 
 /** Открытие лавки: ник, имя, телефон → SMS-код → лавка и кабинет в админке. */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-sell',
   standalone: true,
   imports: [ReactiveFormsModule, FormsModule],

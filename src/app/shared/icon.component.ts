@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 /** Имена иконок витрины. */
 export type IconName =
@@ -21,6 +21,7 @@ const ICON_NAMES: readonly string[] = [
  * Пути взяты из Lucide (лицензия ISC) той же версии, что в прототипе; неизвестное имя ничего не выводит.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-icon',
   standalone: true,
   template: `

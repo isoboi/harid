@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, DestroyRef, ElementRef, PLATFORM_ID, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, inject, input, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { MarketApi } from '../core/market-api.service';
 import { ToastService } from '../core/toast.service';
@@ -92,6 +92,7 @@ export class ProductFeed {
  * После ошибки сам не повторяет — показывает кнопку «Показать ещё».
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-feed-more',
   standalone: true,
   host: { class: 'more' },

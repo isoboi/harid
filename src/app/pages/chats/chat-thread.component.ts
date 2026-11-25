@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, ElementRef, inject, input, OnInit, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, input, OnInit, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -23,6 +23,7 @@ interface Row { message: ChatMessage; day: string | null; grouped: boolean }
  * На телефоне шапки сайта, вкладок и подвала здесь нет (AppComponent, TabBarComponent).
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chat-thread',
   standalone: true,
   imports: [FormsModule, RouterLink, ChatBubbleComponent, IconComponent, ShopAvatarComponent],

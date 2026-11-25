@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { amount } from './money.pipe';
 
 /**
@@ -8,6 +8,7 @@ import { amount } from './money.pipe';
  * price=null — цены нет (лавка называет её в Direct): бирка не выводится.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-price-tag',
   standalone: true,
   template: `

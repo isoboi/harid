@@ -1,4 +1,4 @@
-import { afterNextRender, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { AuthService } from '../core/auth.service';
@@ -25,6 +25,7 @@ const MORE = 12;
  * reviews — первый список от страницы (рендерится и на сервере); null — отзывы не загрузились, раздел скрыт.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-reviews',
   standalone: true,
   imports: [RouterLink, StarsComponent, IconComponent, RateItemComponent],

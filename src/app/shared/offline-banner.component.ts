@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { PwaService } from '../core/pwa.service';
 
 /**
@@ -7,6 +7,7 @@ import { PwaService } from '../core/pwa.service';
  * и возвращение сети.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-offline-banner',
   standalone: true,
   template: `

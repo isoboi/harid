@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../core/toast.service';
 import { IconComponent } from './icon.component';
@@ -9,6 +9,7 @@ import { IconComponent } from './icon.component';
  * только содержимое, так скринридер объявит каждое сообщение.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-toast',
   standalone: true,
   imports: [RouterLink, IconComponent],

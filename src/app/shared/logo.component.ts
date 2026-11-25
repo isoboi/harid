@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /** Логотип прототипа: шафрановая бирка с дырочкой, наклонённая на −6°, и слово «харид». */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-logo',
   standalone: true,
   imports: [RouterLink],

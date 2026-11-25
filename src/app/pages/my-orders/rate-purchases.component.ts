@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../../core/api-error';
 import { MarketApi } from '../../core/market-api.service';
@@ -13,6 +13,7 @@ const MAX_TEXT = 1000;
  * Уже оставленный отзыв показан с «Изменить»; повторная отправка обновляет его.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-rate-item',
   standalone: true,
   imports: [RouterLink, IconComponent, StarsComponent],
@@ -147,6 +148,7 @@ export class RateItemComponent {
 
 /** Блок «Оцените покупки» на «Моих заказах»: полученные товары из reviewable(). Пусто или ошибка — блока нет. */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-rate-purchases',
   standalone: true,
   imports: [RateItemComponent],

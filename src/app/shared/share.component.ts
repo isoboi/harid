@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, computed, ElementRef, inject, input, PLATFORM_ID, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, PLATFORM_ID, signal } from '@angular/core';
 import { SeoService } from '../core/seo.service';
 import { ToastService } from '../core/toast.service';
 import { IconComponent } from './icon.component';
@@ -20,6 +20,7 @@ let nextId = 0;
  * Ссылка полная, с адресом витрины (SeoService.origin), чтобы в мессенджере открывалась и подтягивала превью.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-share',
   standalone: true,
   imports: [IconComponent],

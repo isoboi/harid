@@ -1,8 +1,9 @@
-import { Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { IconComponent } from './icon.component';
 
 /** Пять звёзд для показа оценки, как в прототипе: закрашенные шафраном, остальные — цветом линий. */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-stars',
   standalone: true,
   imports: [IconComponent],

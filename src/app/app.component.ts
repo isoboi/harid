@@ -1,4 +1,4 @@
-import { afterNextRender, Component, computed, inject } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -22,6 +22,7 @@ import { PwaService } from './core/pwa.service';
  * сверху своя строка с лавкой, снизу поле сообщения.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, HeaderComponent, FooterComponent, TabBarComponent, OfflineBannerComponent, ToastComponent],
