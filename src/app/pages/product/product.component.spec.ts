@@ -287,6 +287,17 @@ describe('ProductComponent', () => {
     const g = await render(prod({ video: null }));
     expect((g.nativeElement as HTMLElement).querySelector('[data-test="thumb-video"]')).toBeNull();
   });
+  it('скидка у цены: «−10% · акция до 10 декабря»; без даты — только процент; без скидки — ничего', async () => {
+    const f = await render(prod({ promo_ends_at: '2026-12-10T18:59:59.000Z' }));
+    const promo = () => (f.nativeElement as HTMLElement).querySelector('.price [data-test="promo"]');
+    expect(promo()?.textContent?.replace(/\s+/g, ' ').trim()).toBe('−10% · акция до 10 декабря');
+    TestBed.resetTestingModule();
+    const g = await render(prod({ promo_ends_at: null }));
+    expect((g.nativeElement as HTMLElement).querySelector('[data-test="promo"]')?.textContent?.trim()).toBe('−10%');
+    TestBed.resetTestingModule();
+    const h = await render(prod({ old_price: null }));
+    expect((h.nativeElement as HTMLElement).querySelector('[data-test="promo"]')).toBeNull();
+  });
   it('обещание оплаты наличными стоит под ценой и над кнопками', async () => {
     const f = await render(prod());
     const el: HTMLElement = f.nativeElement;
