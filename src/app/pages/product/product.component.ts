@@ -18,6 +18,7 @@ import { productLd, productPath } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { PriceTagComponent } from '../../shared/price-tag.component';
+import { discountPercent, promoUntil } from '../../shared/promo';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { ratingLabel, ratingNumber } from '../../shared/rating';
 import { SellerCardComponent } from '../../shared/seller-card.component';
@@ -98,7 +99,12 @@ export function buyBarVisible(e: ButtonView): boolean {
             </a>
             <h1 class="title">{{ p.title }}</h1>
             @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="16" [filled]="true" />{{ ratingText() }}</p> }
-            @if (p.price !== null) { <div class="price"><app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" /></div> }
+            @if (p.price !== null) {
+              <div class="price">
+                <app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" />
+                @if (discount(); as d) { <p class="promo" data-test="promo"><span class="promo-pct">−{{ d }}%</span>@if (promoEnds()) { &ngsp;· акция {{ promoEnds() }} }</p> }
+              </div>
+            }
             @if (!direct() && p.sizes.length > 1) {
               <fieldset class="sizes" #sizes>
                 <legend>Размер</legend>
@@ -228,6 +234,8 @@ export function buyBarVisible(e: ButtonView): boolean {
     .rating .star { margin-left: 0 }
     .price { margin-top: 24px }
     .rating + .price { margin-top: 16px }
+    .promo { margin: 8px 0 0; font-size: 14px; color: var(--color-ink-soft) }
+    .promo-pct { display: inline-block; padding: 1px 8px; border-radius: 9999px; background: var(--color-anor); color: var(--color-paper); font-weight: 700 }
     .reviews { margin-top: 64px }
     .sizes { margin-top: 28px; border: 0 }
     .sizes legend { font-size: 15px; font-weight: 600 }
@@ -357,6 +365,9 @@ export class ProductComponent {
   /** Отзывы о товаре; null — ещё грузятся или не загрузились (раздел скрыт). Запрос идёт и при серверном рендере. */
   readonly reviews = signal<Review[] | null>(null);
   readonly ratingText = computed(() => { const p = this.product(); return p ? ratingLabel(p.rating, p.reviews_count) : ''; });
+  /** Скидка в процентах и последний день акции — рядом с ценой. */
+  readonly discount = computed(() => { const p = this.product(); return p ? discountPercent(p.price, p.old_price) : null; });
+  readonly promoEnds = computed(() => promoUntil(this.product()?.promo_ends_at));
 
   rating(r: number): string { return ratingNumber(r); }
 

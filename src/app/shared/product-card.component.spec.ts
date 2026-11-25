@@ -15,6 +15,18 @@ describe('ProductCardComponent', () => {
     expect(el.querySelector('[data-test="cod"]')?.textContent?.trim()).toBe('Оплата при получении');
     expect(el.querySelector('[data-test="rating"]')).toBeNull();
   });
+  it('товар со скидкой — плашка «−10%» на фото; без скидки плашки нет', async () => {
+    await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
+    const f = TestBed.createComponent(ProductCardComponent);
+    const base = { id: '16', shop_handle: 'a', title: 'Т', image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' };
+    f.componentRef.setInput('product', { ...base, price: 540, old_price: 600 });
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('.img [data-test="discount"]')?.textContent?.trim()).toBe('−10%');
+    f.componentRef.setInput('product', { ...base, price: 540, old_price: null });
+    f.detectChanges();
+    expect(el.querySelector('[data-test="discount"]')).toBeNull();
+  });
   it.each([
     [4.8, 12, '4,8 · 12 отзывов'],
     [5, 1, '5,0 · 1 отзыв'],
