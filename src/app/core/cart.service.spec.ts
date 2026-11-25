@@ -34,7 +34,19 @@ describe('CartService', () => {
     cart.add(p('1', 'a', 100), null);
     cart.add(p('2', 'a', 100, ['S', 'M']), 'M', 2);
     cart.setQty('1', null, 0);
-    expect(cart.toOrderLines()).toEqual([{ product_id: 2, size: 'M', qty: 2 }]);
+    expect(cart.toOrderLines()).toEqual([{ product_id: 2, size: 'M', qty: 2, price: 100 }]);
+  });
+  it('applyPrices — новые цены, зачёркнутая и срок во всех строках товара; сохраняется', () => {
+    cart.add({ ...p('1', 'a', 120, ['S', 'M']), old_price: 150, promo_ends_at: '2026-12-10T00:00:00.000Z' }, 'S');
+    cart.add(p('1', 'a', 120, ['S', 'M']), 'M', 2);
+    cart.add(p('2', 'a', 80), null);
+    cart.applyPrices([{ product_id: 1, price: 150, old_price: null, promo_ends_at: null }]);
+    expect(cart.items().map((i) => [i.product.id, i.product.price, i.product.old_price, i.product.promo_ends_at ?? null]))
+      .toEqual([['1', 150, null, null], ['1', 150, null, null], ['2', 80, null, null]]);
+    expect(cart.itemsTotal()).toBe(150 * 3 + 80);
+    const fresh = reopen();
+    fresh.hydrate();
+    expect(fresh.items()[0].product.price).toBe(150);
   });
   it('сохраняется в localStorage и после hydrate() читается новым экземпляром', () => {
     cart.add(p('1', 'a', 100), null, 3);

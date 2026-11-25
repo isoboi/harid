@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { BrowserStorage } from './browser-storage.service';
 import { deliveryFor } from './checkout-options';
-import { OrderLineInput, Product } from './models';
+import { ChangedPrice, OrderLineInput, Product } from './models';
 
 export interface CartItem { product: Product; size: string | null; qty: number }
 export interface CartGroup { shop_handle: string; items: CartItem[]; subtotal: number }
@@ -90,8 +90,22 @@ export class CartService {
   }
   clear(): void { this.hydrate(); this.state.set([]); this.save(); }
   deliveryTotal(district: string): number { return this.groups().length * deliveryFor(district); }
+  /** price — цена, которую видит покупатель: сервер сверяет её и при расхождении отвечает 409. */
   toOrderLines(): OrderLineInput[] {
-    return this.state().map((i) => ({ product_id: Number(i.product.id), ...(i.size ? { size: i.size } : {}), qty: i.qty }));
+    return this.state().map((i) => ({
+      product_id: Number(i.product.id), ...(i.size ? { size: i.size } : {}), qty: i.qty,
+      ...(i.product.price !== null ? { price: i.product.price } : {}),
+    }));
+  }
+  /** Цены из 409 «Цена изменилась»: обновляются все строки товара (любой вариант) и сохраняются. */
+  applyPrices(changed: ChangedPrice[]): void {
+    this.hydrate();
+    const byId = new Map(changed.map((c) => [String(c.product_id), c]));
+    this.state.update((list) => list.map((i) => {
+      const c = byId.get(i.product.id);
+      return c ? { ...i, product: { ...i.product, price: c.price, old_price: c.old_price, promo_ends_at: c.promo_ends_at } } : i;
+    }));
+    this.save();
   }
 
   private save(): void { this.store.set(KEY, this.state()); }

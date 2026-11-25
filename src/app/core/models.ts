@@ -8,7 +8,10 @@ export interface Shop { handle: string; name: string; bio: string; followers: nu
 export interface Product { id: string; shop_handle: string; title: string; price: number | null; old_price: number | null; promo_ends_at?: string | null; image: string; category: string | null; description: string; sizes: string[]; in_stock: boolean; posted_at: string; images?: string[]; rating?: number | null; reviews_count?: number; video?: string | null; permalink?: string | null; shop_verified?: boolean; direct_url?: string | null }
 export type OrderStage = 'placed' | 'assembling' | 'in_delivery' | 'delivered' | 'cancelled';
 export interface OrderCustomer { name: string; phone: string; district: string; address: string; comment?: string }
-export interface OrderLineInput { product_id: number; size?: string; qty: number }
+/** price — цена за единицу, которую видел покупатель (из корзины). */
+export interface OrderLineInput { product_id: number; size?: string; qty: number; price?: number }
+/** Строка 409 «Цена изменилась» (error.changed): цена товара на сервере сейчас. */
+export interface ChangedPrice { product_id: number; price: number; old_price: number | null; promo_ends_at: string | null }
 export interface CreateOrderInput { customer: OrderCustomer; slot: string; payment: 'cash'; lines: OrderLineInput[] }
 export interface OrderLine { product_id: string; shop_handle: string; title: string; price: number; image: string; size: string | null; qty: number }
 /** access_token приходит только в ответе POST /market/orders: им открывают заказ по ссылке без телефона. */
