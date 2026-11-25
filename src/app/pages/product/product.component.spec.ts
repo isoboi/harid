@@ -721,6 +721,16 @@ describe('ProductComponent', () => {
       expect(links(f)).toEqual(['/product/22', '/product/21']);
       expect(similarCalls(f.api)).toBe(1);
     });
+    it('единственный размер выбран сам — это не выбор покупателя, подборка по цене', async () => {
+      const list = [prod({ id: '21', shop_handle: 'other', sizes: ['S'], price: 540 }), prod({ id: '22', shop_handle: 'other', sizes: [], price: 900 })];
+      const f = await renderSimilar(prod({ sizes: ['One size'] }), () => of(list));
+      expect(links(f)).toEqual(['/product/21', '/product/22']);
+    });
+    it('верхнее положение — без класса .top обёртки страницы (у него свой padding)', async () => {
+      const f = await renderSimilar(prod({ in_stock: false }), () => of(alts));
+      expect(block(f)!.classList.contains('top')).toBe(false);
+      expect(block(f)!.classList.contains('similar--top')).toBe(true);
+    });
     it('смена товара — старая подборка не показывается', async () => {
       const stale = new Subject<Product[]>();
       const fresh = [prod({ id: '41', shop_handle: 'x' }), prod({ id: '42', shop_handle: 'x' })];

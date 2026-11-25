@@ -175,7 +175,7 @@ export function buyBarVisible(e: ButtonView): boolean {
         @if (p.in_stock && similar().length >= 2) { <ng-container *ngTemplateOutlet="similarBlock; context: { top: false }" /> }
         <!-- Похожие из других лавок — альтернатива, если этот товар не подошёл; один шаблон на оба места -->
         <ng-template #similarBlock let-top="top">
-          <section class="similar" data-test="similar" [class.top]="top">
+          <section class="similar" data-test="similar" [class.similar--top]="top">
             <h2 class="section-title">Похожие в других лавках</h2>
             <div class="products">@for (m of similar(); track m.id) { <app-product-card [product]="m" /> }</div>
           </section>
@@ -288,7 +288,7 @@ export function buyBarVisible(e: ButtonView): boolean {
     @media (hover: hover) { .ig-post:hover span { text-decoration: underline; text-underline-offset: 2px } }
     .seller-card { margin-top: 32px }
     .more, .similar { margin-top: 80px }
-    .similar.top { margin-top: 48px }
+    .similar--top { margin-top: 48px }
     .more h2, .similar h2 { margin-bottom: 20px }
     @media (hover: hover) { .more h2 a:hover { text-decoration: underline } }
     /* Телефон: «В корзину» во всю ширину, ссылка в тексте с полем нажатия 44px */
@@ -313,7 +313,8 @@ export class ProductComponent {
   readonly more = signal<Product[]>([]);
   /** Ответ API по категории как есть; подборка пересобирается при выборе размера без нового запроса. */
   private readonly similarRaw = signal<Product[]>([]);
-  readonly similar = computed(() => { const p = this.product(); return p ? rankSimilar(this.similarRaw(), p, this.size()) : []; });
+  // Единственный размер выбирается сам — это не выбор покупателя, подборку по нему не сужаем
+  readonly similar = computed(() => { const p = this.product(); return p ? rankSimilar(this.similarRaw(), p, p.sizes.length > 1 ? this.size() : null) : []; });
   readonly missing = signal(false);
   readonly photo = signal(0);
   /** Открыт вертикальный просмотр видео (как в Instagram) поверх страницы. */
