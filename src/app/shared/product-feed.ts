@@ -2,6 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { Component, DestroyRef, ElementRef, PLATFORM_ID, inject, input, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { MarketApi } from '../core/market-api.service';
+import { ToastService } from '../core/toast.service';
 import { Product, ProductQuery } from '../core/models';
 
 /** Размер страницы ленты товаров. */
@@ -13,6 +14,7 @@ export const FEED_PAGE_SIZE = 24;
  */
 export class ProductFeed {
   private readonly api = inject(MarketApi);
+  private readonly toasts = inject(ToastService);
   private query: ProductQuery | null = null;
   private sub?: Subscription;
   readonly items = signal<Product[]>([]);
@@ -57,7 +59,11 @@ export class ProductFeed {
         this.done.set(page.length < FEED_PAGE_SIZE);
         this.refreshing.set(false);
       },
-      error: () => this.refreshing.set(false),
+      error: () => {
+        this.refreshing.set(false);
+        // Без сообщения индикатор просто пропадал, и старая лента выглядела обновлённой
+        this.toasts.error('Не удалось обновить — проверьте интернет');
+      },
     });
   }
 

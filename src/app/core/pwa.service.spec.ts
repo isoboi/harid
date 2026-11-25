@@ -1,6 +1,7 @@
 import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PwaService } from './pwa.service';
+import { ToastService } from './toast.service';
 
 /** Событие beforeinstallprompt, как его шлёт Chrome. */
 function installEvent(outcome: 'accepted' | 'dismissed' = 'accepted') {
@@ -70,5 +71,22 @@ describe('PwaService', () => {
     window.dispatchEvent(installEvent());
     expect(s.online()).toBe(true);
     expect(s.canInstall()).toBe(false);
+  });
+
+  it('«Снова в сети» — только когда сеть вернулась после пропажи', () => {
+    const s = make();
+    const toast = TestBed.inject(ToastService);
+    s.hydrate();
+    window.dispatchEvent(new Event('online'));
+    expect(toast.current()).toBeNull();
+    window.dispatchEvent(new Event('offline'));
+    window.dispatchEvent(new Event('online'));
+    expect(toast.current()?.text).toBe('Снова в сети');
+  });
+
+  it('после установки — плашка «Харид установлен»', () => {
+    make().hydrate();
+    window.dispatchEvent(new Event('appinstalled'));
+    expect(TestBed.inject(ToastService).current()?.text).toContain('Харид установлен');
   });
 });

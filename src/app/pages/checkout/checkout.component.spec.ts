@@ -39,7 +39,7 @@ describe('CheckoutComponent', () => {
     c.submit();
     expect(placeOrder).toHaveBeenCalledWith({
       customer: { name: 'Фаррух', phone: '931110002', district: 'Сино', address: 'ул. Рудаки 10' },
-      slot: 'Сегодня, 18:00–21:00', payment: 'cash', lines: [{ product_id: 16, qty: 2 }],
+      slot: 'Сегодня, 18:00–21:00', payment: 'cash', lines: [{ product_id: 16, qty: 2, price: 320 }],
     });
     expect(TestBed.inject(CartService).count()).toBe(0);
     // В адресе токен заказа, а не телефон
@@ -163,6 +163,34 @@ describe('CheckoutComponent', () => {
     c.submit(); f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Товар уже снят с продажи — обновите корзину');
     expect(TestBed.inject(CartService).count()).toBe(2);
+  });
+  it('409 «Цена изменилась» — цены в корзине обновлены, сообщение вместо общей ошибки, без перехода', async () => {
+    const err = new HttpErrorResponse({
+      status: 409,
+      error: {
+        success: false, statusCode: 409,
+        error: { message: 'Цена изменилась — проверьте корзину', errors: [], changed: [{ product_id: 16, price: 350, old_price: null, promo_ends_at: null }] },
+      },
+    });
+    const { f, c } = await setup(jest.fn(() => throwError(() => err)));
+    const nav = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    c.submit(); f.detectChanges();
+    const cart = TestBed.inject(CartService);
+    expect(cart.items()[0].product.price).toBe(350);
+    expect(cart.count()).toBe(2);
+    expect(c.error()).toBe('Цена изменилась — проверьте корзину');
+    expect(c.busy()).toBe(false);
+    // Новая сумма на кнопке: 2 × 350 + доставка 15.
+    expect(c.total()).toBe(715);
+    expect(JSON.parse(localStorage.getItem('harid.cart') ?? '[]')[0].product.price).toBe(350);
+    expect(nav).not.toHaveBeenCalled();
+  });
+  it('409 без changed — обычная ошибка, корзина не меняется', async () => {
+    const err = new HttpErrorResponse({ status: 409, error: { error: { message: 'Конфликт', errors: [] } } });
+    const { c } = await setup(jest.fn(() => throwError(() => err)));
+    c.submit();
+    expect(c.error()).toBe('Конфликт');
+    expect(TestBed.inject(CartService).items()[0].product.price).toBe(320);
   });
   it('до гидратации корзины не показывает «Корзина пуста»', async () => {
     localStorage.clear();

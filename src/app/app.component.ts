@@ -5,6 +5,7 @@ import { filter, map } from 'rxjs';
 import { HeaderComponent } from './shared/header.component';
 import { FooterComponent } from './shared/footer.component';
 import { OfflineBannerComponent } from './shared/offline-banner.component';
+import { ToastComponent } from './shared/toast.component';
 import { isChatThread, pathOf, TabBarComponent } from './shared/tab-bar.component';
 import { AuthService } from './core/auth.service';
 import { CartService } from './core/cart.service';
@@ -23,8 +24,8 @@ import { PwaService } from './core/pwa.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, HeaderComponent, FooterComponent, TabBarComponent, OfflineBannerComponent],
-  template: `<app-header [class.chat-hide]="chatThread()" /><main class="page"><router-outlet /></main>@if (!chatThread()) { <app-footer /> }<app-tab-bar /><app-offline-banner />`,
+  imports: [RouterOutlet, HeaderComponent, FooterComponent, TabBarComponent, OfflineBannerComponent, ToastComponent],
+  template: `<app-header [class.chat-hide]="chatThread()" /><main class="page"><router-outlet /></main>@if (!chatThread()) { <app-footer /> }<app-tab-bar /><div class="dock"><app-toast /><app-offline-banner /></div>`,
   styles: `
     :host { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom) }
     .page { flex: 1 }

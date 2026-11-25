@@ -1,6 +1,7 @@
 import { isPlatformBrowser } from '@angular/common';
 import { Component, computed, ElementRef, inject, input, PLATFORM_ID, signal } from '@angular/core';
 import { SeoService } from '../core/seo.service';
+import { ToastService } from '../core/toast.service';
 import { IconComponent } from './icon.component';
 
 /** Ссылки «поделиться» в мессенджерах: в Telegram ссылка и текст идут отдельно, в WhatsApp — одной строкой. */
@@ -12,8 +13,6 @@ export function shareLinks(url: string, text: string): { telegram: string; whats
   };
 }
 
-/** Сколько висит подтверждение «Ссылка скопирована». */
-const COPIED_MS = 2500;
 let nextId = 0;
 
 /**
@@ -47,8 +46,6 @@ let nextId = 0;
         }
       </div>
     }
-    <span class="sr-only" role="status">{{ copied() ? 'Ссылка скопирована' : '' }}</span>
-    @if (copied()) { <span class="toast" data-test="share-copied" aria-hidden="true">Ссылка скопирована</span> }
   `,
   styles: `
     :host { position: relative; display: inline-block }
@@ -65,7 +62,6 @@ let nextId = 0;
     /* Фирменные цвета мессенджеров — их узнают с первого взгляда */
     .ico.tg { background: #229ed9; color: #fff }
     .ico.wa { background: #25d366; color: #fff }
-    .toast { position: absolute; z-index: 20; top: calc(100% + 8px); left: 0; padding: 8px 12px; border-radius: 10px; background: var(--color-ink); color: var(--color-paper); font-size: 14px; white-space: nowrap }
   `,
 })
 export class ShareComponent {
@@ -81,11 +77,10 @@ export class ShareComponent {
   protected readonly native = this.browser && typeof navigator.share === 'function';
 
   protected readonly menuId = `share-menu-${nextId++}`;
+  private readonly toasts = inject(ToastService);
   readonly open = signal(false);
-  readonly copied = signal(false);
   readonly url = computed(() => this.seo.origin() + this.path());
   readonly links = computed(() => shareLinks(this.url(), this.text()));
-  private copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
   toggle(): void { this.open.update((v) => !v); }
 
@@ -103,11 +98,10 @@ export class ShareComponent {
   copy(): void {
     this.close(true);
     if (!this.browser || !navigator.clipboard?.writeText) return;
-    navigator.clipboard.writeText(this.url()).then(() => {
-      this.copied.set(true);
-      clearTimeout(this.copiedTimer);
-      this.copiedTimer = setTimeout(() => this.copied.set(false), COPIED_MS);
-    }, () => undefined);
+    navigator.clipboard.writeText(this.url()).then(
+      () => this.toasts.show({ text: 'Ссылка скопирована' }),
+      () => this.toasts.error('Не удалось скопировать ссылку'),
+    );
   }
 
   nativeShare(): void {

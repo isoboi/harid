@@ -1,7 +1,7 @@
-import { isPlatformBrowser } from '@angular/common';
-import { Component, computed, DestroyRef, inject, PLATFORM_ID, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CartItem, CartService, MAX_QTY } from '../../core/cart.service';
+import { ToastService } from '../../core/toast.service';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { IconComponent } from '../../shared/icon.component';
 import { RecentStripComponent } from '../../shared/recent-strip.component';
@@ -11,7 +11,7 @@ import { SkelSummaryComponent } from '../../shared/skeleton.component';
 
 const money = new MoneyPipe();
 /** Сколько висит плашка «Товар убран · Вернуть». */
-const UNDO_MS = 6000;
+export const UNDO_MS = 6000;
 
 /** Корзина как в прототипе: товары по лавкам слева, сводка в серой карточке справа (на десктопе — липкая). */
 @Component({
@@ -21,12 +21,6 @@ const UNDO_MS = 6000;
   template: `
     <div class="wrap page-top">
       <h1 class="page-title head">Корзина</h1>
-      <!-- Отмена удаления: живой регион есть всегда, чтобы экранный диктор озвучил появившуюся плашку -->
-      <div class="undo-slot" aria-live="polite">
-        @if (undo()) {
-          <p class="undo" data-test="undo"><span>Товар убран</span><span class="dot" aria-hidden="true">·</span><button type="button" class="undo-btn" (click)="restoreRemoved()">Вернуть</button></p>
-        }
-      </div>
       @if (!cart.ready()) {
         <!-- Заглушка до чтения корзины из браузера: лавка с двумя строками и сводка справа -->
         <div class="layout" role="status" data-test="skel-cart">
@@ -113,11 +107,6 @@ const UNDO_MS = 6000;
   styles: `
     .head { margin-bottom: 32px }
     .recent:has(section) { margin-top: 20px }
-    .undo-slot:empty { display: none }
-    .undo { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; padding-left: 16px; border-radius: 10px; background: var(--color-ink); color: var(--color-paper); font-size: 15px }
-    .dot { opacity: .6 }
-    .undo-btn { min-height: 44px; padding: 0 16px 0 4px; font-weight: 600; color: var(--color-saffron) }
-    @media (hover: hover) { .undo-btn:hover { text-decoration: underline } }
     .empty { max-width: 46ch }
     .empty p { font-size: 18px; line-height: 1.625 }
     .empty .btn { margin-top: 24px }
@@ -168,14 +157,9 @@ export class CartComponent {
   readonly suburbNote = `Доставка в ${SUBURBS.join(' и ')} — ${money.transform(deliveryFor(SUBURBS[0]))} за лавку. Точная сумма будет на следующем шаге.`;
   /** id товаров в корзине — их полоса «Вы смотрели» не показывает. */
   readonly inCart = computed(() => this.cart.items().map((i) => i.product.id));
-  /** Последняя убранная строка и её место — для «Вернуть». */
-  readonly undo = signal<{ item: CartItem; index: number } | null>(null);
-  private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
-  private timer: ReturnType<typeof setTimeout> | null = null;
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.clearTimer());
-  }
+  private readonly toasts = inject(ToastService);
+  /** id плашки «Товар убран · Вернуть» — её убираем при следующем действии с корзиной. */
+  private undoToast = 0;
 
   /** Миниатюра из снимка товара в корзине: первое фото галереи, иначе обложка. */
   thumb(i: CartItem): string { return i.product.images?.[0] ?? i.product.image; }
@@ -186,21 +170,20 @@ export class CartComponent {
     this.cart.setQty(i.product.id, i.size, qty);
   }
 
+  /** Строка уходит сразу; «Вернуть» в плашке ставит её на прежнее место с тем же размером и количеством. */
   remove(i: CartItem): void {
     this.dismissUndo();
     const index = this.cart.items().findIndex((x) => x.product.id === i.product.id && x.size === i.size);
     this.cart.remove(i.product.id, i.size);
-    this.undo.set({ item: i, index });
-    // Таймер только в браузере: на сервере удалений не бывает, а висящий таймер задержал бы рендер
-    if (this.browser) this.timer = setTimeout(() => { this.timer = null; this.undo.set(null); }, UNDO_MS);
+    this.undoToast = this.toasts.show({
+      text: 'Товар убран',
+      action: { label: 'Вернуть', run: () => this.cart.restore(i, index) },
+      duration: UNDO_MS,
+    });
   }
 
-  restoreRemoved(): void {
-    const u = this.undo();
-    this.dismissUndo();
-    if (u) this.cart.restore(u.item, u.index);
+  private dismissUndo(): void {
+    if (this.undoToast) this.toasts.dismiss(this.undoToast);
+    this.undoToast = 0;
   }
-
-  private dismissUndo(): void { this.clearTimer(); this.undo.set(null); }
-  private clearTimer(): void { if (this.timer !== null) { clearTimeout(this.timer); this.timer = null; } }
 }

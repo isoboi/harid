@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Observable, of, Subject, throwError } from 'rxjs';
 import { MarketApi } from '../core/market-api.service';
 import { Product, ProductQuery } from '../core/models';
+import { ToastService } from '../core/toast.service';
 import { FEED_PAGE_SIZE, ProductFeed } from './product-feed';
 
 const prod = (id: number): Product => ({ id: String(id), shop_handle: 's', title: `Товар ${id}`, price: 10, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
@@ -59,6 +60,8 @@ describe('ProductFeed.refresh', () => {
     expect(feed.items()).toHaveLength(FEED_PAGE_SIZE);
     expect(feed.refreshing()).toBe(false);
     expect(feed.failed()).toBe(false);
+    // Без плашки старая лента выглядела бы обновлённой
+    expect(TestBed.inject(ToastService).current()).toMatchObject({ kind: 'error', text: 'Не удалось обновить — проверьте интернет' });
   });
 
   it('повторный вызов во время обновления игнорируется', () => {

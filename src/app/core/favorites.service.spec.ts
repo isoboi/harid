@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { FavoritesService } from './favorites.service';
+import { ToastService } from './toast.service';
 
 describe('FavoritesService', () => {
   beforeEach(() => { localStorage.clear(); TestBed.configureTestingModule({}); });
@@ -33,5 +34,31 @@ describe('FavoritesService', () => {
     const f = TestBed.inject(FavoritesService);
     f.toggle('2');
     expect(f.ids()).toEqual(['1', '2']);
+  });
+
+  describe('плашки', () => {
+    it('добавление — «Добавлено в избранное · Открыть» со ссылкой на избранное', () => {
+      TestBed.inject(FavoritesService).toggle('5');
+      expect(TestBed.inject(ToastService).current()).toMatchObject({ text: 'Добавлено в избранное', action: { label: 'Открыть', link: '/favorites' } });
+    });
+    it('удаление — «Вернуть» ставит товар на прежнее место и сохраняет', () => {
+      const f = TestBed.inject(FavoritesService);
+      ['1', '2', '3'].forEach((id) => f.toggle(id));
+      f.toggle('2');
+      const toast = TestBed.inject(ToastService);
+      expect(toast.current()?.text).toBe('Убрано из избранного');
+      toast.act();
+      expect(f.ids()).toEqual(['1', '2', '3']);
+      expect(JSON.parse(localStorage.getItem('harid.fav')!)).toEqual(['1', '2', '3']);
+    });
+    it('«Вернуть» после повторного добавления не делает дубль', () => {
+      const f = TestBed.inject(FavoritesService);
+      f.toggle('1');
+      f.toggle('1');
+      const undo = TestBed.inject(ToastService).current()!.action!.run!;
+      f.toggle('1');
+      undo();
+      expect(f.ids()).toEqual(['1']);
+    });
   });
 });

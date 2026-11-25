@@ -2,7 +2,7 @@ import { afterNextRender, Component, computed, effect, ElementRef, inject, signa
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { apiErrorMessage } from '../../core/api-error';
+import { apiErrorMessage, priceChanges } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { BrowserStorage } from '../../core/browser-storage.service';
 import { CartService } from '../../core/cart.service';
@@ -223,7 +223,13 @@ export class CheckoutComponent {
         const queryParams = o.access_token ? { t: o.access_token, fresh: 1 } : { phone, fresh: 1 };
         this.router.navigate(['/order', o.number], { queryParams });
       },
-      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
+      error: (e) => {
+        this.busy.set(false);
+        // 409 «Цена изменилась»: корзина получает цены сервера, покупатель видит новую сумму и жмёт ещё раз.
+        const changed = priceChanges(e);
+        if (changed) this.cart.applyPrices(changed);
+        this.error.set(apiErrorMessage(e));
+      },
     });
   }
 

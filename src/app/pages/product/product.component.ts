@@ -10,6 +10,7 @@ import { directLink, directOnly, postLink } from '../../core/direct';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
 import { FavoritesService } from '../../core/favorites.service';
 import { Haptics } from '../../core/haptics.service';
+import { ToastService } from '../../core/toast.service';
 import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { MarketApi } from '../../core/market-api.service';
 import { Product, Review, Shop } from '../../core/models';
@@ -292,6 +293,7 @@ export class ProductComponent {
   readonly fav = inject(FavoritesService);
   private readonly recent = inject(RecentlyViewedService);
   private readonly fly = inject(FlyToCart);
+  private readonly toasts = inject(ToastService);
   readonly id = input.required<string>();
   readonly product = signal<Product | null>(null);
   /** Лавка товара для плашки продавца; не загрузилась — показываем только ник. */
@@ -467,7 +469,14 @@ export class ProductComponent {
   copyPost(): void {
     const post = this.igPost();
     if (!this.browser || !post || !navigator.clipboard?.writeText) return;
-    navigator.clipboard.writeText(post).then(() => this.copied.set(true), () => undefined);
+    navigator.clipboard.writeText(post).then(
+      () => {
+        this.copied.set(true);
+        // В вертикальном просмотре подсказку под кнопкой не видно — говорим плашкой
+        if (this.reel()) this.toasts.show({ text: 'Ссылка на пост скопирована — вставьте её в чат' });
+      },
+      () => this.toasts.error('Не удалось скопировать ссылку на пост — напишите лавке название товара'),
+    );
   }
 
   /** Кнопка вертикального просмотра: Direct копирует пост; в корзину кладём; не выбран размер — закрываем и ведём к выбору. */
@@ -493,6 +502,12 @@ export class ProductComponent {
     if (ok) this.haptics.success(); else this.haptics.warning();
     this.limitError.set(!ok);
     this.added.set(ok);
-    if (ok && !this.reel()) this.fly.fly(this.mainRef()?.nativeElement, trigger instanceof Element ? trigger : null);
+    if (!this.reel()) {
+      if (ok) this.fly.fly(this.mainRef()?.nativeElement, trigger instanceof Element ? trigger : null);
+      return;
+    }
+    // В вертикальном просмотре корзины и подсказок под кнопкой не видно — полёта нет, говорим плашкой
+    if (ok) this.toasts.show({ text: 'Товар в корзине', action: { label: 'Перейти', link: '/cart' } });
+    else this.toasts.error('В корзине уже 30 позиций — оформите заказ или уберите лишнее');
   }
 }
