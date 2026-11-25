@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { environment } from './environments/environment';
 import { allowedHostsFromEnv, loadSitemapData, requestOrigin, robotsTxt, siteOrigin, sitemapCache, sitemapXml } from './seo-files';
+import { parseVitals, VITALS_PATH } from './vitals';
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
@@ -56,6 +57,24 @@ app.get('/sitemap.xml', (req, res) => {
     .then((data) => sitemapXml(origin, data))
     .then((xml) => res.type('application/xml').set('Cache-Control', 'public, max-age=3600').send(xml))
     .catch((e) => { console.error('[harid] sitemap.xml:', e); res.status(503).set({ 'Cache-Control': 'no-store', 'Retry-After': '600' }).end(); });
+});
+
+/**
+ * Скорость у живых покупателей: браузер шлёт метрики (sendBeacon, text/plain), сервер пишет по строке JSON
+ * на метрику — {"vital":{…},"at":"…"}. Свод по маршрутам: node scripts/vitals-report.mjs < лог.
+ * Запрос не по форме — 400 без записи в лог.
+ */
+app.post(VITALS_PATH, express.text({ type: 'text/plain', limit: '8kb' }), (req, res) => {
+  if (!requestOrigin(siteUrl, req, allowedHosts)) { res.status(400).end(); return; }
+  const vitals = parseVitals(req.body);
+  if (!vitals) { res.status(400).end(); return; }
+  const at = new Date().toISOString();
+  for (const vital of vitals) console.log(JSON.stringify({ vital, at }));
+  res.status(204).end();
+});
+/** Слишком большое или битое тело — просто код ответа: стек ошибки в лог не пишем, иначе его засорит любой желающий. */
+app.use(VITALS_PATH, (err: { status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  res.status(err.status && err.status >= 400 && err.status < 500 ? err.status : 400).end();
 });
 
 /** Имя с хэшем сборки (main-6YBIB7PB.js, chunk-…, styles-…): при изменении файла меняется и адрес. */
