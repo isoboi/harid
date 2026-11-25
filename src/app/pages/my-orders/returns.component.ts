@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { apiErrorMessage } from '../../core/api-error';
 import { MarketApi } from '../../core/market-api.service';
+import { ToastService } from '../../core/toast.service';
 import { MarketReturn, ReturnableOrder, ReturnStatus } from '../../core/models';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { plural } from '../../shared/plural';
@@ -144,6 +145,7 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
 })
 export class ReturnsComponent {
   private readonly api = inject(MarketApi);
+  private readonly toasts = inject(ToastService);
   readonly returns = signal<MarketReturn[]>([]);
   readonly returnable = signal<ReturnableOrder[]>([]);
   /** Номер заказа: блок на странице заказа показывает только его возвраты. Пусто — все. */
@@ -225,10 +227,12 @@ export class ReturnsComponent {
         this.busy.set(false);
         this.returns.update((list) => list.map((x) => (x.id === next.id ? next : x)));
         this.loadReturnable();
+        this.toasts.show({ text: 'Запрос на возврат отменён' });
       },
       // Лавка успела ответить — перечитываем список, чтобы показать её решение
       error: () => {
         this.busy.set(false);
+        this.toasts.error('Не удалось отменить: лавка уже ответила на запрос или нет сети');
         this.api.myReturns().subscribe({ next: (list) => this.returns.set(list), error: () => undefined });
       },
     });

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { SeoService } from '../core/seo.service';
+import { ToastService } from '../core/toast.service';
 import { ShareComponent, shareLinks } from './share.component';
 
 describe('shareLinks', () => {
@@ -57,8 +58,17 @@ describe('ShareComponent', () => {
     q('share-copy')!.click();
     await Promise.resolve(); f.detectChanges();
     expect(writeText).toHaveBeenCalledWith('https://harid.tj/product/16');
-    expect(q('share-copied')?.textContent).toContain('Ссылка скопирована');
+    expect(TestBed.inject(ToastService).current()).toMatchObject({ text: 'Ссылка скопирована', kind: 'info' });
     expect(q('share-menu')).toBeNull();
+  });
+
+  it('буфер обмена отказал — плашка с ошибкой', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: jest.fn(() => Promise.reject(new Error('denied'))) }, configurable: true });
+    const { f, q } = await render();
+    q('share')!.click(); f.detectChanges();
+    q('share-copy')!.click();
+    await Promise.resolve(); await Promise.resolve();
+    expect(TestBed.inject(ToastService).current()).toMatchObject({ text: 'Не удалось скопировать ссылку', kind: 'error' });
   });
 
   it('без системного меню «Поделиться» пункта «Другие приложения» нет', async () => {

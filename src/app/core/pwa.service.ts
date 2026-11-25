@@ -1,6 +1,11 @@
 import { isPlatformBrowser } from '@angular/common';
 import { DestroyRef, inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
 import { SwUpdate } from '@angular/service-worker';
+import { filter } from 'rxjs';
+import { ToastService } from './toast.service';
+
+/** Плашка «Вышла новая версия» висит дольше обычной: её легко пропустить, а без неё обновление придёт лишь при следующем заходе. */
+const UPDATE_TOAST_MS = 12_000;
 
 /** Событие Chrome/Edge/Samsung Internet «сайт можно установить»; в lib.dom его нет. */
 interface InstallPromptEvent extends Event {
@@ -15,10 +20,12 @@ interface InstallPromptEvent extends Event {
  *   Событие слушаем с самого старта: оно может прийти раньше первого рендера.
  *   Своё мини-окно браузера не отключаем — кнопка лишь дополнительный путь.
  * - Сервис-воркер в «неисправимом» состоянии (файлы версии удалены с сервера) — перезагрузка.
+ * - Плашки: «Снова в сети», «Харид установлен», «Вышла новая версия · Обновить».
  */
 @Injectable({ providedIn: 'root' })
 export class PwaService {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly toasts = inject(ToastService);
   private readonly onlineState = signal(true);
   private readonly installState = signal(false);
   private prompt: InstallPromptEvent | null = null;
@@ -37,12 +44,25 @@ export class PwaService {
       this.prompt = e as InstallPromptEvent;
       if (this.hydrated) this.installState.set(true);
     });
-    on('appinstalled', () => this.forgetPrompt());
-    on('online', () => this.onlineState.set(true));
+    on('appinstalled', () => {
+      this.forgetPrompt();
+      this.toasts.show({ text: 'Харид установлен — ищите иконку на главном экране' });
+    });
+    on('online', () => {
+      // «Снова в сети» — только если плашку «Нет интернета» успели показать
+      if (this.hydrated && !this.onlineState()) this.toasts.show({ text: 'Снова в сети' });
+      this.onlineState.set(true);
+    });
     on('offline', () => this.onlineState.set(false));
     // Без provideServiceWorker (тесты) SwUpdate нет; в разработке воркер выключен
     const sw = inject(SwUpdate, { optional: true });
-    if (sw?.isEnabled) sw.unrecoverable.subscribe(() => location.reload());
+    if (sw?.isEnabled) {
+      sw.unrecoverable.subscribe(() => location.reload());
+      // Новая версия скачана: перезагрузку не навязываем — она сбросила бы набранный текст
+      sw.versionUpdates.pipe(filter((e) => e.type === 'VERSION_READY')).subscribe(() =>
+        this.toasts.show({ text: 'Вышла новая версия Харида', action: { label: 'Обновить', run: () => location.reload() }, duration: UPDATE_TOAST_MS }),
+      );
+    }
   }
 
   /** После гидратации: настоящее состояние сети и уже пришедшее предложение установки. */

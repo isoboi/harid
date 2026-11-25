@@ -160,6 +160,16 @@ select.field-control { padding-right: 40px; background-image: url("data:image/sv
   .buybar .bar-price { flex: none; padding-left: 4px }
   .buybar .bar-btn { flex: 1 1 auto; min-width: 0; padding: 0 12px; white-space: nowrap }
 }
+/*
+ * Нижний «док» сообщений (app-root): плашка ToastService над плашкой «Нет интернета».
+ * Выше полноэкранных просмотров фото и видео (z-index 100) — «Товар в корзине» видно и там.
+ * На телефоне — над вкладками, а когда выехала липкая кнопка покупки — и над ней.
+ */
+.dock { position: fixed; left: 0; right: 0; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 110; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-inline: 16px; pointer-events: none }
+@media (max-width: 640px) {
+  app-root:has(.tabbar) .dock { bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom)) }
+  app-root:has(.tabbar):has(.buybar.on) .dock { bottom: calc(var(--tabbar-h) + var(--buybar-h) + 8px + env(safe-area-inset-bottom)) }
+}
 @media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
   .buybar { transition: transform .25s cubic-bezier(.2, .8, .2, 1), visibility 0s .25s }
   .buybar.on { transition: transform .25s cubic-bezier(.2, .8, .2, 1), visibility 0s }
