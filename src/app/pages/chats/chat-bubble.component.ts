@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { ChatMessage } from '../../core/models';
@@ -10,6 +10,7 @@ import { chatTime } from './chat-time';
  * Карточка товара ведёт на товар.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chat-bubble',
   standalone: true,
   imports: [RouterLink, MoneyPipe],
@@ -29,11 +30,11 @@ import { chatTime } from './chat-time';
     :host { display: flex; flex-direction: column }
     .bubble { max-width: min(78%, 480px); margin-top: 10px; padding: 8px 12px 7px; border-radius: 18px 18px 18px 6px; background: var(--color-mist); color: var(--color-ink); align-self: flex-start }
     .bubble.grouped { margin-top: 2px; border-top-left-radius: 6px }
-    .bubble.mine { align-self: flex-end; border-radius: 18px 18px 6px 18px; background: var(--color-lapis); color: var(--color-paper) }
+    .bubble.mine { align-self: flex-end; border-radius: 18px 18px 6px 18px; background: var(--color-lapis); color: var(--color-on-lapis) }
     .bubble.mine.grouped { border-top-left-radius: 18px; border-top-right-radius: 6px }
     /* Карточка товара внутри пузыря: подложка на тон светлее/темнее самого пузыря */
     .product { display: flex; gap: 10px; align-items: center; margin: 0 -6px 8px; padding: 6px; border-radius: 12px; background: var(--color-paper); color: var(--color-ink); text-decoration: none }
-    .mine .product { background: rgb(255 255 255 / .14); color: var(--color-paper) }
+    .mine .product { background: color-mix(in srgb, var(--color-on-lapis) 14%, transparent); color: var(--color-on-lapis) }
     .product img { flex: none; border-radius: 8px; object-fit: cover; background: var(--color-line) }
     .pmeta { min-width: 0 }
     .pt { display: block; overflow: hidden; font-size: 14px; font-weight: 600; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap }
@@ -42,7 +43,7 @@ import { chatTime } from './chat-time';
     .text { margin: 0; font-size: 15px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere }
     /* Время «плавает» в конце последней строки, как в мессенджерах */
     .time { float: right; margin: 6px 0 -2px 10px; font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--color-ink-soft) }
-    .mine .time { color: rgb(255 255 255 / .78) }
+    .mine .time { color: color-mix(in srgb, var(--color-on-lapis) 78%, transparent) }
   `,
 })
 export class ChatBubbleComponent {

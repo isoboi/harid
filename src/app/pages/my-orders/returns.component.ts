@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { apiErrorMessage } from '../../core/api-error';
 import { MarketApi } from '../../core/market-api.service';
 import { ToastService } from '../../core/toast.service';
@@ -23,6 +23,7 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
  * из которых ещё можно вернуть товар (7 дней). Нет ни того, ни другого — блока нет.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-returns',
   standalone: true,
   imports: [DatePipe, MoneyPipe],
@@ -132,7 +133,7 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
     .step button { width: 44px; height: 44px; border: 1px solid var(--color-line); border-radius: 10px; font-size: 20px }
     .step button:disabled { opacity: .4 }
     .step b { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums }
-    textarea { display: block; width: 100%; max-width: 560px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--color-line); border-radius: 10px; font: inherit; font-size: 16px; line-height: 1.5; resize: vertical; background: var(--color-paper); color: var(--color-ink) }
+    textarea { display: block; width: 100%; max-width: 560px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--color-field-line); border-radius: 10px; font: inherit; font-size: 16px; line-height: 1.5; resize: vertical; background: var(--color-paper); color: var(--color-ink) }
     textarea:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 1px }
     .hint { margin-top: 8px; font-size: 14px; color: var(--color-ink-soft) }
     .error { margin-top: 8px }

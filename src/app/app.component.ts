@@ -1,4 +1,4 @@
-import { afterNextRender, Component, computed, inject } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -13,6 +13,7 @@ import { FavoritesService } from './core/favorites.service';
 import { RecentlyViewedService } from './core/recently-viewed.service';
 import { ChatSocket } from './core/chat-socket.service';
 import { PwaService } from './core/pwa.service';
+import { ThemeService } from './core/theme.service';
 import { WebVitals } from './core/web-vitals.service';
 
 /**
@@ -23,6 +24,7 @@ import { WebVitals } from './core/web-vitals.service';
  * сверху своя строка с лавкой, снизу поле сообщения.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, HeaderComponent, FooterComponent, TabBarComponent, OfflineBannerComponent, ToastComponent],
@@ -49,6 +51,7 @@ export class AppComponent {
     const chat = inject(ChatSocket);
     // Создаётся сразу: предложение установки может прийти раньше первого рендера
     const pwa = inject(PwaService);
+    const theme = inject(ThemeService);
     const vitals = inject(WebVitals);
     // Только в браузере и после гидратации: сервер и первый рендер клиента одинаковы (пустое состояние).
     afterNextRender(() => {
@@ -56,6 +59,7 @@ export class AppComponent {
       fav.hydrate();
       recent.hydrate();
       pwa.hydrate();
+      theme.hydrate();
       auth.hydrate();
       // Сокет чата: подключается после входа, на сервере не стартует
       chat.start();

@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { IconComponent } from './icon.component';
 import { clampTime, formatTime, fromScrubber, scrubberValue, SCRUBBER_MAX, SEEK_STEP } from './video-time';
 
@@ -25,6 +25,7 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
  * Всё, что передано внутрь тега (подпись лавки, цена, кнопка), встаёт поверх видео.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-video-player',
   standalone: true,
   imports: [IconComponent],
@@ -78,19 +79,19 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
   `,
   styles: `
     :host { display: block; position: relative; width: 100%; height: 100%; color: #fff }
-    .frame { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--color-ink); container-type: inline-size }
+    .frame { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--color-night); container-type: inline-size }
     .frame.still { cursor: none }
     /* Постер, растянутый и размытый, — вместо чёрных полей у вертикального ролика */
     .ambient { position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover; filter: blur(28px) saturate(1.3) brightness(.65); pointer-events: none }
     video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent }
     .surface { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent }
     .surface:focus-visible { outline: 2px solid var(--color-saffron); outline-offset: -4px }
-    .big { position: absolute; left: 50%; top: 50%; display: grid; place-items: center; width: 72px; height: 72px; margin: -36px 0 0 -36px; border-radius: 50%; background: var(--color-saffron); color: var(--color-ink); box-shadow: 0 8px 24px rgb(19 35 91 / .35); pointer-events: none }
+    .big { position: absolute; left: 50%; top: 50%; display: grid; place-items: center; width: 72px; height: 72px; margin: -36px 0 0 -36px; border-radius: 50%; background: var(--color-saffron); color: var(--color-on-saffron); box-shadow: 0 8px 24px rgb(19 35 91 / .35); pointer-events: none }
     /* Треугольник оптически тяжелее слева — сдвигаем, чтобы он стоял по центру круга */
     .big app-icon { margin-left: 4px }
     .spinner { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border: 3px solid rgb(255 255 255 / .3); border-top-color: var(--color-saffron); border-radius: 50%; pointer-events: none }
     .fail { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; background: rgb(19 35 91 / .78); text-align: center; font-size: 15px }
-    .retry { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 10px; background: var(--color-saffron); color: var(--color-ink); font-size: 15px; font-weight: 600 }
+    .retry { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 10px; background: var(--color-saffron); color: var(--color-on-saffron); font-size: 15px; font-weight: 600 }
     .retry:focus-visible, .ctl:focus-visible { outline: 2px solid var(--color-saffron); outline-offset: 2px }
     .bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 2px; padding: 32px 8px 6px; background: linear-gradient(to top, rgb(19 35 91 / .85), transparent) }
     /* Кнопки остаются в порядке Tab: фокус на них (focusin) возвращает управление на экран */

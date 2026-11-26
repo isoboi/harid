@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, computed, ElementRef, inject, input, PLATFORM_ID, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, PLATFORM_ID, signal } from '@angular/core';
 import { SeoService } from '../core/seo.service';
 import { ToastService } from '../core/toast.service';
 import { IconComponent } from './icon.component';
@@ -20,6 +20,7 @@ let nextId = 0;
  * Ссылка полная, с адресом витрины (SeoService.origin), чтобы в мессенджере открывалась и подтягивала превью.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-share',
   standalone: true,
   imports: [IconComponent],
@@ -53,7 +54,7 @@ let nextId = 0;
     @media (hover: hover) { .trigger:hover { border-color: var(--color-ink) } }
     .trigger[aria-expanded="true"] { border-color: var(--color-ink) }
     /* Меню под кнопкой; на узком экране не вылезает за правый край */
-    .menu { position: absolute; z-index: 20; top: calc(100% + 8px); left: 0; display: flex; flex-direction: column; min-width: 232px; padding: 6px; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-paper); box-shadow: var(--shadow-pop) }
+    .menu { position: absolute; z-index: 20; top: calc(100% + 8px); left: 0; display: flex; flex-direction: column; min-width: 232px; padding: 6px; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-raised); box-shadow: var(--shadow-pop) }
     @media (max-width: 479.98px) { .menu { left: auto; right: 0 } }
     .item { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 10px; border-radius: 10px; font-size: 15px; font-weight: 500; text-align: left; color: var(--color-ink); cursor: pointer }
     @media (hover: hover) { .item:hover { background: var(--color-mist) } }

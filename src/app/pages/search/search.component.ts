@@ -1,4 +1,4 @@
-import { Component, computed, effect, untracked, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, untracked, inject, input } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
@@ -12,6 +12,7 @@ import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { SkelProductsComponent } from '../../shared/skeleton.component';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-search',
   standalone: true,
   imports: [ProductCardComponent, FeedMoreComponent, FeedFiltersComponent, SkelProductsComponent, PullRefreshComponent],

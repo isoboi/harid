@@ -6,7 +6,8 @@ import { Observable, of, Subject, throwError } from 'rxjs';
 import { OrderComponent } from './order.component';
 import { MarketApi } from '../../core/market-api.service';
 import { AuthService } from '../../core/auth.service';
-import { Order } from '../../core/models';
+import { Order, OrderStage } from '../../core/models';
+import { RepeatOrderService, RepeatResult } from '../../core/repeat-order.service';
 import { ToastService } from '../../core/toast.service';
 
 const ORDER: Order = { number: 'R-221526', stage: 'in_delivery', items_total: 640, delivery_total: 15, created_at: '2026-11-17T05:08:07Z', slot: 'Сегодня, 18:00–21:00', payment: 'cash', customer: { name: 'Ф', phone: '+992 93 111 00 02', district: 'Сино', address: 'ул' }, lines: [], shops: [] };
@@ -369,5 +370,53 @@ describe('OrderComponent', () => {
     second.next({ ...ORDER, number: 'R-2' });
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('R-2');
+  });
+
+  describe('«Повторить заказ»', () => {
+    async function open(stage: OrderStage) {
+      const subject = new Subject<RepeatResult>();
+      const repeat = jest.fn(() => subject);
+      await TestBed.configureTestingModule({ imports: [OrderComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { order: jest.fn(() => of({ ...ORDER, stage })) } }, { provide: RepeatOrderService, useValue: { repeat } }] }).compileComponents();
+      const f = TestBed.createComponent(OrderComponent);
+      f.componentRef.setInput('number', 'R-221526');
+      f.componentRef.setInput('t', 'tok-1');
+      f.detectChanges();
+      const btn = () => (f.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-test="repeat"]');
+      return { f, btn, repeat, subject };
+    }
+
+    it('«Повторить заказ» — только у доставленных и отменённых', async () => {
+      for (const stage of ['delivered', 'cancelled'] as OrderStage[]) {
+        const { btn } = await open(stage);
+        expect(btn()?.textContent?.trim()).toBe('Повторить заказ');
+        TestBed.resetTestingModule();
+      }
+      for (const stage of ['placed', 'assembling', 'in_delivery'] as OrderStage[]) {
+        const { btn } = await open(stage);
+        expect(btn()).toBeNull();
+        TestBed.resetTestingModule();
+      }
+    });
+    it('«Повторить заказ»: вызывает повтор с этим заказом, пока идёт — «Добавляем…» и недоступна', async () => {
+      const { f, btn, repeat, subject } = await open('delivered');
+      btn()!.click(); f.detectChanges();
+      expect(repeat).toHaveBeenCalledWith(expect.objectContaining({ number: 'R-221526' }));
+      expect(btn()!.disabled).toBe(true);
+      expect(btn()!.textContent?.trim()).toBe('Добавляем…');
+      (f.componentInstance as OrderComponent).repeat({ ...ORDER, stage: 'delivered' });
+      expect(repeat).toHaveBeenCalledTimes(1);
+      subject.next({ added: 1, total: 1, unavailable: [], overflow: 0, offline: false }); subject.complete();
+      f.detectChanges();
+      expect(btn()!.disabled).toBe(false);
+      expect(btn()!.textContent?.trim()).toBe('Повторить заказ');
+    });
+    it('«Повторить заказ»: ошибка сервиса — кнопка снова доступна', async () => {
+      const { f, btn, subject } = await open('cancelled');
+      btn()!.click(); f.detectChanges();
+      subject.error(new Error('x'));
+      f.detectChanges();
+      expect(btn()!.disabled).toBe(false);
+      expect(btn()!.textContent?.trim()).toBe('Повторить заказ');
+    });
   });
 });

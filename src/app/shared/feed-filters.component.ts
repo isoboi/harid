@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { catchError, of, switchMap } from 'rxjs';
@@ -14,6 +14,7 @@ const NO_FACETS: ProductFacets = { sizes: [], price_min: null, price_max: null }
  * читает его и перезапускает ленту, ссылку можно отправить, SSR рисует ту же выдачу.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-feed-filters',
   standalone: true,
   template: `

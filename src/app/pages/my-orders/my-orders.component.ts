@@ -1,10 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { dayMonth, STAGE_LABEL } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
+import { RepeatOrderService } from '../../core/repeat-order.service';
 import { MarketReturn, Order, OrderStage, ReturnableOrder, Reviewable } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
@@ -27,6 +29,7 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
 };
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-my-orders',
   standalone: true,
   imports: [RouterLink, MoneyPipe, IconComponent],
@@ -99,6 +102,10 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
                       <app-icon class="go" name="chevron-right" [size]="20" />
                     </div>
                   </a>
+                  <!-- Вне ссылки на заказ: кнопка внутри <a> недопустима и перехватывала бы переход -->
+                  @if (o.stage === 'delivered' || o.stage === 'cancelled') {
+                    <button type="button" class="repeat" data-test="repeat" [disabled]="repeatingNumber() === o.number" (click)="repeat(o)">{{ repeatingNumber() === o.number ? 'Добавляем…' : 'Повторить заказ' }}</button>
+                  }
                 </li>
               }
             </ul>
@@ -149,6 +156,12 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
       .end { grid-column: 2; grid-row: 2; padding-top: 0 }
       .what { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical }
     }
+    /* «Повторить заказ» под строкой, текст выровнен по началу текста строки (после превью) */
+    .repeat { display: inline-flex; align-items: center; min-height: 44px; margin: -12px 0 8px 248px; padding: 0 8px; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 14px; font-weight: 700; color: var(--color-lapis); cursor: pointer }
+    @media (hover: hover) { .repeat:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px } }
+    .repeat:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 0 }
+    .repeat:disabled { color: var(--color-ink-soft); cursor: default }
+    @media (max-width: 639.98px) { .repeat { margin-left: -8px } }
     /* Заглушка: на фоне mist превью обведены как настоящие, строки текста — по их высоте */
     .thumb.skel { border-radius: 12px }
     .top-skel { width: 140px; margin-block: 3px }
@@ -161,7 +174,10 @@ export class MyOrdersComponent {
   private readonly api = inject(MarketApi);
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly repeater = inject(RepeatOrderService);
   readonly orders = signal<Order[]>([]);
+  /** Номер заказа, который сейчас повторяется; один повтор за раз. */
+  readonly repeatingNumber = signal<string | null>(null);
   readonly loaded = signal(false);
   readonly error = signal('');
   readonly label = STAGE_LABEL;
@@ -244,5 +260,12 @@ export class MyOrdersComponent {
   shops(o: Order): string {
     const handles = [...new Set(o.lines.map((l) => l.shop_handle).filter(Boolean))];
     return handles.map((h) => '@' + h).join(', ');
+  }
+
+  /** Товары заказа — в корзину; тост и переход делает сервис. Пока идёт один повтор, другие нажатия не срабатывают. */
+  repeat(o: Order): void {
+    if (this.repeatingNumber()) return;
+    this.repeatingNumber.set(o.number);
+    this.repeater.repeat(o).pipe(finalize(() => this.repeatingNumber.set(null))).subscribe({ error: () => undefined });
   }
 }

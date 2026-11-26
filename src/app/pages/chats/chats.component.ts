@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { ChatApi } from '../../core/chat-api.service';
@@ -14,6 +14,7 @@ import { chatListTime } from './chat-time';
  * имя и время, ниже последнее сообщение («Вы: …» для своих) и счётчик непрочитанных.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chats',
   standalone: true,
   imports: [RouterLink, IconComponent, ShopAvatarComponent],
@@ -88,7 +89,7 @@ import { chatListTime } from './chat-time';
     .unread .name { font-weight: 800 }
     .unread .last { color: var(--color-ink); font-weight: 500 }
     .unread .when { color: var(--color-lapis); font-weight: 600 }
-    .badge { flex: none; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 9999px; background: var(--color-anor); color: var(--color-paper); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums }
+    .badge { flex: none; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 9999px; background: var(--color-anor); color: var(--color-on-anor); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums }
     /* Заглушка: строки той же высоты 76px, без подсветки при наведении */
     li.row { pointer-events: none }
     .ava-skel { flex: none; width: 52px; height: 52px }

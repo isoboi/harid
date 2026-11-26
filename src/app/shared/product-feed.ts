@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, DestroyRef, ElementRef, PLATFORM_ID, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, effect, inject, input, signal, untracked } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { MarketApi } from '../core/market-api.service';
 import { ToastService } from '../core/toast.service';
@@ -97,6 +97,7 @@ export class ProductFeed {
  * каждой страницы наблюдение перезапускается: на observe() браузер сразу присылает текущее состояние.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-feed-more',
   standalone: true,
   host: { class: 'more' },

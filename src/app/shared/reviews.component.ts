@@ -1,4 +1,4 @@
-import { afterNextRender, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { AuthService } from '../core/auth.service';
@@ -25,6 +25,7 @@ const MORE = 12;
  * reviews — первый список от страницы (рендерится и на сервере); null — отзывы не загрузились, раздел скрыт.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-reviews',
   standalone: true,
   imports: [RouterLink, StarsComponent, IconComponent, RateItemComponent],
@@ -140,7 +141,7 @@ const MORE = 12;
     .score-count { font-size: 14px; color: var(--color-ink-soft) }
     .bars { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 2px }
     .bar { display: grid; grid-template-columns: 30px 1fr 32px; align-items: center; gap: 10px; width: 100%; min-height: 32px; padding: 0 6px; border-radius: 8px; color: var(--color-ink); font: inherit; text-align: left; cursor: pointer }
-    @media (hover: hover) { .bar:not(:disabled):hover { background: rgb(255 255 255 / .7) } }
+    @media (hover: hover) { .bar:not(:disabled):hover { background: color-mix(in srgb, var(--color-paper) 70%, transparent) } }
     .bar.on { background: var(--color-paper); box-shadow: 0 1px 2px rgb(19 35 91 / .08) }
     .bar:disabled { cursor: default; opacity: .55 }
     .bar:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 1px }

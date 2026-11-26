@@ -1,4 +1,4 @@
-import { Component, inject, input, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ChatApi } from '../../core/chat-api.service';
@@ -11,6 +11,7 @@ import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
 
 /** Первое сообщение лавке со страницы товара: кому пишем (лавка), о чём (карточка товара) и текст. */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chat-new',
   standalone: true,
   imports: [FormsModule, MoneyPipe, ShopAvatarComponent],

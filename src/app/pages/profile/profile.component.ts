@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../../core/api-error';
@@ -31,6 +31,7 @@ export function initialsOf(name: string): string {
  * ссылки на личные разделы и выход. Без входа — на /login с возвратом сюда.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-profile',
   standalone: true,
   imports: [FormsModule, RouterLink, IconComponent],

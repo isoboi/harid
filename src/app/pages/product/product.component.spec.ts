@@ -25,6 +25,13 @@ async function render(p: Product, reviews: Review[] = []) {
   return Object.assign(f, { api });
 }
 
+/** Плеер, просмотр фото и вертикальный режим — блоки @defer: после действия ждём, пока их чанк загрузится и отрисуется. */
+async function settle(f: { detectChanges(): void; whenStable(): Promise<unknown> }) {
+  f.detectChanges();
+  await f.whenStable();
+  f.detectChanges();
+}
+
 describe('ProductComponent', () => {
   beforeEach(() => localStorage.clear());
   it('товар не найден или не загрузился — свой заголовок вкладки, а не прошлой страницы', async () => {
@@ -94,7 +101,7 @@ describe('ProductComponent', () => {
     expect(el.querySelectorAll('[data-test="thumb"]').length).toBe(2);
     expect(play).not.toHaveBeenCalled();
     (el.querySelector('[data-test="thumb-video"]') as HTMLButtonElement).click();
-    f.detectChanges();
+    await settle(f);
     const video = el.querySelector('app-video-player [data-test="video"]') as HTMLVideoElement;
     expect(video.getAttribute('src')).toBe('v.mp4');
     expect(video.getAttribute('preload')).toBe('none');
@@ -107,6 +114,21 @@ describe('ProductComponent', () => {
     f.detectChanges();
     expect(el.querySelector('[data-test="video"]')).toBeNull();
   });
+  it('плеер — отдельный чанк: пока он грузится, на месте видео обложка, потом плеер', async () => {
+    jest.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const f = await render(prod({ video: 'v.mp4' }));
+    const el: HTMLElement = f.nativeElement;
+    (el.querySelector('[data-test="thumb-video"]') as HTMLButtonElement).click();
+    f.detectChanges();
+    expect(el.querySelector('app-video-player')).toBeNull();
+    expect(el.querySelector('[data-test="video-poster"]')?.getAttribute('src')).toBe('a.jpg');
+    expect(el.querySelector('[data-test="open-viewer"]')).toBeNull();
+    await settle(f);
+    expect(el.querySelector('app-video-player')).not.toBeNull();
+    expect(el.querySelector('[data-test="video-poster"]')).toBeNull();
+    jest.restoreAllMocks();
+  });
+
   describe('галерея: свайп, фото на весь экран, «Поделиться»', () => {
     /** В jsdom нет PointerEvent: собираем из MouseEvent с нужными полями. */
     const ptr = (type: string, x: number, y = 100, pointerType = 'touch') => {
@@ -141,7 +163,7 @@ describe('ProductComponent', () => {
       const f = await render(prod());
       const el = f.nativeElement as HTMLElement;
       (el.querySelector('[data-test="open-viewer"]') as HTMLButtonElement).click();
-      f.detectChanges();
+      await settle(f);
       expect(el.querySelector('app-photo-viewer')).not.toBeNull();
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
@@ -176,11 +198,11 @@ describe('ProductComponent', () => {
       const f = await render(p);
       const el: HTMLElement = f.nativeElement;
       (el.querySelector('[data-test="thumb-video"]') as HTMLButtonElement).click();
-      f.detectChanges();
+      await settle(f);
       const expand = el.querySelector('[data-test="expand"]') as HTMLButtonElement;
       expand.focus(); // настоящий клик сначала ставит фокус на кнопку
       expand.click();
-      f.detectChanges();
+      await settle(f);
       return { f, el, q: (id: string) => el.querySelector(`[data-test="${id}"]`) as HTMLElement };
     };
     afterEach(() => jest.restoreAllMocks());

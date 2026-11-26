@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { PwaService } from '../core/pwa.service';
 
 /**
@@ -7,6 +7,7 @@ import { PwaService } from '../core/pwa.service';
  * и возвращение сети.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-offline-banner',
   standalone: true,
   template: `
@@ -20,7 +21,7 @@ import { PwaService } from '../core/pwa.service';
     :host { display: contents }
     .live { display: flex; justify-content: center; width: 100% }
     /* Шафран, а не синий: синяя плашка сливалась бы с подвалом */
-    .bar { max-width: 560px; padding: 10px 16px; border-radius: 12px; background: var(--color-saffron); color: var(--color-ink); font-weight: 500; font-size: 14px; line-height: 1.4; box-shadow: var(--shadow-pop); pointer-events: auto }
+    .bar { max-width: 560px; padding: 10px 16px; border-radius: 12px; background: var(--color-saffron); color: var(--color-on-saffron); font-weight: 500; font-size: 14px; line-height: 1.4; box-shadow: var(--shadow-pop); pointer-events: auto }
   `,
 })
 export class OfflineBannerComponent {

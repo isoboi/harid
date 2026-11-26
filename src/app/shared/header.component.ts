@@ -1,4 +1,4 @@
-import { afterNextRender, ChangeDetectorRef, Component, computed, DestroyRef, inject, NgZone, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, DestroyRef, inject, NgZone, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
@@ -16,6 +16,7 @@ import { SearchBoxComponent } from './search-box.component';
  * На планшете подписи «Войти»/«Корзина» видны, «Продавцам» — от 1024px (на телефоне — в подвале и в первом экране).
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-header',
   standalone: true,
   imports: [RouterLink, IconComponent, LogoComponent, SearchBoxComponent, TPipe],
@@ -52,7 +53,7 @@ import { SearchBoxComponent } from './search-box.component';
     </header>
   `,
   styles: `
-    .hdr { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid var(--color-line); background: rgb(255 255 255 / .95); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px) }
+    .hdr { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid var(--color-line); background: color-mix(in srgb, var(--color-paper) 95%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px) }
     .row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 16px; row-gap: 0; padding-block: 12px }
     /* Поиск — app-search-box: на телефоне второй строкой во всю ширину, с 768px — между логотипом и меню */
     .search { order: 3; flex: 1 0 100%; padding-top: 12px }
@@ -63,8 +64,8 @@ import { SearchBoxComponent } from './search-box.component';
     .nav .sell { display: none; padding: 0 12px }
     .nav .cart { padding: 0 12px; font-weight: 600 }
     /* Счётчик корзины: шафран с тёмным текстом, как в прототипе */
-    .badge { display: grid; place-items: center; height: 24px; min-width: 24px; padding: 0 6px; border-radius: 9999px; background: var(--color-saffron); color: var(--color-ink); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums }
-    .badge--msg { background: var(--color-anor); color: var(--color-paper) }
+    .badge { display: grid; place-items: center; height: 24px; min-width: 24px; padding: 0 6px; border-radius: 9999px; background: var(--color-saffron); color: var(--color-on-saffron); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums }
+    .badge--msg { background: var(--color-anor); color: var(--color-on-anor) }
     /* Узкий экран 640px: подписи только для скринридера, остаются иконки 44×44 */
     @media (max-width: 639.98px) {
       .hide-sm { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
@@ -84,7 +85,7 @@ import { SearchBoxComponent } from './search-box.component';
       .dm { order: 2; position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; margin: -6px -10px -6px auto; border-radius: 10px; color: var(--color-ink) }
       .dm:active { background: var(--color-mist) }
       /* Непрочитанные: анор — сигнал «вам ответили», шафран уже занят корзиной */
-      .dm-badge { position: absolute; top: 4px; right: 2px; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border: 2px solid var(--color-paper); border-radius: 9999px; box-sizing: content-box; background: var(--color-anor); color: var(--color-paper); font-size: 11px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums }
+      .dm-badge { position: absolute; top: 4px; right: 2px; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border: 2px solid var(--color-paper); border-radius: 9999px; box-sizing: content-box; background: var(--color-anor); color: var(--color-on-anor); font-size: 11px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums }
     }
     /* Уезжает вверх только на телефоне и только без «уменьшить движение» — иначе просто стоит на месте */
     @media (max-width: 640px) and (prefers-reduced-motion: no-preference) {

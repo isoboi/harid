@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
@@ -27,6 +27,7 @@ const CASH_STEPS = [
 ];
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-home',
   standalone: true,
   imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent, RecentStripComponent, SkelProductsComponent, PullRefreshComponent],
@@ -116,7 +117,7 @@ const CASH_STEPS = [
     .tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover }
     .tag { position: absolute; top: 12px; left: 10px }
     .big .tag { top: 16px; left: 12px }
-    .cap { position: absolute; left: 12px; right: 12px; bottom: 12px; border-radius: var(--radius-lg); background: rgb(255 255 255 / .95); padding: 8px 12px; font-size: 14px; line-height: 1.375 }
+    .cap { position: absolute; left: 12px; right: 12px; bottom: 12px; border-radius: var(--radius-lg); background: color-mix(in srgb, var(--color-paper) 95%, transparent); padding: 8px 12px; font-size: 14px; line-height: 1.375 }
     .cap-t { font-weight: 600 }
     .cap-s { display: block; color: var(--color-ink-soft) }
     .fresh { scroll-margin-top: 96px; padding-bottom: 64px }

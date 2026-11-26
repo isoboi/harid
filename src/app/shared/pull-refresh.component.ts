@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { afterNextRender, Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { IconComponent } from './icon.component';
 
 /** Сколько «резинки» нужно вытянуть, чтобы отпускание запустило обновление. */
@@ -35,6 +35,7 @@ export function isStandalone(win: Window): boolean {
  * Включается после гидратации, поэтому серверная и первая клиентская разметка совпадают (пусто).
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-pull-refresh',
   standalone: true,
   imports: [IconComponent],
@@ -52,7 +53,7 @@ export function isStandalone(win: Window): boolean {
     .pull { position: fixed; left: 50%; z-index: 20; margin-left: -20px; pointer-events: none; transition: transform .25s cubic-bezier(.2, .8, .2, 1), opacity .2s }
     /* Пока ведут пальцем — индикатор идёт за ним без задержки */
     .pull.drag { transition: none }
-    .dot { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 9999px; background: var(--color-paper); color: var(--color-lapis); box-shadow: var(--shadow-pop) }
+    .dot { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 9999px; background: var(--color-raised); color: var(--color-lapis); box-shadow: var(--shadow-pop) }
     @media (prefers-reduced-motion: no-preference) { .dot.spin app-icon { animation: pull-spin .8s linear infinite } }
     @keyframes pull-spin { to { transform: rotate(-360deg) } }
   `,
