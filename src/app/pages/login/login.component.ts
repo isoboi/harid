@@ -7,7 +7,7 @@ import { MarketApi } from '../../core/market-api.service';
 import { CodeResend } from '../../core/code-resend';
 import { isPhone, phone9 } from '../../core/phone';
 
-const DEFAULT_RETURN = '/me/orders';
+const DEFAULT_RETURN = '/me';
 
 /**
  * Куда вернуть после входа: только внутренний путь. Отсекаем «//evil» и «/\evil»:

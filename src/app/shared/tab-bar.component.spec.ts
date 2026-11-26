@@ -52,15 +52,23 @@ describe('TabBarComponent', () => {
     expect(root.querySelector(`a[href="${href}"]`)?.getAttribute('aria-current')).toBe('page');
   });
 
-  it('вошедшему — «Заказы» на /me/orders вместо «Войти»; вкладок по-прежнему пять', async () => {
+  it('вошедшему — «Профиль» на /me вместо «Войти»; вкладок по-прежнему пять', async () => {
     const f = await at('/');
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
     f.detectChanges();
-    expect(labels(el(f))).toEqual(['Главная', 'Каталог', 'Избранное', 'Корзина', 'Заказы']);
-    expect(el(f).querySelector('a[href="/me/orders"]')).not.toBeNull();
+    expect(labels(el(f))).toEqual(['Главная', 'Каталог', 'Избранное', 'Корзина', 'Профиль']);
+    expect(el(f).querySelector('a[href="/me"]')).not.toBeNull();
     expect(el(f).querySelector('a[href="/login"]')).toBeNull();
     // «Сообщения» — значок в шапке, не вкладка
     expect(el(f).querySelector('a[href="/chats"]')).toBeNull();
+  });
+
+  it.each(['/me', '/me/orders'])('«Профиль» горит на %s', async (url) => {
+    const f = await at(url);
+    TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
+    f.detectChanges();
+    expect(active(el(f))).toEqual(['/me']);
+    expect(el(f).querySelector('a[href="/me"]')?.getAttribute('aria-current')).toBe('page');
   });
 
   it('в открытой переписке панели нет — снизу поле сообщения', async () => {

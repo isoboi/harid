@@ -6,14 +6,14 @@ export type IconName =
   | 'truck' | 'shield-check' | 'star' | 'map-pin' | 'x' | 'minus' | 'plus' | 'instagram'
   | 'house' | 'layout-grid' | 'chevron-right' | 'chevron-left' | 'message-circle' | 'send'
   | 'play' | 'pause' | 'volume-2' | 'volume-x' | 'maximize' | 'minimize' | 'rotate-ccw' | 'smartphone'
-  | 'share' | 'link' | 'ellipsis' | 'history';
+  | 'share' | 'link' | 'ellipsis' | 'history' | 'pencil';
 
 const ICON_NAMES: readonly string[] = [
   'search', 'store', 'heart', 'user', 'bag', 'package', 'banknote', 'circle-check',
   'truck', 'shield-check', 'star', 'map-pin', 'x', 'minus', 'plus', 'instagram',
   'house', 'layout-grid', 'chevron-right', 'chevron-left', 'message-circle', 'send',
   'play', 'pause', 'volume-2', 'volume-x', 'maximize', 'minimize', 'rotate-ccw', 'smartphone',
-  'share', 'link', 'ellipsis', 'history',
+  'share', 'link', 'ellipsis', 'history', 'pencil',
 ];
 
 /**
@@ -51,6 +51,10 @@ const ICON_NAMES: readonly string[] = [
           }
           @case ('heart') {
             <path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" />
+          }
+          @case ('pencil') {
+            <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+            <path d="m15 5 4 4" />
           }
           @case ('user') {
             <circle cx="12" cy="8" r="5" />

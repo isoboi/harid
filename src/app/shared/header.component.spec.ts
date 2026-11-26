@@ -28,15 +28,14 @@ describe('HeaderComponent', () => {
     expect(labels(f.nativeElement)).toEqual(['Продавцам', 'Избранное', 'Войти', 'Корзина']);
   });
 
-  it('вошедшему — «Мои заказы» с иконкой коробки', async () => {
+  it('вошедшему — «Профиль» на /me', async () => {
     const f = await setup();
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
     f.detectChanges();
     const el: HTMLElement = f.nativeElement;
-    expect(labels(el)).toEqual(['Продавцам', 'Избранное', 'Сообщения', 'Мои заказы', 'Корзина']);
-    // путь «M12 22V12» есть только у иконки package
-    expect(el.querySelector('a[href="/me/orders"] svg path[d="M12 22V12"]')).not.toBeNull();
-    expect(f.componentInstance.ordersIcon()).toBe('package');
+    expect(labels(el)).toEqual(['Продавцам', 'Избранное', 'Сообщения', 'Профиль', 'Корзина']);
+    expect(el.querySelector('a[href="/me"]')).not.toBeNull();
+    expect(el.querySelector('a[href="/me/orders"]')).toBeNull();
   });
 
   it('«Сообщения» только у вошедшего; бейдж — число непрочитанных', async () => {
@@ -61,7 +60,7 @@ describe('HeaderComponent', () => {
 
   it('гостю — «Войти» с иконкой пользователя', async () => {
     const f = await setup();
-    expect(f.componentInstance.ordersIcon()).toBe('user');
+    expect((f.nativeElement as HTMLElement).querySelector('a[href="/login"] app-icon')).not.toBeNull();
   });
 
   it('бейдж корзины: точное число до 99', async () => {

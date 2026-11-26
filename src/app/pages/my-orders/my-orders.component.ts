@@ -110,7 +110,6 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
             </ul>
           </section>
         }
-        <button class="btn btn--ghost out" type="button" (click)="logout()">Выйти</button>
       }
     </div>
   `,
@@ -162,7 +161,6 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
     .repeat:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 0 }
     .repeat:disabled { color: var(--color-ink-soft); cursor: default }
     @media (max-width: 639.98px) { .repeat { margin-left: -8px } }
-    .out { margin-top: 40px }
     /* Заглушка: на фоне mist превью обведены как настоящие, строки текста — по их высоте */
     .thumb.skel { border-radius: 12px }
     .top-skel { width: 140px; margin-block: 3px }
@@ -268,10 +266,5 @@ export class MyOrdersComponent {
     if (this.repeatingNumber()) return;
     this.repeatingNumber.set(o.number);
     this.repeater.repeat(o).pipe(finalize(() => this.repeatingNumber.set(null))).subscribe({ error: () => undefined });
-  }
-
-  logout(): void {
-    this.auth.logout();
-    this.router.navigate(['/']);
   }
 }
