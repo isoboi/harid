@@ -19,6 +19,7 @@ export const routes: Routes = [
   { path: 'checkout', title: 'Оформление заказа — Харид', loadComponent: () => import('./pages/checkout/checkout.component').then((m) => m.CheckoutComponent) },
   { path: 'order/:number', loadComponent: () => import('./pages/order/order.component').then((m) => m.OrderComponent) },
   { path: 'login', title: 'Вход — Харид', loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent) },
+  { path: 'me', title: 'Профиль — Харид', loadComponent: () => import('./pages/profile/profile.component').then((m) => m.ProfileComponent) },
   { path: 'me/orders', title: 'Мои заказы — Харид', loadComponent: () => import('./pages/my-orders/my-orders.component').then((m) => m.MyOrdersComponent) },
   { path: 'favorites', title: 'Избранное — Харид', loadComponent: () => import('./pages/favorites/favorites.component').then((m) => m.FavoritesComponent) },
   { path: 'sell', title: 'Открыть лавку на Хариде', loadComponent: () => import('./pages/sell/sell.component').then((m) => m.SellComponent) },

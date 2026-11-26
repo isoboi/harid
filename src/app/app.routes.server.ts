@@ -8,6 +8,7 @@ export const serverRoutes: ServerRoute[] = [
   { path: 'checkout', renderMode: RenderMode.Client },
   { path: 'order/:number', renderMode: RenderMode.Client },
   { path: 'login', renderMode: RenderMode.Client },
+  { path: 'me', renderMode: RenderMode.Client },
   { path: 'me/orders', renderMode: RenderMode.Client },
   { path: 'favorites', renderMode: RenderMode.Client },
   // Чат — личный раздел покупателя: рендерится в браузере

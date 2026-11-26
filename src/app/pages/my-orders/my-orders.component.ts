@@ -104,7 +104,6 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
             </ul>
           </section>
         }
-        <button class="btn btn--ghost out" type="button" (click)="logout()">Выйти</button>
       }
     </div>
   `,
@@ -150,7 +149,6 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
       .end { grid-column: 2; grid-row: 2; padding-top: 0 }
       .what { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical }
     }
-    .out { margin-top: 40px }
     /* Заглушка: на фоне mist превью обведены как настоящие, строки текста — по их высоте */
     .thumb.skel { border-radius: 12px }
     .top-skel { width: 140px; margin-block: 3px }
@@ -246,10 +244,5 @@ export class MyOrdersComponent {
   shops(o: Order): string {
     const handles = [...new Set(o.lines.map((l) => l.shop_handle).filter(Boolean))];
     return handles.map((h) => '@' + h).join(', ');
-  }
-
-  logout(): void {
-    this.auth.logout();
-    this.router.navigate(['/']);
   }
 }
