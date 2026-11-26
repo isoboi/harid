@@ -140,7 +140,7 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
     .clear { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px; color: var(--color-ink-soft) }
     @media (hover: hover) { .clear:hover { background: var(--color-line) } }
 
-    .panel { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40; max-height: min(72vh, 560px); overflow-y: auto; overscroll-behavior: contain; padding: 6px; border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-paper); box-shadow: var(--shadow-pop) }
+    .panel { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40; max-height: min(72vh, 560px); overflow-y: auto; overscroll-behavior: contain; padding: 6px; border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-raised); box-shadow: var(--shadow-pop) }
     .panel[hidden] { display: none }
     .group + .group, .group + .opt--all { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--color-mist) }
     .group-label { padding: 8px 10px 4px; color: var(--color-ink-soft); font-size: 12px; font-weight: 600; letter-spacing: .02em }

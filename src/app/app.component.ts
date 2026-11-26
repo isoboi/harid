@@ -13,6 +13,7 @@ import { FavoritesService } from './core/favorites.service';
 import { RecentlyViewedService } from './core/recently-viewed.service';
 import { ChatSocket } from './core/chat-socket.service';
 import { PwaService } from './core/pwa.service';
+import { ThemeService } from './core/theme.service';
 import { WebVitals } from './core/web-vitals.service';
 
 /**
@@ -50,6 +51,7 @@ export class AppComponent {
     const chat = inject(ChatSocket);
     // Создаётся сразу: предложение установки может прийти раньше первого рендера
     const pwa = inject(PwaService);
+    const theme = inject(ThemeService);
     const vitals = inject(WebVitals);
     // Только в браузере и после гидратации: сервер и первый рендер клиента одинаковы (пустое состояние).
     afterNextRender(() => {
@@ -57,6 +59,7 @@ export class AppComponent {
       fav.hydrate();
       recent.hydrate();
       pwa.hydrate();
+      theme.hydrate();
       auth.hydrate();
       // Сокет чата: подключается после входа, на сервере не стартует
       chat.start();

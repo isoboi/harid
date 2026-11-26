@@ -77,7 +77,7 @@ export function pathOf(url: string): string {
     .tab:active { background: var(--color-mist) }
     .ico { position: relative; display: inline-flex }
     /* Счётчик корзины — тот же шафрановый бейдж, что в шапке, только компактнее */
-    .badge { position: absolute; top: -6px; left: 14px; display: grid; place-items: center; height: 18px; min-width: 18px; padding: 0 5px; border: 2px solid var(--color-paper); border-radius: 9999px; box-sizing: content-box; background: var(--color-saffron); color: var(--color-ink); font-size: 11px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums }
+    .badge { position: absolute; top: -6px; left: 14px; display: grid; place-items: center; height: 18px; min-width: 18px; padding: 0 5px; border: 2px solid var(--color-paper); border-radius: 9999px; box-sizing: content-box; background: var(--color-saffron); color: var(--color-on-saffron); font-size: 11px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums }
   `,
 })
 export class TabBarComponent {

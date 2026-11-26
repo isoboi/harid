@@ -36,14 +36,14 @@ import { IconComponent } from './icon.component';
   styles: `
     :host { display: contents }
     .live { display: flex; justify-content: center; width: 100% }
-    .toast { display: flex; align-items: center; gap: 4px; max-width: 480px; min-height: 48px; padding-left: 16px; border-radius: 12px; background: var(--color-ink); color: var(--color-paper); font-size: 15px; line-height: 1.35; box-shadow: var(--shadow-pop); pointer-events: auto }
-    .toast.error { background: var(--color-anor) }
+    .toast { display: flex; align-items: center; gap: 4px; max-width: 480px; min-height: 48px; padding-left: 16px; border-radius: 12px; background: var(--color-night); color: var(--color-on-night); font-size: 15px; line-height: 1.35; box-shadow: var(--shadow-pop); pointer-events: auto }
+    .toast.error { background: var(--color-anor-deep) }
     .text { flex: 1 1 auto; min-width: 0; padding-block: 12px }
     .act { flex: none; display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; border-radius: 8px; font-weight: 600; color: var(--color-saffron); white-space: nowrap }
-    .error .act { color: var(--color-paper); text-decoration: underline; text-underline-offset: 3px }
+    .error .act { color: var(--color-on-night); text-decoration: underline; text-underline-offset: 3px }
     .close { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin-left: -4px; border-radius: 10px; color: rgb(255 255 255 / .7) }
     .act:focus-visible, .close:focus-visible { outline: 2px solid var(--color-saffron); outline-offset: -2px }
-    @media (hover: hover) { .act:hover { text-decoration: underline } .close:hover { color: var(--color-paper) } }
+    @media (hover: hover) { .act:hover { text-decoration: underline } .close:hover { color: var(--color-on-night) } }
     .leaving { pointer-events: none }
     @media (prefers-reduced-motion: no-preference) {
       .toast { animation: toast-in .22s cubic-bezier(.2, .8, .2, 1) }

@@ -1,6 +1,17 @@
 /*
  * Токены и общие классы витрины — один в один с прототипом harid.vercel.app (Tailwind v4 :root).
  * Компоненты берут цвета, радиусы и шрифты только отсюда.
+ *
+ * Тёмная тема переопределяет цветовые токены (миксин dark-tokens ниже), поэтому цвет выбирается по смыслу:
+ * - paper / ink — фон страницы и текст; пара «ink-фон + paper-текст» — инверсия (выбранный чип), в тёмной теме светлая;
+ * - night / on-night — тёмная поверхность в любой теме (плашки, фон видео), текст на ней белый;
+ * - footer — фон подвала: в светлой теме тёмно-синий, в тёмной — темнее страницы, чтобы подвал оставался «дном»;
+ * - raised — всплывающие панели (подсказки поиска, меню «Поделиться»): в тёмной теме светлее страницы, тень там не видна;
+ * - field-line — рамка полей ввода: заметнее разделителей, ≥ 3:1 к фону в обеих темах (WCAG 1.4.11);
+ * - on-ink-accent — иконка на инверсной плитке (ink-фон): шафран на тёмно-синем, лазурь на светлом;
+ * - on-lapis / on-anor / on-saffron — текст и иконки на заливке акцентом (кнопка, счётчик, ценник);
+ * - lapis-deep / anor-deep — насыщенные лазурь и гранат под белым текстом в любой теме.
+ * Полупрозрачная «стеклянная» подложка — color-mix от paper, а не белый с альфой.
  */
 
 /*
@@ -40,8 +51,19 @@ $subsets: ('cyrillic-ext': $range-cyrillic-ext, 'cyrillic': $range-cyrillic, 'la
   --color-ink-soft: #4a5578;
   --color-lapis: #2348c9;
   --color-lapis-press: #1a39a3;
+  --color-on-lapis: #fff;
+  --color-lapis-deep: #2348c9;
   --color-saffron: #ffc93c;
+  --color-on-saffron: #13235b;
   --color-anor: #c7283f;
+  --color-on-anor: #fff;
+  --color-anor-deep: #c7283f;
+  --color-night: #13235b;
+  --color-on-night: #fff;
+  --color-footer: #13235b;
+  --color-raised: #fff;
+  --color-field-line: #8089a8;
+  --color-on-ink-accent: #ffc93c;
   --radius-photo: 14px;
   --radius-sm: .25rem;
   --radius-md: .375rem;
@@ -51,11 +73,44 @@ $subsets: ('cyrillic-ext': $range-cyrillic-ext, 'cyrillic': $range-cyrillic, 'la
   /* Нижняя панель вкладок и липкая кнопка покупки на телефоне */
   --tabbar-h: 60px;
   --buybar-h: 68px;
+  /* Стрелка выпадающего списка цвета ink-soft: в data-URL переменную не подставить */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a5578' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  color-scheme: light;
 }
+
+/*
+ * Тёмная тема: ночной лазурный фон. Лазурь и гранат светлее — ими пишут текст и ссылки (контраст ≥ 6,5:1
+ * на paper и mist), поэтому текст на их заливке тёмный. Шафран и тёмные поверхности (night) — как в светлой.
+ * По умолчанию тема светлая. Тёмная включается выбором в подвале: «Тёмная» (data-theme="dark" на <html>)
+ * или «Как в системе» (data-theme="system" + системная тёмная тема). Атрибут ставит ThemeService,
+ * а при загрузке — скрипт в index.html ещё до первой отрисовки, чтобы не мигало белым.
+ */
+@mixin dark-tokens {
+  --color-paper: #0d1430;
+  --color-mist: #1e284c;
+  --color-line: #2c3762;
+  --color-ink: #e9edf8;
+  --color-ink-soft: #a3adcb;
+  --color-lapis: #7b98ff;
+  --color-lapis-press: #a9bcff;
+  --color-on-lapis: #0d1430;
+  --color-anor: #ff6f84;
+  --color-on-anor: #0d1430;
+  --color-night: #1d2a5e;
+  --color-footer: #080c21;
+  --color-raised: #161f41;
+  --color-field-line: #5a6694;
+  --color-on-ink-accent: #2348c9;
+  --shadow-pop: 0 12px 32px -12px rgb(0 0 0 / .7);
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a3adcb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+:root[data-theme='dark'] { @include dark-tokens }
+@media (prefers-color-scheme: dark) { :root[data-theme='system'] { @include dark-tokens } }
 
 /* Сброс в духе Tailwind preflight: отступы задаёт разметка, а не браузер */
 *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid }
-html { line-height: 1.5; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; color-scheme: light }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent }
 body { min-height: 100vh; background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); font-feature-settings: "kern", "liga" }
 h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit }
 a { color: inherit; text-decoration: inherit }
@@ -70,7 +125,7 @@ legend { padding: 0 }
 textarea { resize: vertical }
 ::placeholder { color: var(--color-ink-soft); opacity: 1 }
 :focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 2px }
-::selection { background: var(--color-saffron); color: var(--color-ink) }
+::selection { background: var(--color-saffron); color: var(--color-on-saffron) }
 
 /* Контейнер страницы: max-w-[1240px] px-4 sm:px-6 */
 .wrap { max-width: 1240px; margin-inline: auto; padding-inline: 16px }
@@ -89,7 +144,7 @@ html.ptr, html.ptr body { overscroll-behavior-y: contain }
 .section-title { font-size: 22px; font-weight: 700 }
 
 /* Кнопки: rounded-[10px] px-5 h-12 text-[15px] font-semibold; основная — лазурь, вторая — контур */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px; border: 1px solid transparent; border-radius: 10px; background: var(--color-lapis); color: var(--color-paper); font-size: 15px; font-weight: 600; line-height: 1.5; text-align: center; transition: color .15s, background-color .15s, border-color .15s }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px; border: 1px solid transparent; border-radius: 10px; background: var(--color-lapis); color: var(--color-on-lapis); font-size: 15px; font-weight: 600; line-height: 1.5; text-align: center; transition: color .15s, background-color .15s, border-color .15s }
 @media (hover: hover) { .btn:hover { background: var(--color-lapis-press) } }
 .btn:disabled { opacity: .5; cursor: not-allowed }
 .btn--ghost { background: transparent; color: var(--color-ink); border-color: var(--color-line) }
@@ -115,7 +170,7 @@ html.ptr, html.ptr body { overscroll-behavior-y: contain }
 @media (min-width: 1024px) { .products { grid-template-columns: repeat(4, minmax(0, 1fr)) } }
 
 /* Ценник-бирка: шафран, рукописный Caveat, вырез с «дырочкой» слева, лёгкий наклон */
-.price-tag { position: relative; display: inline-flex; align-items: baseline; gap: .25em; padding: .1em .75em .15em 1.4em; background: var(--color-saffron); color: var(--color-ink); font-family: var(--font-hand); font-weight: 700; line-height: 1.1; white-space: nowrap; clip-path: polygon(.8em 0, 100% 0, 100% 100%, .8em 100%, 0 50%); -webkit-mask: radial-gradient(circle at .62em center, transparent .16em, #000 .19em); mask: radial-gradient(circle at .62em center, transparent .16em, #000 .19em); transform-origin: .62em center; transform: rotate(-4deg) }
+.price-tag { position: relative; display: inline-flex; align-items: baseline; gap: .25em; padding: .1em .75em .15em 1.4em; background: var(--color-saffron); color: var(--color-on-saffron); font-family: var(--font-hand); font-weight: 700; line-height: 1.1; white-space: nowrap; clip-path: polygon(.8em 0, 100% 0, 100% 100%, .8em 100%, 0 50%); -webkit-mask: radial-gradient(circle at .62em center, transparent .16em, #000 .19em); mask: radial-gradient(circle at .62em center, transparent .16em, #000 .19em); transform-origin: .62em center; transform: rotate(-4deg) }
 .price-tag .cur { font-size: .6em }
 .price-tag s { margin-left: 4px; font-size: .55em; font-weight: 700; opacity: .6 }
 .price-tag--sm { font-size: 1.35rem }
@@ -157,10 +212,10 @@ html.ptr, html.ptr body { overscroll-behavior-y: contain }
 /* Поля форм. 16px у полей обязательно: с меньшим шрифтом iOS Safari увеличивает страницу при фокусе */
 .field { display: flex; flex-direction: column; gap: 6px }
 .field > label, .label { font-size: 14px; font-weight: 500 }
-.field-control { display: block; width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--color-line); border-radius: 10px; background: var(--color-paper); font-size: 16px; color: var(--color-ink); outline: none; -webkit-appearance: none; appearance: none }
+.field-control { display: block; width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--color-field-line); border-radius: 10px; background: var(--color-paper); font-size: 16px; color: var(--color-ink); outline: none; -webkit-appearance: none; appearance: none }
 textarea.field-control { height: auto; min-height: 48px; padding-block: 12px }
-select.field-control { padding-right: 40px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a5578' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center }
-.field-control:focus { border-color: var(--color-lapis); box-shadow: 0 0 0 2px rgb(35 72 201 / .3) }
+select.field-control { padding-right: 40px; background-image: var(--select-chevron); background-repeat: no-repeat; background-position: right 14px center }
+.field-control:focus { border-color: var(--color-lapis); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-lapis) 30%, transparent) }
 .field-control[aria-invalid="true"] { border-color: var(--color-anor) }
 /* Телефон: «+992» стоит внутри поля и не редактируется, вводятся только 9 цифр */
 .tel { position: relative }

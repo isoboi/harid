@@ -46,7 +46,7 @@ import { IconComponent } from '../../shared/icon.component';
     @media (hover: hover) { .tile:hover { background: var(--color-line) } }
     .tile:active { background: var(--color-line) }
     .tile--all { background: var(--color-ink); color: var(--color-paper) }
-    .tile--all app-icon { color: var(--color-saffron) }
+    .tile--all app-icon { color: var(--color-on-ink-accent) }
     @media (hover: hover) { .tile--all:hover { background: var(--color-lapis-press) } }
     .tile--all:active { background: var(--color-lapis-press) }
     .tile-skel { min-height: 88px; border-radius: var(--radius-photo) }
