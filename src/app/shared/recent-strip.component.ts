@@ -1,4 +1,4 @@
-import { Component, computed, ElementRef, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { RecentItem, RecentlyViewedService } from '../core/recently-viewed.service';
 import { MoneyPipe } from './money.pipe';
@@ -12,6 +12,7 @@ import { MoneyPipe } from './money.pipe';
 let nextId = 0;
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-recent-strip',
   standalone: true,
   imports: [RouterLink, MoneyPipe],

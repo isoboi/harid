@@ -1,9 +1,10 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Observable, of, Subject, throwError } from 'rxjs';
 import { MarketApi } from '../core/market-api.service';
 import { Product, ProductQuery } from '../core/models';
 import { ToastService } from '../core/toast.service';
-import { FEED_PAGE_SIZE, ProductFeed } from './product-feed';
+import { FEED_PAGE_SIZE, FeedMoreComponent, ProductFeed } from './product-feed';
 
 const prod = (id: number): Product => ({ id: String(id), shop_handle: 's', title: `Товар ${id}`, price: 10, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
 const page = (from: number, n: number) => Array.from({ length: n }, (_, i) => prod(from + i));
@@ -105,5 +106,76 @@ describe('ProductFeed.refresh', () => {
     expect(feed.refreshing()).toBe(true);
     feed.reset({ category: 'x' });
     expect(feed.refreshing()).toBe(false);
+  });
+});
+
+describe('FeedMoreComponent: низ ленты', () => {
+  /**
+   * Мок как в браузере: на observe() наблюдатель присылает текущее состояние элемента,
+   * дальше — только при смене видимости. Уведомления копятся и доставляются по flush().
+   */
+  let visible: boolean;
+  let pending: (() => void)[];
+  const original = (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
+
+  @Component({ standalone: true, imports: [FeedMoreComponent], template: `<app-feed-more [feed]="feed" />` })
+  class HostComponent { readonly feed = new ProductFeed(); }
+
+  beforeEach(() => {
+    visible = true;
+    pending = [];
+    (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = class {
+      constructor(private readonly cb: IntersectionObserverCallback) {}
+      observe() { pending.push(() => this.cb([{ isIntersecting: visible } as IntersectionObserverEntry], this as unknown as IntersectionObserver)); }
+      disconnect() { pending = []; }
+    };
+  });
+  afterEach(() => {
+    (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = original;
+    TestBed.resetTestingModule();
+  });
+
+  /** Лента на сервере: 24 + 24 + 2 товара. */
+  function render(respond: (q: ProductQuery) => Observable<Product[]> = (q) => of(page(q.offset ?? 0, Math.max(0, Math.min(FEED_PAGE_SIZE, 50 - (q.offset ?? 0)))))) {
+    const products = jest.fn(respond);
+    TestBed.configureTestingModule({ imports: [HostComponent], providers: [{ provide: MarketApi, useValue: { products } }] });
+    const f = TestBed.createComponent(HostComponent);
+    const feed = f.componentInstance.feed;
+    feed.reset({});
+    /** Отрисовка и доставка уведомлений наблюдателя, пока они есть. */
+    const settle = () => {
+      for (let i = 0; i < 20; i++) {
+        f.detectChanges();
+        const batch = pending; pending = [];
+        if (!batch.length) return;
+        batch.forEach((deliver) => deliver());
+      }
+      throw new Error('лента грузится без конца');
+    };
+    return { f, feed, products, settle };
+  }
+
+  it('низ ленты так и остался у экрана после страницы — догружает следующие, пока лента не кончится', () => {
+    const { feed, products, settle } = render();
+    settle();
+    expect(products.mock.calls.map(([q]) => q.offset)).toEqual([0, 24, 48]);
+    expect(feed.items()).toHaveLength(50);
+    expect(feed.done()).toBe(true);
+  });
+
+  it('низ ленты ушёл с экрана — следующая страница не грузится, пока к нему не прокрутят', () => {
+    const { feed, products, settle } = render();
+    visible = false;
+    settle();
+    expect(products).toHaveBeenCalledTimes(1);
+    expect(feed.items()).toHaveLength(FEED_PAGE_SIZE);
+  });
+
+  it('после ошибки сама не повторяет: остаётся кнопка «Показать ещё»', () => {
+    let calls = 0;
+    const { f, products, settle } = render((q) => (++calls === 2 ? throwError(() => new Error('offline')) : of(page(q.offset ?? 0, FEED_PAGE_SIZE))));
+    settle();
+    expect(products).toHaveBeenCalledTimes(2);
+    expect((f.nativeElement as HTMLElement).querySelector('[data-test=more]')?.textContent).toContain('Показать ещё');
   });
 });

@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { afterNextRender, Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { IconComponent } from './icon.component';
 
 /** Сколько «резинки» нужно вытянуть, чтобы отпускание запустило обновление. */
@@ -35,6 +35,7 @@ export function isStandalone(win: Window): boolean {
  * Включается после гидратации, поэтому серверная и первая клиентская разметка совпадают (пусто).
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-pull-refresh',
   standalone: true,
   imports: [IconComponent],

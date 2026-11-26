@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
@@ -12,6 +12,7 @@ import { IconComponent } from '../../shared/icon.component';
  * Рендерится на сервере, как остальные публичные страницы. В шапке десктопа ссылки нет — маршрут просто работает.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-catalog',
   standalone: true,
   imports: [RouterLink, IconComponent],

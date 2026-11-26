@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { apiErrorMessage } from '../../core/api-error';
 import { MarketApi } from '../../core/market-api.service';
 import { ToastService } from '../../core/toast.service';
@@ -23,6 +23,7 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
  * из которых ещё можно вернуть товар (7 дней). Нет ни того, ни другого — блока нет.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-returns',
   standalone: true,
   imports: [DatePipe, MoneyPipe],

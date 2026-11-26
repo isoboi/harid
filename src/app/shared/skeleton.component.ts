@@ -1,10 +1,11 @@
-import { Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 /**
  * Заглушка ленты товаров на время загрузки: та же сетка .products и те же метрики,
  * что у app-product-card (квадрат фото, две строки названия, @лавка), — после ответа ничего не прыгает.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-skel-products',
   standalone: true,
   template: `
@@ -39,6 +40,7 @@ export class SkelProductsComponent {
  * Сводка сама на фоне mist, поэтому полоски внутри — цвета line, иначе их не видно.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-skel-summary',
   standalone: true,
   template: `

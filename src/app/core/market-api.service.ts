@@ -41,6 +41,13 @@ export class MarketApi {
     if (opts.phone) params['phone'] = opts.phone;
     return this.http.get<Order>(`${this.base}/orders/${encodeURIComponent(number)}`, { params });
   }
+  /**
+   * Отмена покупателем, пока ни одна лавка не собирает (иначе 409). Владелец — по Bearer
+   * или по телефону клиента заказа; ответ — заказ с этапом «cancelled».
+   */
+  cancelOrder(number: string, body: { phone?: string; reason?: string } = {}): Observable<Order> {
+    return this.http.post<Order>(`${this.base}/orders/${encodeURIComponent(number)}/cancel`, body);
+  }
   /** Отзывы по товару или по лавке; пустые значения в query не уходят. */
   reviews(q: ReviewQuery): Observable<Review[]> {
     const params: Record<string, string> = {};
@@ -72,6 +79,8 @@ export class MarketApi {
   sendCode(phone: string) { return this.http.post(`${this.base}/auth/send-code`, { phone }); }
   verify(phone: string, code: string): Observable<VerifyResult> { return this.http.post<VerifyResult>(`${this.base}/auth/verify`, { phone, code }); }
   me(): Observable<Buyer> { return this.http.get<Buyer>(`${this.base}/me`); }
+  /** Изменить имя покупателя (Bearer); пустое имя бэкенд отклоняет 400. */
+  updateMe(name: string): Observable<Buyer> { return this.http.patch<Buyer>(`${this.base}/me`, { name }); }
   myOrders(): Observable<Order[]> { return this.http.get<Order[]>(`${this.base}/me/orders`); }
   sellerSendCode(phone: string) { return this.http.post(`${this.base}/sellers/apply/send-code`, { phone }); }
   sellerApply(body: { handle: string; owner_name: string; phone: string; code: string }) {

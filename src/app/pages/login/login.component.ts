@@ -1,4 +1,4 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { apiErrorMessage } from '../../core/api-error';
@@ -7,7 +7,7 @@ import { MarketApi } from '../../core/market-api.service';
 import { CodeResend } from '../../core/code-resend';
 import { isPhone, phone9 } from '../../core/phone';
 
-const DEFAULT_RETURN = '/me/orders';
+const DEFAULT_RETURN = '/me';
 
 /**
  * Куда вернуть после входа: только внутренний путь. Отсекаем «//evil» и «/\evil»:
@@ -17,6 +17,7 @@ const SAFE_PATH = /^\/(?![\/\\])/;
 const safeReturn = (v: string): string => (SAFE_PATH.test(v) ? v : DEFAULT_RETURN);
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-login',
   standalone: true,
   imports: [FormsModule],

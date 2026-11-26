@@ -4,10 +4,14 @@
   <meta charset="utf-8">
   <title>Харид — Instagram-магазины Таджикистана</title>
   <base href="/">
+  <!-- API и фото — на disti.site (environment.prod.ts): соединение (DNS + TLS) готовится заранее, а не при первом запросе.
+       Два раза: fetch к API идёт без cookies (crossorigin), картинки <img> — обычным соединением, у браузера это разные пулы. -->
+  <link rel="preconnect" href="https://disti.site" crossorigin>
+  <link rel="preconnect" href="https://disti.site">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Golos+Text:wght@400;500;600;700;800&display=swap">
+  <!-- Основной шрифт — сразу, не дожидаясь разбора CSS (@font-face в styles.scss). crossorigin обязателен для шрифтов. -->
+  <link rel="preload" href="/fonts/golos-text-v7-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/golos-text-v7-latin.woff2" as="font" type="font/woff2" crossorigin>
   <!-- ?v=2: старую иконку Angular браузеры закэшировали на год по прежнему адресу -->
   <link rel="icon" type="image/x-icon" href="favicon.ico?v=2" sizes="32x32">
   <link rel="icon" type="image/svg+xml" href="icon.svg">

@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { ChatMessage } from '../../core/models';
@@ -10,6 +10,7 @@ import { chatTime } from './chat-time';
  * Карточка товара ведёт на товар.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chat-bubble',
   standalone: true,
   imports: [RouterLink, MoneyPipe],

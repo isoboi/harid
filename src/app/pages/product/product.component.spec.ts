@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { By, Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
-import { of, Subject, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { buyBarVisible, ProductComponent } from './product.component';
 import { MarketApi } from '../../core/market-api.service';
@@ -23,6 +23,13 @@ async function render(p: Product, reviews: Review[] = []) {
   f.componentRef.setInput('id', p.id);
   f.detectChanges();
   return Object.assign(f, { api });
+}
+
+/** Плеер, просмотр фото и вертикальный режим — блоки @defer: после действия ждём, пока их чанк загрузится и отрисуется. */
+async function settle(f: { detectChanges(): void; whenStable(): Promise<unknown> }) {
+  f.detectChanges();
+  await f.whenStable();
+  f.detectChanges();
 }
 
 describe('ProductComponent', () => {
@@ -94,7 +101,7 @@ describe('ProductComponent', () => {
     expect(el.querySelectorAll('[data-test="thumb"]').length).toBe(2);
     expect(play).not.toHaveBeenCalled();
     (el.querySelector('[data-test="thumb-video"]') as HTMLButtonElement).click();
-    f.detectChanges();
+    await settle(f);
     const video = el.querySelector('app-video-player [data-test="video"]') as HTMLVideoElement;
     expect(video.getAttribute('src')).toBe('v.mp4');
     expect(video.getAttribute('preload')).toBe('none');
@@ -107,6 +114,21 @@ describe('ProductComponent', () => {
     f.detectChanges();
     expect(el.querySelector('[data-test="video"]')).toBeNull();
   });
+  it('плеер — отдельный чанк: пока он грузится, на месте видео обложка, потом плеер', async () => {
+    jest.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const f = await render(prod({ video: 'v.mp4' }));
+    const el: HTMLElement = f.nativeElement;
+    (el.querySelector('[data-test="thumb-video"]') as HTMLButtonElement).click();
+    f.detectChanges();
+    expect(el.querySelector('app-video-player')).toBeNull();
+    expect(el.querySelector('[data-test="video-poster"]')?.getAttribute('src')).toBe('a.jpg');
+    expect(el.querySelector('[data-test="open-viewer"]')).toBeNull();
+    await settle(f);
+    expect(el.querySelector('app-video-player')).not.toBeNull();
+    expect(el.querySelector('[data-test="video-poster"]')).toBeNull();
+    jest.restoreAllMocks();
+  });
+
   describe('галерея: свайп, фото на весь экран, «Поделиться»', () => {
     /** В jsdom нет PointerEvent: собираем из MouseEvent с нужными полями. */
     const ptr = (type: string, x: number, y = 100, pointerType = 'touch') => {
@@ -141,7 +163,7 @@ describe('ProductComponent', () => {
       const f = await render(prod());
       const el = f.nativeElement as HTMLElement;
       (el.querySelector('[data-test="open-viewer"]') as HTMLButtonElement).click();
-      f.detectChanges();
+      await settle(f);
       expect(el.querySelector('app-photo-viewer')).not.toBeNull();
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
@@ -176,11 +198,11 @@ describe('ProductComponent', () => {
       const f = await render(p);
       const el: HTMLElement = f.nativeElement;
       (el.querySelector('[data-test="thumb-video"]') as HTMLButtonElement).click();
-      f.detectChanges();
+      await settle(f);
       const expand = el.querySelector('[data-test="expand"]') as HTMLButtonElement;
       expand.focus(); // настоящий клик сначала ставит фокус на кнопку
       expand.click();
-      f.detectChanges();
+      await settle(f);
       return { f, el, q: (id: string) => el.querySelector(`[data-test="${id}"]`) as HTMLElement };
     };
     afterEach(() => jest.restoreAllMocks());
@@ -286,6 +308,17 @@ describe('ProductComponent', () => {
     TestBed.resetTestingModule();
     const g = await render(prod({ video: null }));
     expect((g.nativeElement as HTMLElement).querySelector('[data-test="thumb-video"]')).toBeNull();
+  });
+  it('скидка у цены: «−10% · акция до 10 декабря»; без даты — только процент; без скидки — ничего', async () => {
+    const f = await render(prod({ promo_ends_at: '2026-12-10T18:59:59.000Z' }));
+    const promo = () => (f.nativeElement as HTMLElement).querySelector('.price [data-test="promo"]');
+    expect(promo()?.textContent?.replace(/\s+/g, ' ').trim()).toBe('−10% · акция до 10 декабря');
+    TestBed.resetTestingModule();
+    const g = await render(prod({ promo_ends_at: null }));
+    expect((g.nativeElement as HTMLElement).querySelector('[data-test="promo"]')?.textContent?.trim()).toBe('−10%');
+    TestBed.resetTestingModule();
+    const h = await render(prod({ old_price: null }));
+    expect((h.nativeElement as HTMLElement).querySelector('[data-test="promo"]')).toBeNull();
   });
   it('обещание оплаты наличными стоит под ценой и над кнопками', async () => {
     const f = await render(prod());
@@ -663,6 +696,84 @@ describe('ProductComponent', () => {
       const recent = TestBed.inject(RecentlyViewedService);
       recent.hydrate();
       expect(recent.items().map((i) => i.id)).toEqual(['16']);
+    });
+  });
+  describe('похожие', () => {
+    type Q = { category?: string; shop?: string };
+    const alts = [prod({ id: '21', shop_handle: 'other', price: 900 }), prod({ id: '22', shop_handle: 'other', price: 550 }), prod({ id: '23' })];
+    /** Подборка отвечает similar(), «Ещё в лавке» — more(); остальное как в render(). */
+    async function renderSimilar(p: Product, similar: () => Observable<Product[]>, more: () => Observable<Product[]> = () => of([])) {
+      const api = { product: jest.fn((_id: string) => of(p)), products: jest.fn((q: Q) => (q.category ? similar() : more())), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+      await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+      const f = TestBed.createComponent(ProductComponent);
+      f.componentRef.setInput('id', p.id);
+      f.detectChanges();
+      return Object.assign(f, { api });
+    }
+    const block = (f: { nativeElement: HTMLElement }) => f.nativeElement.querySelector('[data-test="similar"]');
+    const links = (f: { nativeElement: HTMLElement }) => [...(block(f)?.querySelectorAll('a.link') ?? [])].map((a) => a.getAttribute('href'));
+    const similarCalls = (api: { products: jest.Mock }) => api.products.mock.calls.filter(([q]) => (q as Q).category).length;
+
+    it('запрос по категории на 24 товара, свои товары лавки не попадают', async () => {
+      const f = await renderSimilar(prod(), () => of(alts));
+      expect(f.api.products).toHaveBeenCalledWith({ category: 'gadgets', limit: 24 });
+      expect(block(f)?.querySelector('h2')?.textContent?.trim()).toBe('Похожие в других лавках');
+      expect(links(f)).toEqual(['/product/22', '/product/21']);
+    });
+    it('без категории запроса нет и блока нет', async () => {
+      const f = await renderSimilar(prod({ category: null }), () => of(alts));
+      expect(similarCalls(f.api)).toBe(0);
+      expect(block(f)).toBeNull();
+    });
+    it('меньше двух — блока нет', async () => {
+      const f = await renderSimilar(prod(), () => of([alts[0], alts[2]]));
+      expect(block(f)).toBeNull();
+    });
+    it('ошибка API — страница работает', async () => {
+      const f = await renderSimilar(prod(), () => throwError(() => new HttpErrorResponse({ status: 500 })));
+      expect((f.nativeElement as HTMLElement).querySelector('h1')?.textContent).toContain('Наушники');
+      expect(block(f)).toBeNull();
+    });
+    it('в наличии — под «Ещё в лавке»; нет в наличии — над отзывами', async () => {
+      const more = () => of([prod({ id: '30' })]);
+      const f = await renderSimilar(prod(), () => of(alts), more);
+      const el: HTMLElement = f.nativeElement;
+      expect(el.querySelector('section.more')!.compareDocumentPosition(block(f)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      TestBed.resetTestingModule();
+      const g = await renderSimilar(prod({ in_stock: false }), () => of(alts), more);
+      const gl: HTMLElement = g.nativeElement;
+      expect(gl.querySelectorAll('[data-test="similar"]')).toHaveLength(1);
+      expect(block(g)!.compareDocumentPosition(gl.querySelector('app-reviews')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+    it('выбор размера меняет порядок без нового запроса', async () => {
+      const list = [prod({ id: '21', shop_handle: 'other', sizes: ['S'], price: 540 }), prod({ id: '22', shop_handle: 'other', sizes: ['M'], price: 900 })];
+      const f = await renderSimilar(prod({ sizes: ['S', 'M'] }), () => of(list));
+      expect(links(f)).toEqual(['/product/21', '/product/22']);
+      ((f.nativeElement as HTMLElement).querySelectorAll('[data-test="size"]')[1] as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(links(f)).toEqual(['/product/22', '/product/21']);
+      expect(similarCalls(f.api)).toBe(1);
+    });
+    it('единственный размер выбран сам — это не выбор покупателя, подборка по цене', async () => {
+      const list = [prod({ id: '21', shop_handle: 'other', sizes: ['S'], price: 540 }), prod({ id: '22', shop_handle: 'other', sizes: [], price: 900 })];
+      const f = await renderSimilar(prod({ sizes: ['One size'] }), () => of(list));
+      expect(links(f)).toEqual(['/product/21', '/product/22']);
+    });
+    it('верхнее положение — без класса .top обёртки страницы (у него свой padding)', async () => {
+      const f = await renderSimilar(prod({ in_stock: false }), () => of(alts));
+      expect(block(f)!.classList.contains('top')).toBe(false);
+      expect(block(f)!.classList.contains('similar--top')).toBe(true);
+    });
+    it('смена товара — старая подборка не показывается', async () => {
+      const stale = new Subject<Product[]>();
+      const fresh = [prod({ id: '41', shop_handle: 'x' }), prod({ id: '42', shop_handle: 'x' })];
+      let first = true;
+      const f = await renderSimilar(prod(), () => { if (first) { first = false; return stale; } return of(fresh); });
+      f.api.product.mockImplementation((id: string) => of(prod({ id })));
+      f.componentRef.setInput('id', '17'); f.detectChanges();
+      stale.next(alts); stale.complete();
+      f.detectChanges();
+      expect(links(f)).toEqual(['/product/41', '/product/42']);
     });
   });
 });

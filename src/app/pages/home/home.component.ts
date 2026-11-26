@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
@@ -27,6 +27,7 @@ const CASH_STEPS = [
 ];
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-home',
   standalone: true,
   imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent, RecentStripComponent, SkelProductsComponent, PullRefreshComponent],
@@ -44,12 +45,12 @@ const CASH_STEPS = [
           }
           <div class="cta"><a class="btn" href="#fresh">Смотреть товары</a><a class="btn btn--ghost" routerLink="/sell">У меня Instagram-магазин</a></div>
         </div>
-        <!-- Коллаж из реальных товаров: большое фото и до двух квадратных -->
+        <!-- Коллаж из реальных товаров: большое фото и до двух квадратных. Большое — первый экран (LCP): грузится сразу и первым -->
         @if (collage().length) {
           <div class="collage">
             @for (p of collage(); track p.id; let first = $first) {
               <a class="tile" [class.big]="first" [routerLink]="['/product', p.id]">
-                <img [src]="p.image" [alt]="p.title" [attr.loading]="first ? null : 'lazy'" />
+                <img [src]="p.image" [alt]="p.title" [attr.loading]="first ? null : 'lazy'" [attr.fetchpriority]="first ? 'high' : null" />
                 <app-price-tag class="tag" [price]="p.price" [old]="p.old_price" [size]="first ? 'lg' : 'sm'" />
                 @if (first) {
                   <span class="cap"><span class="cap-t">{{ p.title }}</span><span class="cap-s">&#64;{{ p.shop_handle }}</span></span>

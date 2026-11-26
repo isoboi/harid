@@ -1,4 +1,4 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 
 /**
  * Кружок лавки как в прототипе: кольцо 3px (шафран — есть свежие посты, иначе серое),
@@ -8,6 +8,7 @@ import { Component, computed, input, signal } from '@angular/core';
  * а на букву переключает только событие error, которое бывает лишь в браузере.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-shop-avatar',
   standalone: true,
   host: { 'aria-hidden': 'true' },

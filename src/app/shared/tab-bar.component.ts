@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -25,6 +25,7 @@ export function pathOf(url: string): string {
  * (фокус в поле ввода), панель прячет глобальное правило в styles.scss.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-tab-bar',
   standalone: true,
   imports: [RouterLink, RouterLinkActive, IconComponent],
@@ -48,8 +49,9 @@ export function pathOf(url: string): string {
           <span class="lbl">Корзина</span>
         </a>
         @if (auth.loggedIn()) {
-          <a class="tab" routerLink="/me/orders" routerLinkActive="on" ariaCurrentWhenActive="page">
-            <app-icon name="package" [size]="22" [stroke]="1.8" /><span class="lbl">Заказы</span>
+          <!-- Профиль горит и на /me, и в его разделах (/me/orders) -->
+          <a class="tab" routerLink="/me" [class.on]="profileActive()" [attr.aria-current]="profileActive() ? 'page' : null">
+            <app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl">Профиль</span>
           </a>
         } @else {
           <a class="tab" routerLink="/login" routerLinkActive="on" ariaCurrentWhenActive="page">
@@ -89,6 +91,7 @@ export class TabBarComponent {
   );
   readonly onCheckout = computed(() => this.path() === '/checkout' || isChatThread(this.path()));
   readonly catalogActive = computed(() => { const p = this.path(); return p === '/catalog' || p.startsWith('/c/'); });
+  readonly profileActive = computed(() => { const p = this.path(); return p === '/me' || p.startsWith('/me/'); });
   /** Больше 99 в бейдж не помещается — «99+». */
   readonly badge = computed(() => { const n = this.cart.count(); return n > 99 ? '99+' : String(n); });
 }

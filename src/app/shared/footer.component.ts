@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PwaService } from '../core/pwa.service';
 import { ThemeMode, ThemeService } from '../core/theme.service';
@@ -16,6 +16,7 @@ const THEMES: readonly { mode: ThemeMode; label: string; icon: IconName }[] = [
  * В нижней строке, справа от ©, — выбор темы: «Светлая» (по умолчанию), «Тёмная», «Как в системе» (группа радиокнопок).
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-footer',
   standalone: true,
   imports: [RouterLink, LogoComponent, IconComponent],
