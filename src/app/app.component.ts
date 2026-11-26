@@ -13,6 +13,7 @@ import { FavoritesService } from './core/favorites.service';
 import { RecentlyViewedService } from './core/recently-viewed.service';
 import { ChatSocket } from './core/chat-socket.service';
 import { PwaService } from './core/pwa.service';
+import { WebVitals } from './core/web-vitals.service';
 
 /**
  * Каркас как в прототипе: шапка, main на всю ширину (каждая страница сама задаёт контейнер .wrap,
@@ -49,6 +50,7 @@ export class AppComponent {
     const chat = inject(ChatSocket);
     // Создаётся сразу: предложение установки может прийти раньше первого рендера
     const pwa = inject(PwaService);
+    const vitals = inject(WebVitals);
     // Только в браузере и после гидратации: сервер и первый рендер клиента одинаковы (пустое состояние).
     afterNextRender(() => {
       cart.hydrate();
@@ -58,6 +60,8 @@ export class AppComponent {
       auth.hydrate();
       // Сокет чата: подключается после входа, на сервере не стартует
       chat.start();
+      // Скорость у живых покупателей (LCP, INP, CLS…) — на наш сервер, см. src/vitals.ts
+      vitals.start();
     });
   }
 }

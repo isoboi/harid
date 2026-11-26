@@ -38,9 +38,9 @@ import { SearchBoxComponent } from './search-box.component';
             <a routerLink="/chats" class="ico-link chat-link" [attr.aria-label]="chat.unreadTotal() ? 'Сообщения, непрочитанных: ' + chat.unreadTotal() : null"><app-icon name="message-circle" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Сообщения</span>
               @if (chat.unreadTotal()) { <span class="badge badge--msg" data-test="chat-badge" aria-hidden="true">{{ chat.unreadTotal() }}</span> }
             </a>
-            <a routerLink="/me/orders" class="ico-link"><app-icon [name]="ordersIcon()" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Мои заказы</span></a>
+            <a routerLink="/me" class="ico-link"><app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Профиль</span></a>
           } @else {
-            <a routerLink="/login" class="ico-link"><app-icon [name]="ordersIcon()" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Войти</span></a>
+            <a routerLink="/login" class="ico-link"><app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Войти</span></a>
           }
           <a routerLink="/cart" class="cart" data-cart-target [attr.aria-label]="cart.count() ? 'Корзина, товаров: ' + cart.count() : null">
             <app-icon name="bag" [size]="22" [stroke]="1.8" />
@@ -97,8 +97,6 @@ export class HeaderComponent {
   readonly cart = inject(CartService);
   readonly chat = inject(ChatSocket);
   readonly auth = inject(AuthService);
-  /** Вошедшему — коробка «Мои заказы», гостю — человечек «Войти». */
-  readonly ordersIcon = computed(() => (this.auth.loggedIn() ? 'package' : 'user'));
   /** Счётчик корзины: больше 99 не помещается в бейдж — показываем «99+». */
   /** Непрочитанные сообщения для значка: больше 99 — «99+». */
   readonly unread = computed(() => { const n = this.chat.unreadTotal(); return n > 99 ? '99+' : String(n); });

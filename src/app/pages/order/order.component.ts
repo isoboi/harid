@@ -4,13 +4,15 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, Eleme
 import { Title } from '@angular/platform-browser';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { finalize, Subscription } from 'rxjs';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { dayMonth, slotWithDate, STAGE_LABEL } from '../../core/checkout-options';
 import { MarketApi } from '../../core/market-api.service';
+import { RepeatOrderService } from '../../core/repeat-order.service';
 import { Order, OrderLine, OrderStage, Reviewable } from '../../core/models';
 import { PHONE_PATTERN, phone9 } from '../../core/phone';
+import { ToastService } from '../../core/toast.service';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { plural } from '../../shared/plural';
@@ -19,6 +21,8 @@ import { RateItemComponent } from '../my-orders/rate-purchases.component';
 import { ReturnsComponent } from '../my-orders/returns.component';
 
 const STEPS: OrderStage[] = ['placed', 'assembling', 'in_delivery', 'delivered'];
+/** Статусы лавки, после которых покупатель сам заказ не отменит. */
+const STARTED = ['assembling', 'in_delivery', 'delivered'];
 /** Ответы, после которых заказ не открыть без телефона: показываем форму «Найти заказ», а не голую ошибку. */
 const LOOKUP_STATUSES = [400, 401, 403, 404];
 
@@ -138,6 +142,23 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
               <div class="row total"><dt>{{ o.stage === 'delivered' ? 'Оплачено' : 'Наличными курьеру' }}</dt><dd>{{ o.items_total + o.delivery_total | money }}</dd></div>
             </dl>
           </div>
+          <!-- Отмена — только пока ни одна лавка не начала собирать; дальше — через лавку -->
+          @if (canCancel(o)) {
+            @if (!confirming()) {
+              <button class="cancel-open" type="button" data-test="cancel-open" (click)="confirming.set(true)">Отменить заказ</button>
+            } @else {
+              <form class="cancel-box" data-test="cancel-box" (submit)="$event.preventDefault(); cancel(o)">
+                <p class="cancel-q">Отменить заказ {{ o.number }}?</p>
+                <label class="label" for="cancel-reason">Причина — необязательно</label>
+                <textarea id="cancel-reason" class="field-control reason" maxlength="200" rows="2" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
+                @if (cancelError()) { <p class="field-error" role="alert" data-test="cancel-error">{{ cancelError() }}</p> }
+                <div class="cancel-actions">
+                  <button class="btn danger" type="submit" data-test="cancel-yes" [disabled]="cancelling()">{{ cancelling() ? 'Отменяем…' : 'Да, отменить' }}</button>
+                  <button class="btn btn--ghost" type="button" data-test="cancel-no" [disabled]="cancelling()" (click)="closeCancel()">Не отменять</button>
+                </div>
+              </form>
+            }
+          }
         </aside>
       </div>
       <ng-container [ngTemplateOutlet]="actions" />
@@ -168,7 +189,11 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
     </div>
     <ng-template #actions>
       <div class="actions">
-        <a class="btn" routerLink="/">Продолжить покупки</a>
+        <!-- Купить то же самое снова — у заказов, которые уже закончились -->
+        @if (canRepeat()) {
+          <button type="button" class="btn" data-test="repeat" [disabled]="repeating()" (click)="repeat(order()!)">{{ repeating() ? 'Добавляем…' : 'Повторить заказ' }}</button>
+        }
+        <a class="btn" [class.btn--ghost]="canRepeat()" routerLink="/">Продолжить покупки</a>
         <!-- Гостю: вход связывает заказы с номером, и их видно в «Мои заказы» без ссылки -->
         @if (auth.ready() && !auth.loggedIn()) {
           <a class="btn btn--ghost" routerLink="/login" [queryParams]="{ return: '/me/orders' }">Войти, чтобы следить за заказами</a>
@@ -241,6 +266,12 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
     .side-title { font-size: 17px; font-weight: 700 }
     .where { margin-top: 6px; margin-bottom: 16px; font-size: 15px; line-height: 1.5; color: var(--color-ink-soft); overflow-wrap: anywhere }
     .bill dt { overflow-wrap: anywhere }
+    .cancel-open { margin-top: 16px; min-height: 44px; color: var(--color-anor); font-weight: 600; text-decoration: underline; text-underline-offset: 3px }
+    .cancel-box { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding: 16px; border: 1px solid var(--color-line); border-radius: 14px }
+    .cancel-q { font-weight: 700 }
+    .reason { height: auto; padding-block: 10px; resize: vertical }
+    .cancel-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px }
+    .danger { background: var(--color-anor) }
     .lookup { max-width: 420px; padding-top: 16px }
     .lead { margin-top: 8px; font-size: 16px; line-height: 1.625; color: var(--color-ink-soft) }
     .lead.error { color: var(--color-anor) }
@@ -255,8 +286,10 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
 })
 export class OrderComponent {
   private readonly api = inject(MarketApi);
+  private readonly repeater = inject(RepeatOrderService);
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
   readonly auth = inject(AuthService);
+  private readonly toast = inject(ToastService);
   readonly number = input.required<string>();
   /** Токен заказа из ссылки после оформления (?t=…). */
   readonly t = input<string>('');
@@ -266,6 +299,10 @@ export class OrderComponent {
   readonly fresh = input<string>('');
   readonly isFresh = computed(() => this.fresh() === '1');
   readonly order = signal<Order | null>(null);
+  /** Повтор только у завершённых заказов: доставлен или отменён. */
+  readonly canRepeat = computed(() => { const s = this.order()?.stage; return s === 'delivered' || s === 'cancelled'; });
+  /** Идёт повтор: кнопка недоступна, второе нажатие не запускает его снова. */
+  readonly repeating = signal(false);
   readonly error = signal('');
   /** Показать форму «Найти заказ». */
   readonly lookup = signal(false);
@@ -306,6 +343,12 @@ export class OrderComponent {
     return out;
   });
 
+  /** Товары заказа — в корзину; тост и переход делает сервис. Ошибка тоже возвращает кнопку. */
+  repeat(o: Order): void {
+    if (this.repeating()) return;
+    this.repeating.set(true);
+    this.repeater.repeat(o).pipe(finalize(() => this.repeating.set(false))).subscribe({ error: () => undefined });
+  }
   label(s: OrderStage): string { return STAGE_LABEL[s]; }
   day(iso: string): string { return dayMonth(iso); }
   count(o: Order): string {
@@ -317,6 +360,51 @@ export class OrderComponent {
     this.reviewables.update((list) => list.map((r) => (r.product_id === next.product_id ? next : r)));
   }
   reached(cur: OrderStage, s: OrderStage): boolean { return STEPS.indexOf(cur) >= STEPS.indexOf(s); }
+
+  /** Блок «Отменить заказ?» раскрыт; причина и ход запроса. */
+  readonly confirming = signal(false);
+  readonly reason = signal('');
+  readonly cancelling = signal(false);
+  readonly cancelError = signal('');
+  /** Отменить можно, пока заказ «Принят» и ни одна лавка не взялась за сборку; последнее слово — за бэкендом (409). */
+  canCancel(o: Order): boolean {
+    return o.stage === 'placed' && !o.shops.some((s) => STARTED.includes(s.status));
+  }
+  closeCancel(): void {
+    this.confirming.set(false);
+    this.reason.set('');
+    this.cancelError.set('');
+  }
+  /** Владелец подтверждается Bearer'ом или телефоном клиента из уже открытого заказа. */
+  cancel(o: Order): void {
+    if (this.cancelling()) return;
+    this.cancelling.set(true);
+    this.cancelError.set('');
+    const reason = this.reason().trim();
+    this.api.cancelOrder(o.number, { phone: phone9(o.customer.phone), ...(reason ? { reason } : {}) }).subscribe({
+      next: (next) => {
+        this.cancelling.set(false);
+        this.closeCancel();
+        this.order.set(next);
+        this.toast.show({ text: 'Заказ отменён' });
+      },
+      error: (e) => {
+        this.cancelling.set(false);
+        // 409: лавка успела начать сборку — показываем причину и свежий этап заказа
+        if (e instanceof HttpErrorResponse && e.status === 409) {
+          this.toast.error(apiErrorMessage(e));
+          this.refresh();
+          return;
+        }
+        this.cancelError.set(apiErrorMessage(e));
+      },
+    });
+  }
+  /** Повторить текущий запрос заказа (после 409 этап на сервере уже другой). */
+  private refresh(): void {
+    const src = this.source();
+    if (src.kind === 'fetch') this.load(src.number, src.opts);
+  }
   /** «Сегодня, 18:00–21:00» → «17 ноября, 18:00–21:00» относительно даты заказа. */
   slot(o: Order): string { return slotWithDate(o.slot, o.created_at); }
 
@@ -372,6 +460,7 @@ export class OrderComponent {
     this.order.set(null);
     this.error.set('');
     this.lookup.set(false);
+    this.closeCancel();
   }
 
   private showLookup(number: string, miss: boolean): void {

@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { environment } from './environments/environment';
 import { allowedHostsFromEnv, loadSitemapData, requestOrigin, robotsTxt, siteOrigin, sitemapCache, sitemapXml } from './seo-files';
+import { parseVitals, VITALS_PATH } from './vitals';
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
@@ -58,12 +59,32 @@ app.get('/sitemap.xml', (req, res) => {
     .catch((e) => { console.error('[harid] sitemap.xml:', e); res.status(503).set({ 'Cache-Control': 'no-store', 'Retry-After': '600' }).end(); });
 });
 
+/**
+ * Скорость у живых покупателей: браузер шлёт метрики (sendBeacon, text/plain), сервер пишет по строке JSON
+ * на метрику — {"vital":{…},"at":"…"}. Свод по маршрутам: node scripts/vitals-report.mjs < лог.
+ * Запрос не по форме — 400 без записи в лог.
+ */
+app.post(VITALS_PATH, express.text({ type: 'text/plain', limit: '8kb' }), (req, res) => {
+  if (!requestOrigin(siteUrl, req, allowedHosts)) { res.status(400).end(); return; }
+  const vitals = parseVitals(req.body);
+  if (!vitals) { res.status(400).end(); return; }
+  const at = new Date().toISOString();
+  for (const vital of vitals) console.log(JSON.stringify({ vital, at }));
+  res.status(204).end();
+});
+/** Слишком большое или битое тело — просто код ответа: стек ошибки в лог не пишем, иначе его засорит любой желающий. */
+app.use(VITALS_PATH, (err: { status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  res.status(err.status && err.status >= 400 && err.status < 500 ? err.status : 400).end();
+});
+
 /** Имя с хэшем сборки (main-6YBIB7PB.js, chunk-…, styles-…): при изменении файла меняется и адрес. */
 const HASHED = /-[A-Z0-9]{8}\.[a-z0-9]+$/;
+/** Шрифты из public/fonts: версия в имени (golos-text-v7-latin.woff2), при обновлении шрифта меняется имя. */
+const VERSIONED_FONT = /[\\/]fonts[\\/][a-z0-9-]+-v\d+[a-z0-9-]*\.woff2$/;
 
 /**
- * Статика из /browser. Файлы сборки с хэшем в имени кэшируются на год.
- * Файлы из public/ (favicon, иконки, manifest) имя не меняют, поэтому браузер
+ * Статика из /browser. Файлы сборки с хэшем в имени и шрифты с версией в имени кэшируются на год.
+ * Остальные файлы из public/ (favicon, иконки, manifest) имя не меняют, поэтому браузер
  * проверяет их при каждом заходе (no-cache + ETag, обычно ответ 304).
  */
 app.use(
@@ -72,7 +93,7 @@ app.use(
     index: false,
     redirect: false,
     setHeaders: (res, path) => {
-      if (!HASHED.test(path)) res.setHeader('Cache-Control', 'no-cache');
+      if (!HASHED.test(path) && !VERSIONED_FONT.test(path)) res.setHeader('Cache-Control', 'no-cache');
     },
   }),
 );

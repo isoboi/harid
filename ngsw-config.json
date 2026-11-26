@@ -29,9 +29,19 @@
   ],
   "dataGroups": [
     {
+      "name": "categories-api",
+      "urls": [
+        "https://disti.site/api/market/categories"
+      ],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxAge": "1d",
+        "maxSize": 1
+      }
+    },
+    {
       "name": "catalog-api",
       "urls": [
-        "https://disti.site/api/market/categories",
         "https://disti.site/api/market/shops**",
         "https://disti.site/api/market/shops/**",
         "https://disti.site/api/market/products**",
@@ -41,7 +51,7 @@
       ],
       "cacheConfig": {
         "strategy": "freshness",
-        "timeout": "10s",
+        "timeout": "3s",
         "maxAge": "1d",
         "maxSize": 200
       }

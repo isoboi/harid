@@ -31,6 +31,12 @@ export class AuthService {
     this.token.set(r.token); this.buyer.set(r.buyer);
     this.store.set('harid.token', r.token); this.store.set('harid.buyer', r.buyer);
   }
+  /** Обновлённый профиль (после PATCH /market/me): токен не меняется. */
+  setBuyer(b: Buyer): void {
+    this.hydrate();
+    this.buyer.set(b);
+    this.store.set('harid.buyer', b);
+  }
   logout(): void {
     this.hydrate();
     this.token.set(null); this.buyer.set(null);
