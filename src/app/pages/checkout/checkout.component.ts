@@ -20,6 +20,22 @@ type Field = 'name' | 'phone' | 'district' | 'address' | 'slot' | 'comment';
 const FIELD_ORDER: Field[] = ['name', 'phone', 'district', 'address', 'slot', 'comment'];
 const money = new MoneyPipe();
 
+/** Кто и куда получал прошлый заказ — для префилла следующего. Комментарий не храним: он про один заказ. */
+export interface LastAddress { name: string; district: string; address: string }
+const LAST_ADDRESS = 'harid.lastAddress';
+
+/** Сохранённый адрес, если он цел; район вне текущего списка (список поменяли) — без района. */
+export function readLastAddress(v: unknown): Partial<LastAddress> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  const o = v as Record<string, unknown>;
+  const str = (x: unknown) => (typeof x === 'string' && x.trim() ? x.trim() : undefined);
+  const out: Partial<LastAddress> = {};
+  const name = str(o['name']); if (name) out.name = name;
+  const address = str(o['address']); if (address) out.address = address;
+  const district = str(o['district']); if (district && DISTRICTS.includes(district)) out.district = district;
+  return out;
+}
+
 @Component({
   selector: 'app-checkout',
   standalone: true,
@@ -182,14 +198,18 @@ export class CheckoutComponent {
     effect(() => {
       if (!this.auth.ready()) return;
       untracked(() => {
-        const { name, phone } = this.form.controls;
-        const buyerName = this.auth.buyer()?.name;
+        const { name, phone, district, address } = this.form.controls;
+        const last = readLastAddress(this.store.get<unknown>(LAST_ADDRESS, null));
+        // Имя из профиля важнее имени из прошлого заказа
+        const buyerName = this.auth.buyer()?.name || last.name;
         // Телефон вошедшего покупателя важнее последнего номера из прошлого заказа
         const buyerPhone = phone9(this.auth.buyer()?.phone ?? '');
         const lastPhone = this.store.get<unknown>('harid.lastPhone', '');
         const prefill = buyerPhone || (typeof lastPhone === 'string' ? lastPhone : '');
         if (name.pristine && buyerName) name.setValue(buyerName);
         if (phone.pristine && prefill) phone.setValue(prefill);
+        if (district.pristine && last.district) district.setValue(last.district);
+        if (address.pristine && last.address) address.setValue(last.address);
       });
     });
   }
@@ -217,6 +237,7 @@ export class CheckoutComponent {
       next: (o) => {
         this.cart.clear();
         this.store.set('harid.lastPhone', phone);
+        this.store.set(LAST_ADDRESS, { name: v.name.trim(), district: v.district, address: v.address.trim() } satisfies LastAddress);
         this.busy.set(false);
         // fresh=1 — страница заказа покажет благодарность и следующие шаги; переживает перезагрузку.
         // Телефона в адресе нет: заказ открывается токеном. Старый бэкенд токен не отдаёт — тогда по телефону.

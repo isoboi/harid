@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
-import { CheckoutComponent } from './checkout.component';
+import { CheckoutComponent, readLastAddress } from './checkout.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
 import { AuthService } from '../../core/auth.service';
@@ -254,5 +254,54 @@ describe('CheckoutComponent', () => {
     const f = TestBed.createComponent(CheckoutComponent);
     f.detectChanges();
     expect(f.componentInstance.form.getRawValue().phone).toBe('931110002');
+  });
+  it('после заказа запоминает имя, район и адрес (без комментария)', async () => {
+    const { c } = await setup(jest.fn(() => of({ number: 'R-1', access_token: 't' })));
+    jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    c.form.controls.district.setValue('Вахдат');
+    c.form.controls.address.setValue('  ул. Рудаки 10  ');
+    c.form.controls.comment.setValue('домофон 12');
+    c.submit();
+    expect(JSON.parse(localStorage.getItem('harid.lastAddress')!)).toEqual({ name: 'Фаррух', district: 'Вахдат', address: 'ул. Рудаки 10' });
+  });
+  it('ошибка заказа — адрес не запоминается', async () => {
+    const { c } = await setup(jest.fn(() => throwError(() => new HttpErrorResponse({ status: 500 }))));
+    c.submit();
+    expect(localStorage.getItem('harid.lastAddress')).toBeNull();
+  });
+  async function prefilled(last: unknown, buyer?: unknown, touch?: (c: CheckoutComponent) => void) {
+    localStorage.clear();
+    localStorage.setItem('harid.lastAddress', JSON.stringify(last));
+    if (buyer) localStorage.setItem('harid.buyer', JSON.stringify(buyer));
+    await TestBed.configureTestingModule({ imports: [CheckoutComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder: jest.fn() } }] }).compileComponents();
+    TestBed.inject(CartService).hydrate();
+    TestBed.inject(AuthService).hydrate();
+    TestBed.inject(CartService).add(product, null, 1);
+    const f = TestBed.createComponent(CheckoutComponent);
+    touch?.(f.componentInstance);
+    f.detectChanges();
+    return f.componentInstance;
+  }
+  it('префилл имени, района и адреса из прошлого заказа; доставка пересчитана по району', async () => {
+    const c = await prefilled({ name: 'Фаррух', district: 'Вахдат', address: 'ул. Рудаки 10' });
+    expect(c.form.getRawValue()).toMatchObject({ name: 'Фаррух', district: 'Вахдат', address: 'ул. Рудаки 10' });
+    expect(c.delivery()).toBe(25);
+  });
+  it('имя из профиля важнее имени из прошлого заказа', async () => {
+    const c = await prefilled({ name: 'Старое', district: 'Сино', address: 'ул' }, { id: 1, phone: '+992927000000', name: 'Мадина' });
+    expect(c.form.getRawValue().name).toBe('Мадина');
+  });
+  it('введённое вручную не перетирается сохранённым адресом', async () => {
+    const c = await prefilled({ name: 'Фаррух', district: 'Вахдат', address: 'ул. Рудаки 10' }, undefined, (c) => {
+      c.form.controls.address.markAsDirty();
+      c.form.controls.address.setValue('пр. Сомони 5');
+    });
+    expect(c.form.getRawValue().address).toBe('пр. Сомони 5');
+  });
+  it('readLastAddress: мусор и неизвестный район отбрасываются', () => {
+    expect(readLastAddress(null)).toEqual({});
+    expect(readLastAddress(['x'])).toEqual({});
+    expect(readLastAddress({ name: 5, district: 'Марс', address: '  ' })).toEqual({});
+    expect(readLastAddress({ name: ' Фаррух ', district: 'Сино', address: 'ул' })).toEqual({ name: 'Фаррух', district: 'Сино', address: 'ул' });
   });
 });
