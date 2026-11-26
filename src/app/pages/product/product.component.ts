@@ -71,7 +71,8 @@ export function buyBarVisible(e: ButtonView): boolean {
               @if (videoOn()) { <app-video-player [src]="video()" [poster]="photos()[0] || ''" [label]="'Видео: ' + p.title" [autoplay]="true" [expandable]="true" [hold]="reel()" (expand)="reel.set(true)" /> }
               @else if (current()) {
                 <button type="button" class="zoom" data-test="open-viewer" aria-label="Открыть фото на весь экран" (click)="openViewer()">
-                  <img [src]="current()" [alt]="p.title" [style.transform]="swipeDx() ? 'translateX(' + swipeDx() + 'px)' : null" />
+                  <!-- Главное фото — самый крупный элемент первого экрана (LCP): качается раньше миниатюр и прочего -->
+                  <img [src]="current()" [alt]="p.title" fetchpriority="high" [style.transform]="swipeDx() ? 'translateX(' + swipeDx() + 'px)' : null" />
                 </button>
               }
               @else { <span class="muted">Нет фото</span> }
@@ -79,11 +80,11 @@ export function buyBarVisible(e: ButtonView): boolean {
             </div>
             @if (photos().length + (video() ? 1 : 0) > 1) {
               <div class="thumbs">@for (src of photos(); track src; let i = $index) {
-                <button type="button" data-test="thumb" [class.on]="i === photo()" [attr.aria-label]="'Фото ' + (i + 1)" [attr.aria-pressed]="i === photo()" (click)="photo.set(i)"><img [src]="src" alt="" /></button>
+                <button type="button" data-test="thumb" [class.on]="i === photo()" [attr.aria-label]="'Фото ' + (i + 1)" [attr.aria-pressed]="i === photo()" (click)="photo.set(i)"><img [src]="src" alt="" fetchpriority="low" /></button>
               }
               @if (video()) {
                 <button type="button" class="play" data-test="thumb-video" [class.on]="videoOn()" aria-label="Видео" [attr.aria-pressed]="videoOn()" (click)="photo.set(photos().length)">
-                  @if (photos()[0]) { <img [src]="photos()[0]" alt="" /> }
+                  @if (photos()[0]) { <img [src]="photos()[0]" alt="" fetchpriority="low" /> }
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg>
                 </button>
               }</div>
