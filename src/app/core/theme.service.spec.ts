@@ -34,12 +34,21 @@ describe('ThemeService', () => {
     delete (window as { matchMedia?: unknown }).matchMedia;
   });
 
-  it('до hydrate() — «как в системе» и <html> не трогается', () => {
+  it('до hydrate() — светлая и <html> не трогается', () => {
     systemDark(true);
-    localStorage.setItem(THEME_KEY, JSON.stringify('light'));
+    localStorage.setItem(THEME_KEY, JSON.stringify('dark'));
     const s = make();
-    expect(s.mode()).toBe('system');
+    expect(s.mode()).toBe('light');
     expect(root().hasAttribute('data-theme')).toBe(false);
+  });
+
+  it('без выбора — светлая, даже если в системе тёмная', () => {
+    systemDark(true);
+    const s = make();
+    s.hydrate();
+    expect(s.mode()).toBe('light');
+    expect(root().hasAttribute('data-theme')).toBe(false);
+    expect(bar()).toBe(THEME_BAR.light);
   });
 
   it('hydrate() подхватывает сохранённый выбор и ставит data-theme и цвет полосы', () => {
@@ -52,42 +61,46 @@ describe('ThemeService', () => {
     expect(bar()).toBe(THEME_BAR.dark);
   });
 
-  it('мусор в хранилище — «как в системе»', () => {
-    systemDark(false);
+  it('мусор в хранилище — светлая', () => {
+    systemDark(true);
     localStorage.setItem(THEME_KEY, JSON.stringify('purple'));
     const s = make();
     s.hydrate();
-    expect(s.mode()).toBe('system');
+    expect(s.mode()).toBe('light');
     expect(root().hasAttribute('data-theme')).toBe(false);
   });
 
-  it('set() сохраняет выбор; «как в системе» убирает запись и data-theme', () => {
+  it('set() сохраняет «Тёмную» и «Как в системе»; «Светлая» убирает запись и data-theme', () => {
     systemDark(false);
     const s = make();
     s.hydrate();
-    s.set('light');
-    expect(JSON.parse(localStorage.getItem(THEME_KEY) ?? 'null')).toBe('light');
-    expect(root().getAttribute('data-theme')).toBe('light');
-    expect(bar()).toBe(THEME_BAR.light);
     s.set('system');
+    expect(JSON.parse(localStorage.getItem(THEME_KEY) ?? 'null')).toBe('system');
+    expect(root().getAttribute('data-theme')).toBe('system');
+    expect(bar()).toBe(THEME_BAR.light);
+    s.set('dark');
+    expect(JSON.parse(localStorage.getItem(THEME_KEY) ?? 'null')).toBe('dark');
+    expect(root().getAttribute('data-theme')).toBe('dark');
+    s.set('light');
     expect(localStorage.getItem(THEME_KEY)).toBeNull();
     expect(root().hasAttribute('data-theme')).toBe(false);
+    expect(bar()).toBe(THEME_BAR.light);
   });
 
-  it('«как в системе»: полоса браузера следует за сменой системной темы', () => {
+  it('«Как в системе»: полоса браузера следует за сменой системной темы', () => {
     const sys = systemDark(false);
     const s = make();
     s.hydrate();
+    s.set('system');
     expect(bar()).toBe(THEME_BAR.light);
     sys.change(true);
     expect(bar()).toBe(THEME_BAR.dark);
   });
 
-  it('выбрана светлая — смена системной темы полосу не меняет', () => {
+  it('светлая — смена системной темы полосу не меняет', () => {
     const sys = systemDark(false);
     const s = make();
     s.hydrate();
-    s.set('light');
     sys.change(true);
     expect(bar()).toBe(THEME_BAR.light);
   });
@@ -129,19 +142,27 @@ describe('ThemeService', () => {
       expect(bar()).toBe(THEME_BAR.dark);
     });
 
-    it('без выбора при тёмной системе — только тёмная полоса, data-theme нет', () => {
+    it('без выбора — ничего не меняет, даже при тёмной системе', () => {
       systemDark(true);
       run();
       expect(root().hasAttribute('data-theme')).toBe(false);
+      expect(bar()).toBe(THEME_BAR.light);
+    });
+
+    it('«Как в системе» при тёмной системе — data-theme="system" и тёмная полоса', () => {
+      systemDark(true);
+      localStorage.setItem(THEME_KEY, JSON.stringify('system'));
+      run();
+      expect(root().getAttribute('data-theme')).toBe('system');
       expect(bar()).toBe(THEME_BAR.dark);
     });
 
-    it('светлая перебивает тёмную систему', () => {
-      systemDark(true);
-      localStorage.setItem(THEME_KEY, JSON.stringify('light'));
+    it('«Как в системе» при светлой системе — светлая полоса', () => {
+      systemDark(false);
+      localStorage.setItem(THEME_KEY, JSON.stringify('system'));
       run();
-      expect(root().getAttribute('data-theme')).toBe('light');
-      expect(bar()).toBe('#ffffff');
+      expect(root().getAttribute('data-theme')).toBe('system');
+      expect(bar()).toBe(THEME_BAR.light);
     });
 
     it('битая запись не роняет страницу', () => {

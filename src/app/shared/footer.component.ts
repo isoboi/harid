@@ -6,14 +6,14 @@ import { IconComponent, IconName } from './icon.component';
 import { LogoComponent } from './logo.component';
 
 const THEMES: readonly { mode: ThemeMode; label: string; icon: IconName }[] = [
-  { mode: 'system', label: 'Как в системе', icon: 'monitor' },
   { mode: 'light', label: 'Светлая', icon: 'sun' },
   { mode: 'dark', label: 'Тёмная', icon: 'moon' },
+  { mode: 'system', label: 'Как в системе', icon: 'monitor' },
 ];
 
 /**
  * Подвал прототипа: тёмно-синий, логотип с обещанием и две колонки ссылок, внизу строка ©.
- * В нижней строке, справа от ©, — выбор темы: «Как в системе», «Светлая», «Тёмная» (группа радиокнопок).
+ * В нижней строке, справа от ©, — выбор темы: «Светлая» (по умолчанию), «Тёмная», «Как в системе» (группа радиокнопок).
  */
 @Component({
   selector: 'app-footer',
@@ -67,8 +67,9 @@ const THEMES: readonly { mode: ThemeMode; label: string; icon: IconName }[] = [
     </footer>
   `,
   styles: `
-    /* night, белый 80%: на #13235b контраст выше 10:1, на тёмной теме (#1d2a5e) — выше 9:1 */
-    .ftr { margin-top: 96px; background: var(--color-night); color: rgb(255 255 255 / .8) }
+    /* Белый 80%: на #13235b контраст выше 10:1, на подвале тёмной темы (#080c21) — выше 14:1.
+       Блик сверху отделяет подвал от страницы в тёмной теме, где фоны близки */
+    .ftr { margin-top: 96px; background: var(--color-footer); box-shadow: inset 0 1px 0 rgb(255 255 255 / .08); color: rgb(255 255 255 / .8) }
     .cols { display: grid; gap: 40px; padding-block: 48px }
     @media (min-width: 768px) { .cols { grid-template-columns: 1.4fr 1fr 1fr } }
     .about { max-width: 34ch }

@@ -20,13 +20,13 @@ describe('FooterComponent — выбор темы', () => {
   beforeEach(() => { localStorage.clear(); document.documentElement.removeAttribute('data-theme'); });
   afterEach(() => { TestBed.resetTestingModule(); delete (window as { matchMedia?: unknown }).matchMedia; });
 
-  it('три варианта в группе «Тема», по умолчанию — «Как в системе»', async () => {
+  it('три варианта в группе «Тема», по умолчанию — «Светлая»', async () => {
     const { el } = await render();
     expect(el.querySelector('fieldset legend')?.textContent?.trim()).toBe('Тема');
     const labels = [...el.querySelectorAll('.opt')].map((l) => l.textContent?.trim());
-    expect(labels).toEqual(['Как в системе', 'Светлая', 'Тёмная']);
-    expect(radio(el, 'system').checked).toBe(true);
-    expect(el.querySelector('.opt.on')?.textContent?.trim()).toBe('Как в системе');
+    expect(labels).toEqual(['Светлая', 'Тёмная', 'Как в системе']);
+    expect(radio(el, 'light').checked).toBe(true);
+    expect(el.querySelector('.opt.on')?.textContent?.trim()).toBe('Светлая');
   });
 
   it('выбор «Тёмная» включает тёмную тему и запоминает её', async () => {
@@ -40,10 +40,10 @@ describe('FooterComponent — выбор темы', () => {
   });
 
   it('показывает сохранённый выбор после hydrate()', async () => {
-    localStorage.setItem(THEME_KEY, JSON.stringify('light'));
+    localStorage.setItem(THEME_KEY, JSON.stringify('system'));
     const { f, el, theme } = await render();
     theme.hydrate();
     f.detectChanges();
-    expect(radio(el, 'light').checked).toBe(true);
+    expect(radio(el, 'system').checked).toBe(true);
   });
 });
