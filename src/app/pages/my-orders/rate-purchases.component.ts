@@ -78,7 +78,7 @@ const MAX_TEXT = 1000;
     @media (hover: hover) { .star-btn:hover { background: var(--color-mist) } }
     .star-btn app-icon { display: inline-flex }
     .star-btn .on { color: var(--color-saffron) }
-    textarea { display: block; width: 100%; max-width: 560px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--color-line); border-radius: 10px; font: inherit; font-size: 16px; line-height: 1.5; resize: vertical; background: var(--color-paper); color: var(--color-ink) }
+    textarea { display: block; width: 100%; max-width: 560px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--color-field-line); border-radius: 10px; font: inherit; font-size: 16px; line-height: 1.5; resize: vertical; background: var(--color-paper); color: var(--color-ink) }
     textarea:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 1px }
     .error { margin-top: 8px }
     .actions { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px }
