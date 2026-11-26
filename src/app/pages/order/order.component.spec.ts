@@ -7,6 +7,7 @@ import { OrderComponent } from './order.component';
 import { MarketApi } from '../../core/market-api.service';
 import { AuthService } from '../../core/auth.service';
 import { Order } from '../../core/models';
+import { ToastService } from '../../core/toast.service';
 
 const ORDER: Order = { number: 'R-221526', stage: 'in_delivery', items_total: 640, delivery_total: 15, created_at: '2026-11-17T05:08:07Z', slot: 'Сегодня, 18:00–21:00', payment: 'cash', customer: { name: 'Ф', phone: '+992 93 111 00 02', district: 'Сино', address: 'ул' }, lines: [], shops: [] };
 const notFound = () => throwError(() => new HttpErrorResponse({ status: 404, error: { error: { message: 'Заказ не найден' } } }));
@@ -121,9 +122,81 @@ describe('OrderComponent', () => {
     expect(el.querySelector('[data-test="confirm"]')).toBeNull();
   });
 
-  it('кнопки отмены нет', async () => {
-    const el = await open('1');
-    expect(el.textContent).not.toMatch(/Отменить/);
+  describe('отмена покупателем', () => {
+    async function openWith(o: Order, cancelOrder: jest.Mock = jest.fn()) {
+      await TestBed.configureTestingModule({ imports: [OrderComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: { order: jest.fn(() => of(o)), cancelOrder } }] }).compileComponents();
+      const f = TestBed.createComponent(OrderComponent);
+      TestBed.inject(AuthService).hydrate();
+      f.componentRef.setInput('number', o.number);
+      f.componentRef.setInput('t', 'tok-1');
+      f.detectChanges();
+      const el = f.nativeElement as HTMLElement;
+      const click = (test: string) => { (el.querySelector(`[data-test="${test}"]`) as HTMLButtonElement).click(); f.detectChanges(); };
+      return { f, el, click };
+    }
+    const PLACED: Order = { ...FRESH, shops: [{ shop_handle: 'technomir.tj', status: 'paid' }] };
+
+    it.each([
+      ['лавка собирает', { ...PLACED, stage: 'placed', shops: [{ shop_handle: 'a', status: 'paid' }, { shop_handle: 'b', status: 'assembling' }] }],
+      ['в пути', { ...PLACED, stage: 'in_delivery' }],
+      ['уже отменён', { ...PLACED, stage: 'cancelled' }],
+    ] as [string, Order][])('%s — кнопки отмены нет', async (_n, o) => {
+      const { el } = await openWith(o);
+      expect(el.querySelector('[data-test="cancel-open"]')).toBeNull();
+    });
+
+    it('«Принят» — «Отменить заказ», затем подтверждение; «Не отменять» сворачивает', async () => {
+      const { el, click } = await openWith(PLACED);
+      expect(el.querySelector('[data-test="cancel-box"]')).toBeNull();
+      click('cancel-open');
+      expect(text(el)).toContain('Отменить заказ R-221526?');
+      click('cancel-no');
+      expect(el.querySelector('[data-test="cancel-box"]')).toBeNull();
+      expect(el.querySelector('[data-test="cancel-open"]')).not.toBeNull();
+    });
+
+    it('«Да, отменить» — телефон из заказа и причина; этап «Отменён» и всплывашка', async () => {
+      const cancelOrder = jest.fn(() => of({ ...PLACED, stage: 'cancelled' as const, shops: [{ shop_handle: 'technomir.tj', status: 'cancelled' }] }));
+      const { f, el, click } = await openWith(PLACED, cancelOrder);
+      const toast = jest.spyOn(TestBed.inject(ToastService), 'show');
+      click('cancel-open');
+      f.componentInstance.reason.set('  Передумала ');
+      click('cancel-yes');
+      expect(cancelOrder).toHaveBeenCalledWith('R-221526', { phone: '931110002', reason: 'Передумала' });
+      expect(el.querySelector('.cancelled')?.textContent).toContain('Отменён');
+      expect(el.querySelector('[data-test="cancel-open"]')).toBeNull();
+      expect(toast).toHaveBeenCalledWith({ text: 'Заказ отменён' });
+    });
+
+    it('без причины — причина не уходит', async () => {
+      const cancelOrder = jest.fn(() => of({ ...PLACED, stage: 'cancelled' as const }));
+      const { click } = await openWith(PLACED, cancelOrder);
+      click('cancel-open');
+      click('cancel-yes');
+      expect(cancelOrder).toHaveBeenCalledWith('R-221526', { phone: '931110002' });
+    });
+
+    it('409 — лавка успела начать: всплывашка с причиной и заказ перезапрашивается', async () => {
+      const conflict = new HttpErrorResponse({ status: 409, error: { error: { message: 'Лавка уже собирает заказ — отменить его можно только через неё' } } });
+      const cancelOrder = jest.fn(() => throwError(() => conflict));
+      const { el, click } = await openWith(PLACED, cancelOrder);
+      const order = TestBed.inject(MarketApi).order as jest.Mock;
+      const err = jest.spyOn(TestBed.inject(ToastService), 'error');
+      click('cancel-open');
+      click('cancel-yes');
+      expect(err).toHaveBeenCalledWith(expect.stringContaining('Лавка уже собирает'));
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(el.querySelector('[data-test="cancel-box"]')).toBeNull();
+    });
+
+    it('прочая ошибка — текст в блоке, блок остаётся', async () => {
+      const cancelOrder = jest.fn(() => throwError(() => new HttpErrorResponse({ status: 500 })));
+      const { el, click } = await openWith(PLACED, cancelOrder);
+      click('cancel-open');
+      click('cancel-yes');
+      expect(el.querySelector('[data-test="cancel-error"]')).not.toBeNull();
+      expect(el.querySelector('[data-test="cancel-box"]')).not.toBeNull();
+    });
   });
 
   it('под заказом: «Продолжить покупки» и гостю — «Войти, чтобы следить за заказами»', async () => {
