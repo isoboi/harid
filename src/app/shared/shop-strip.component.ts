@@ -1,10 +1,11 @@
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Shop } from '../core/models';
 import { ShopAvatarComponent } from './shop-avatar.component';
 
 /** Лента лавок как сторис: кружок 72px с кольцом и ник под ним, листается вбок. Пока shops не пришли (undefined) — серые кружки. */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-shop-strip',
   standalone: true,
   imports: [RouterLink, ShopAvatarComponent],

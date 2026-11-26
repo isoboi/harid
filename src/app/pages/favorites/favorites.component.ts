@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin, of, Subscription } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -10,6 +10,7 @@ import { SkelProductsComponent } from '../../shared/skeleton.component';
 
 /** Избранное: товары по сохранённым id; снятые с продажи пропускаются. */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-favorites',
   standalone: true,
   imports: [ProductCardComponent, RouterLink, SkelProductsComponent],

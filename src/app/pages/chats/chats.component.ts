@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { ChatApi } from '../../core/chat-api.service';
@@ -14,6 +14,7 @@ import { chatListTime } from './chat-time';
  * имя и время, ниже последнее сообщение («Вы: …» для своих) и счётчик непрочитанных.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chats',
   standalone: true,
   imports: [RouterLink, IconComponent, ShopAvatarComponent],

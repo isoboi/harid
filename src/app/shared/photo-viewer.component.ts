@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { afterNextRender, Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal, viewChild } from '@angular/core';
 import { IconComponent } from './icon.component';
 import { SWIPE_X } from './swipe';
 
@@ -40,6 +40,7 @@ export function clampScale(s: number): number { return Math.min(MAX_SCALE, Math.
  * перетаскивание увеличенного фото. Закрывается крестиком, Esc и свайпом вниз.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-photo-viewer',
   standalone: true,
   imports: [IconComponent],

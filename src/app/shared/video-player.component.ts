@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { IconComponent } from './icon.component';
 import { clampTime, formatTime, fromScrubber, scrubberValue, SCRUBBER_MAX, SEEK_STEP } from './video-time';
 
@@ -25,6 +25,7 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
  * Всё, что передано внутрь тега (подпись лавки, цена, кнопка), встаёт поверх видео.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-video-player',
   standalone: true,
   imports: [IconComponent],

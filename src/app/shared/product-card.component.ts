@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { directOnly } from '../core/direct';
 import { FavoritesService } from '../core/favorites.service';
@@ -13,6 +13,7 @@ import { discountPercent } from './promo';
  * название в две строки и @лавка. Сердечко — отдельная кнопка рядом со ссылкой, не внутри неё.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-product-card',
   standalone: true,
   imports: [RouterLink, IconComponent, PriceTagComponent],

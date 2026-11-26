@@ -1,4 +1,4 @@
-import { Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, of, Subject, switchMap } from 'rxjs';
@@ -31,6 +31,7 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
  * В пустом поле вместо подсказок — недавние запросы из этого браузера; Delete убирает выбранный.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-search-box',
   standalone: true,
   imports: [RouterLink, IconComponent, ShopAvatarComponent, MoneyPipe],

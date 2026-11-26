@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { afterNextRender, Component, DestroyRef, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Product, Shop } from '../core/models';
 import { IconComponent } from './icon.component';
@@ -21,6 +21,7 @@ const DRAG_START = 10;
  * Закрывается крестиком, Esc, нажатием на тёмный фон (на компьютере) и свайпом вниз (на телефоне).
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-reel-viewer',
   standalone: true,
   imports: [VideoPlayerComponent, IconComponent, RouterLink, ShopAvatarComponent, PriceTagComponent],

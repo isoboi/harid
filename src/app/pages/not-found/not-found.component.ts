@@ -1,8 +1,9 @@
-import { Component, Inject, Optional, RESPONSE_INIT } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Inject, Optional, RESPONSE_INIT } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /** 404: на сервере ставит статус ответа. */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-not-found',
   standalone: true,
   imports: [RouterLink],

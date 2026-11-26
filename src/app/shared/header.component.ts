@@ -1,4 +1,4 @@
-import { afterNextRender, ChangeDetectorRef, Component, computed, DestroyRef, inject, NgZone, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, DestroyRef, inject, NgZone, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
@@ -15,6 +15,7 @@ import { SearchBoxComponent } from './search-box.component';
  * На планшете подписи «Войти»/«Корзина» видны, «Продавцам» — от 1024px (на телефоне — в подвале и в первом экране).
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-header',
   standalone: true,
   imports: [RouterLink, IconComponent, LogoComponent, SearchBoxComponent],

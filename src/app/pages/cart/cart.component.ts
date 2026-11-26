@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CartItem, CartService, MAX_QTY } from '../../core/cart.service';
 import { ToastService } from '../../core/toast.service';
@@ -15,6 +15,7 @@ export const UNDO_MS = 6000;
 
 /** Корзина как в прототипе: товары по лавкам слева, сводка в серой карточке справа (на десктопе — липкая). */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-cart',
   standalone: true,
   imports: [RouterLink, MoneyPipe, IconComponent, RecentStripComponent, SkelSummaryComponent],
