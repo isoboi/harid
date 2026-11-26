@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, DestroyRef, ElementRef, PLATFORM_ID, inject, input, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, PLATFORM_ID, effect, inject, input, signal, untracked } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { MarketApi } from '../core/market-api.service';
 import { ToastService } from '../core/toast.service';
@@ -90,6 +90,11 @@ export class ProductFeed {
 /**
  * Низ ленты: когда он ближе 600px к экрану, просит следующую страницу.
  * После ошибки сам не повторяет — показывает кнопку «Показать ещё».
+ *
+ * IntersectionObserver сообщает только о смене видимости. Если страница пришла, а низ ленты так и
+ * остался у экрана (высокий экран, мало карточек; или прокрутили под ленту — тогда Chrome по scroll
+ * anchoring держит на месте блок под ней), нового события не будет и лента замрёт. Поэтому после
+ * каждой страницы наблюдение перезапускается: на observe() браузер сразу присылает текущее состояние.
  */
 @Component({
   selector: 'app-feed-more',
@@ -108,6 +113,14 @@ export class FeedMoreComponent {
     if (!isPlatformBrowser(inject(PLATFORM_ID)) || typeof IntersectionObserver === 'undefined') return;
     const io = new IntersectionObserver(([e]) => { if (e.isIntersecting && !this.feed().failed()) this.feed().more(); }, { rootMargin: '600px 0px' });
     io.observe(el);
+    // Пришла страница (новый массив items), лента не кончилась — спросить заново, виден ли низ ленты.
+    // Лишний перезапуск безопасен: more() во время загрузки ничего не делает.
+    effect(() => {
+      const f = this.feed();
+      f.items();
+      if (f.loading() || f.done() || f.failed()) return;
+      untracked(() => { io.disconnect(); io.observe(el); });
+    });
     inject(DestroyRef).onDestroy(() => io.disconnect());
   }
 }

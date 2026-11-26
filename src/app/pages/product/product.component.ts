@@ -1,4 +1,4 @@
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, effect, ElementRef, inject, input, PLATFORM_ID, signal, untracked, viewChild } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -19,6 +19,7 @@ import { productLd, productPath } from '../../core/structured-data';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { PriceTagComponent } from '../../shared/price-tag.component';
+import { discountPercent, promoUntil } from '../../shared/promo';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { ratingLabel, ratingNumber } from '../../shared/rating';
 import { SellerCardComponent } from '../../shared/seller-card.component';
@@ -29,6 +30,7 @@ import type { ReelAction } from '../../shared/reel-viewer.component';
 import { ReelViewerComponent } from '../../shared/reel-viewer.component';
 import { SWIPE_X } from '../../shared/swipe';
 import { ShareComponent } from '../../shared/share.component';
+import { rankSimilar } from '../../shared/similar';
 import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
 
@@ -56,7 +58,7 @@ export function buyBarVisible(e: ButtonView): boolean {
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent, SellerCardComponent, ShareComponent, PhotoViewerComponent],
+  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent, SellerCardComponent, ShareComponent, PhotoViewerComponent, NgTemplateOutlet],
   template: `
     @if (missing()) { <app-not-found /> }
     @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
@@ -80,7 +82,8 @@ export function buyBarVisible(e: ButtonView): boolean {
               @if (!videoOn()) {
                 @if (current()) {
                   <button type="button" class="zoom" data-test="open-viewer" aria-label="Открыть фото на весь экран" (click)="openViewer()">
-                    <img [src]="current()" [alt]="p.title" [style.transform]="swipeDx() ? 'translateX(' + swipeDx() + 'px)' : null" />
+                    <!-- Главное фото — самый крупный элемент первого экрана (LCP): качается раньше миниатюр и прочего -->
+                    <img [src]="current()" [alt]="p.title" fetchpriority="high" [style.transform]="swipeDx() ? 'translateX(' + swipeDx() + 'px)' : null" />
                   </button>
                 }
                 @else { <span class="muted">Нет фото</span> }
@@ -89,11 +92,11 @@ export function buyBarVisible(e: ButtonView): boolean {
             </div>
             @if (photos().length + (video() ? 1 : 0) > 1) {
               <div class="thumbs">@for (src of photos(); track src; let i = $index) {
-                <button type="button" data-test="thumb" [class.on]="i === photo()" [attr.aria-label]="'Фото ' + (i + 1)" [attr.aria-pressed]="i === photo()" (click)="photo.set(i)"><img [src]="src" alt="" /></button>
+                <button type="button" data-test="thumb" [class.on]="i === photo()" [attr.aria-label]="'Фото ' + (i + 1)" [attr.aria-pressed]="i === photo()" (click)="photo.set(i)"><img [src]="src" alt="" fetchpriority="low" /></button>
               }
               @if (video()) {
                 <button type="button" class="play" data-test="thumb-video" [class.on]="videoOn()" aria-label="Видео" [attr.aria-pressed]="videoOn()" (click)="photo.set(photos().length)">
-                  @if (photos()[0]) { <img [src]="photos()[0]" alt="" /> }
+                  @if (photos()[0]) { <img [src]="photos()[0]" alt="" fetchpriority="low" /> }
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg>
                 </button>
               }</div>
@@ -111,7 +114,12 @@ export function buyBarVisible(e: ButtonView): boolean {
             </a>
             <h1 class="title">{{ p.title }}</h1>
             @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="16" [filled]="true" />{{ ratingText() }}</p> }
-            @if (p.price !== null) { <div class="price"><app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" /></div> }
+            @if (p.price !== null) {
+              <div class="price">
+                <app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" />
+                @if (discount(); as d) { <p class="promo" data-test="promo"><span class="promo-pct">−{{ d }}%</span>@if (promoEnds()) { &ngsp;· акция {{ promoEnds() }} }</p> }
+              </div>
+            }
             @if (!direct() && p.sizes.length > 1) {
               <fieldset class="sizes" #sizes>
                 <legend>Размер</legend>
@@ -160,6 +168,8 @@ export function buyBarVisible(e: ButtonView): boolean {
             @if (shop(); as s) { <app-seller-card class="seller-card" [shop]="s" /> }
           </div>
         </div>
+        <!-- Товара нет в наличии — замена нужна сразу, а не после отзывов -->
+        @if (!p.in_stock && similar().length >= 2) { <ng-container *ngTemplateOutlet="similarBlock; context: { top: true }" /> }
         <!-- Телефон: цена и кнопка у нижнего края, над панелью вкладок; появляется, когда основная кнопка ушла вверх -->
         <div class="buybar" [class.on]="barShown()" data-test="buybar">
           @if (p.price !== null) { <app-price-tag class="bar-price" [price]="p.price" [old]="p.old_price" size="sm" /> }
@@ -190,6 +200,14 @@ export function buyBarVisible(e: ButtonView): boolean {
             <div class="products">@for (m of more(); track m.id) { <app-product-card [product]="m" /> }</div>
           </section>
         }
+        @if (p.in_stock && similar().length >= 2) { <ng-container *ngTemplateOutlet="similarBlock; context: { top: false }" /> }
+        <!-- Похожие из других лавок — альтернатива, если этот товар не подошёл; один шаблон на оба места -->
+        <ng-template #similarBlock let-top="top">
+          <section class="similar" data-test="similar" [class.similar--top]="top">
+            <h2 class="section-title">Похожие в других лавках</h2>
+            <div class="products">@for (m of similar(); track m.id) { <app-product-card [product]="m" /> }</div>
+          </section>
+        </ng-template>
       </div>
     } @else {
       <!-- Заглушка загрузки в той же сетке: фото с превью слева, продавец, название, цена и кнопки справа -->
@@ -250,6 +268,8 @@ export function buyBarVisible(e: ButtonView): boolean {
     .rating .star { margin-left: 0 }
     .price { margin-top: 24px }
     .rating + .price { margin-top: 16px }
+    .promo { margin: 8px 0 0; font-size: 14px; color: var(--color-ink-soft) }
+    .promo-pct { display: inline-block; padding: 1px 8px; border-radius: 9999px; background: var(--color-anor); color: var(--color-paper); font-weight: 700 }
     .reviews { margin-top: 64px }
     .sizes { margin-top: 28px; border: 0 }
     .sizes legend { font-size: 15px; font-weight: 600 }
@@ -297,8 +317,9 @@ export function buyBarVisible(e: ButtonView): boolean {
     .ig-post:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 2px; border-radius: 6px }
     @media (hover: hover) { .ig-post:hover span { text-decoration: underline; text-underline-offset: 2px } }
     .seller-card { margin-top: 32px }
-    .more { margin-top: 80px }
-    .more h2 { margin-bottom: 20px }
+    .more, .similar { margin-top: 80px }
+    .similar--top { margin-top: 48px }
+    .more h2, .similar h2 { margin-bottom: 20px }
     @media (hover: hover) { .more h2 a:hover { text-decoration: underline } }
     /* Телефон: «В корзину» во всю ширину, ссылка в тексте с полем нажатия 44px */
     @media (max-width: 639.98px) { .add { flex: 1 1 100%; min-width: 0 } .trust a { display: inline-block; padding-block: 12px; margin-block: -12px } }
@@ -320,6 +341,10 @@ export class ProductComponent {
   /** Лавка товара для плашки продавца; не загрузилась — показываем только ник. */
   readonly shop = signal<Shop | null>(null);
   readonly more = signal<Product[]>([]);
+  /** Ответ API по категории как есть; подборка пересобирается при выборе размера без нового запроса. */
+  private readonly similarRaw = signal<Product[]>([]);
+  // Единственный размер выбирается сам — это не выбор покупателя, подборку по нему не сужаем
+  readonly similar = computed(() => { const p = this.product(); return p ? rankSimilar(this.similarRaw(), p, p.sizes.length > 1 ? this.size() : null) : []; });
   readonly missing = signal(false);
   readonly photo = signal(0);
   /** Открыт вертикальный просмотр видео (как в Instagram) поверх страницы. */
@@ -380,6 +405,9 @@ export class ProductComponent {
   /** Отзывы о товаре; null — ещё грузятся или не загрузились (раздел скрыт). Запрос идёт и при серверном рендере. */
   readonly reviews = signal<Review[] | null>(null);
   readonly ratingText = computed(() => { const p = this.product(); return p ? ratingLabel(p.rating, p.reviews_count) : ''; });
+  /** Скидка в процентах и последний день акции — рядом с ценой. */
+  readonly discount = computed(() => { const p = this.product(); return p ? discountPercent(p.price, p.old_price) : null; });
+  readonly promoEnds = computed(() => promoUntil(this.product()?.promo_ends_at));
 
   rating(r: number): string { return ratingNumber(r); }
 
@@ -387,7 +415,7 @@ export class ProductComponent {
     effect((onCleanup) => {
       const id = this.id();
       this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false); this.copied.set(false); this.reel.set(false); this.viewer.set(false);
-      this.product.set(null); this.more.set([]); this.shop.set(null); this.reviews.set(null);
+      this.product.set(null); this.more.set([]); this.similarRaw.set([]); this.shop.set(null); this.reviews.set(null);
       const nested: { unsubscribe(): void }[] = [];
       const sub = untracked(() => this.api.product(id).subscribe({
         next: (p) => {
@@ -402,6 +430,8 @@ export class ProductComponent {
             // Ошибка отзывов не ломает страницу товара: раздел просто не выводится
             this.api.reviews({ product: p.id }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),
           );
+          // Похожие — по категории; без категории подбирать не по чему. Ошибка — блока просто нет
+          if (p.category) nested.push(this.api.products({ category: p.category, limit: 24 }).pipe(catchError(() => of([]))).subscribe((list) => this.similarRaw.set(list)));
         },
         // 400 — нечисловой id отклонён валидацией бэкенда: для покупателя это тоже «нет такого товара»
         error: (e) => {

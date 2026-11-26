@@ -32,7 +32,7 @@ describe('LoginComponent', () => {
     expect(nav).toHaveBeenCalledWith('/me/orders');
   });
 
-  it('чужой или внешний return не используется — переход на /me/orders', async () => {
+  it('чужой или внешний return не используется — переход в профиль /me', async () => {
     const api = { sendCode: jest.fn(), verify: jest.fn(() => of({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false })) };
     await TestBed.configureTestingModule({ imports: [LoginComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
     TestBed.inject(AuthService).hydrate();
@@ -44,12 +44,12 @@ describe('LoginComponent', () => {
     f.componentInstance.step.set('code');
     f.componentInstance.code.set('000000');
     f.componentInstance.verify();
-    expect(nav).toHaveBeenCalledWith('/me/orders');
+    expect(nav).toHaveBeenCalledWith('/me');
   });
 
   it.each([
-    ['//evil.com', '/me/orders'],
-    ['/\\evil', '/me/orders'],
+    ['//evil.com', '/me'],
+    ['/\\evil', '/me'],
     ['/cart', '/cart'],
   ])('return «%s» → переход на %s', async (ret, expected) => {
     const api = { sendCode: jest.fn(), verify: jest.fn(() => of({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: false })) };

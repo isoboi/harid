@@ -40,4 +40,12 @@ describe('AuthService', () => {
     a.hydrate();
     expect(a.buyer()).toBeNull();
   });
+  it('setBuyer меняет профиль и хранилище, токен остаётся', () => {
+    const a = TestBed.inject(AuthService);
+    a.setSession({ token: 't', buyer: { id: 1, phone: '+992931110002', name: null }, is_new: true });
+    a.setBuyer({ id: 1, phone: '+992931110002', name: 'Мадина' });
+    expect(a.buyer()?.name).toBe('Мадина');
+    expect(a.token()).toBe('t');
+    expect(JSON.parse(localStorage.getItem('harid.buyer')!).name).toBe('Мадина');
+  });
 });
