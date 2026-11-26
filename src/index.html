@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <title>Харид — Instagram-магазины Таджикистана</title>
   <base href="/">
+  <!-- API и фото — на disti.site (environment.prod.ts): соединение (DNS + TLS) готовится заранее, а не при первом запросе.
+       Два раза: fetch к API идёт без cookies (crossorigin), картинки <img> — обычным соединением, у браузера это разные пулы. -->
+  <link rel="preconnect" href="https://disti.site" crossorigin>
+  <link rel="preconnect" href="https://disti.site">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- Основной шрифт — сразу, не дожидаясь разбора CSS (@font-face в styles.scss). crossorigin обязателен для шрифтов. -->
   <link rel="preload" href="/fonts/golos-text-v7-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
