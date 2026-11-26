@@ -25,8 +25,10 @@ import { ratingLabel, ratingNumber } from '../../shared/rating';
 import { SellerCardComponent } from '../../shared/seller-card.component';
 import { ReviewsComponent } from '../../shared/reviews.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
-import { PhotoViewerComponent, SWIPE_X } from '../../shared/photo-viewer.component';
-import { ReelAction, ReelViewerComponent } from '../../shared/reel-viewer.component';
+import { PhotoViewerComponent } from '../../shared/photo-viewer.component';
+import type { ReelAction } from '../../shared/reel-viewer.component';
+import { ReelViewerComponent } from '../../shared/reel-viewer.component';
+import { SWIPE_X } from '../../shared/swipe';
 import { ShareComponent } from '../../shared/share.component';
 import { rankSimilar } from '../../shared/similar';
 import { VideoPlayerComponent } from '../../shared/video-player.component';
@@ -67,15 +69,25 @@ export function buyBarVisible(e: ButtonView): boolean {
             <!-- Телефон: фото листаются пальцем вбок; нажатие открывает фото на весь экран с увеличением -->
             <div class="main" #main [class.video]="videoOn()" [class.swiping]="swipeDx() !== 0"
               (pointerdown)="swipeDown($event)" (pointermove)="swipeMove($event)" (pointerup)="swipeUp()" (pointercancel)="swipeUp()">
-              <!-- Человек сам выбрал слайд с видео — играем сразу, без второго нажатия -->
-              @if (videoOn()) { <app-video-player [src]="video()" [poster]="photos()[0] || ''" [label]="'Видео: ' + p.title" [autoplay]="true" [expandable]="true" [hold]="reel()" (expand)="reel.set(true)" /> }
-              @else if (current()) {
-                <button type="button" class="zoom" data-test="open-viewer" aria-label="Открыть фото на весь экран" (click)="openViewer()">
-                  <!-- Главное фото — самый крупный элемент первого экрана (LCP): качается раньше миниатюр и прочего -->
-                  <img [src]="current()" [alt]="p.title" fetchpriority="high" [style.transform]="swipeDx() ? 'translateX(' + swipeDx() + 'px)' : null" />
-                </button>
+              <!-- Человек сам выбрал слайд с видео — играем сразу, без второго нажатия.
+                   Плеер (~18 КБ) — отдельный чанк: качается, когда браузер простаивает, и только у товаров с видео.
+                   Пока не пришёл (и на сервере, если видео — единственный слайд) — обложка на месте плеера. -->
+              @if (video()) {
+                @defer (when videoOn(); prefetch on idle) {
+                  @if (videoOn()) { <app-video-player [src]="video()" [poster]="photos()[0] || ''" [label]="'Видео: ' + p.title" [autoplay]="true" [expandable]="true" [hold]="reel()" (expand)="reel.set(true)" /> }
+                } @placeholder {
+                  @if (videoOn() && photos()[0]) { <img data-test="video-poster" [src]="photos()[0]" alt="" /> }
+                }
               }
-              @else { <span class="muted">Нет фото</span> }
+              @if (!videoOn()) {
+                @if (current()) {
+                  <button type="button" class="zoom" data-test="open-viewer" aria-label="Открыть фото на весь экран" (click)="openViewer()">
+                    <!-- Главное фото — самый крупный элемент первого экрана (LCP): качается раньше миниатюр и прочего -->
+                    <img [src]="current()" [alt]="p.title" fetchpriority="high" [style.transform]="swipeDx() ? 'translateX(' + swipeDx() + 'px)' : null" />
+                  </button>
+                }
+                @else { <span class="muted">Нет фото</span> }
+              }
               @if (slides() > 1 && !videoOn()) { <span class="count" data-test="photo-count" aria-hidden="true">{{ photo() + 1 }} / {{ slides() }}</span> }
             </div>
             @if (photos().length + (video() ? 1 : 0) > 1) {
@@ -166,11 +178,20 @@ export function buyBarVisible(e: ButtonView): boolean {
           @else if (added()) { <a class="btn bar-btn" routerLink="/cart">Перейти в корзину</a> }
           @else { <button type="button" class="btn bar-btn" (click)="barAdd(p, $event.currentTarget)">Добавить в корзину</button> }
         </div>
-        @if (viewer()) {
-          <app-photo-viewer [photos]="photos()" [start]="photo()" [alt]="p.title" (closed)="closeViewer($event)" />
+        <!-- Просмотр фото и вертикальный режим видео — отдельные чанки: заранее, пока браузер простаивает, и не в начальной загрузке страницы -->
+        @if (photos().length) {
+          @defer (when viewer(); prefetch on idle) {
+            @if (viewer()) {
+              <app-photo-viewer [photos]="photos()" [start]="photo()" [alt]="p.title" (closed)="closeViewer($event)" />
+            }
+          }
         }
-        @if (reel()) {
-          <app-reel-viewer [product]="p" [shop]="shop()" [favorite]="fav.has(p.id)" [action]="reelAction()" (closed)="reel.set(false)" (act)="reelAct(p)" (toggleFavorite)="fav.toggle(p.id)" (liked)="like(p)" />
+        @if (video()) {
+          @defer (when reel(); prefetch on idle) {
+            @if (reel()) {
+              <app-reel-viewer [product]="p" [shop]="shop()" [favorite]="fav.has(p.id)" [action]="reelAction()" (closed)="reel.set(false)" (act)="reelAct(p)" (toggleFavorite)="fav.toggle(p.id)" (liked)="like(p)" />
+            }
+          }
         }
         <app-reviews class="reviews" [reviews]="reviews()" [rating]="p.rating ?? null" [count]="p.reviews_count ?? 0" [product]="p.id" />
         @if (more().length) {
