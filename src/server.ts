@@ -102,7 +102,12 @@ app.use(
 app.use('/**', (req, res, next) => {
   angularApp
     .handle(req, { origin: requestOrigin(siteUrl, req, allowedHosts) ?? undefined })
-    .then((response) => (response ? writeResponseToNodeResponse(response, res) : next()))
+    .then((response) => {
+      if (!response) { next(); return; }
+      // Страница рендерится на языке из cookie lang: общий кэш (CDN, прокси) не должен отдать её с другим языком
+      response.headers.append('Vary', 'Cookie');
+      return writeResponseToNodeResponse(response, res);
+    })
     .catch(next);
 });
 

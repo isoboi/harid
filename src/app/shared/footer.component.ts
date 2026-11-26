@@ -1,45 +1,48 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PwaService } from '../core/pwa.service';
+import { TPipe } from '../core/i18n';
 import { IconComponent } from './icon.component';
+import { LangSwitchComponent } from './lang-switch.component';
 import { LogoComponent } from './logo.component';
 
 /** Подвал прототипа: тёмно-синий, логотип с обещанием и две колонки ссылок, внизу строка ©. */
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [RouterLink, LogoComponent, IconComponent],
+  imports: [RouterLink, LogoComponent, IconComponent, LangSwitchComponent, TPipe],
   template: `
     <footer class="ftr">
       <div class="wrap cols">
         <div class="about">
           <app-logo class="logo" />
-          <p class="pitch">Instagram-магазины Таджикистана в одном месте. Платите наличными курьеру, когда заказ у вас в руках.</p>
+          <p class="pitch">{{ 'Instagram-магазины Таджикистана в одном месте. Платите наличными курьеру, когда заказ у вас в руках.' | t }}</p>
+          <app-lang-switch class="lang" />
           <!-- Только там, где браузер разрешил установку (Chrome, Edge, Samsung Internet); в Safari — «Поделиться → На экран Домой» -->
           @if (pwa.canInstall()) {
             <button type="button" class="install" data-test="install-app" (click)="pwa.install()">
-              <app-icon name="smartphone" [size]="18" />Установить приложение
+              <app-icon name="smartphone" [size]="18" />{{ 'Установить приложение' | t }}
             </button>
           }
         </div>
         <div>
-          <h2 class="h">Покупателям</h2>
+          <h2 class="h">{{ 'Покупателям' | t }}</h2>
           <ul class="links">
-            <li><a routerLink="/" fragment="cash">Оплата наличными курьеру</a></li>
-            <li><a routerLink="/cart">Корзина</a></li>
-            <li><a routerLink="/me/orders">Мои заказы</a></li>
+            <li><a routerLink="/" fragment="cash">{{ 'Оплата наличными курьеру' | t }}</a></li>
+            <li><a routerLink="/cart">{{ 'Корзина' | t }}</a></li>
+            <li><a routerLink="/me/orders">{{ 'Мои заказы' | t }}</a></li>
           </ul>
         </div>
         <div>
-          <h2 class="h">Продавцам</h2>
+          <h2 class="h">{{ 'Продавцам' | t }}</h2>
           <ul class="links">
-            <li><a routerLink="/sell">Открыть лавку</a></li>
-            <li><a routerLink="/sell" fragment="terms">Как это работает</a></li>
+            <li><a routerLink="/sell">{{ 'Открыть лавку' | t }}</a></li>
+            <li><a routerLink="/sell" fragment="terms">{{ 'Как это работает' | t }}</a></li>
           </ul>
         </div>
       </div>
       <div class="bottom">
-        <p class="wrap legal">© {{ year }} Харид, Таджикистан. Instagram — товарный знак Meta Platforms, Inc.</p>
+        <p class="wrap legal">{{ '© {year} Харид, Таджикистан. Instagram — товарный знак Meta Platforms, Inc.' | t: { year } }}</p>
       </div>
     </footer>
   `,
@@ -51,6 +54,8 @@ import { LogoComponent } from './logo.component';
     .about { max-width: 34ch }
     .logo { color: var(--color-paper) }
     .pitch { margin-top: 16px; font-size: 15px; line-height: 1.625 }
+    /* Выбранный язык — белая заливка с тёмным текстом, как кнопки на тёмном подвале */
+    .lang { display: block; margin-top: 20px; --lang-switch-bg: var(--color-paper); --lang-switch-fg: var(--color-ink) }
     .install { display: inline-flex; align-items: center; gap: 8px; height: 44px; margin-top: 20px; padding: 0 16px; border: 1px solid rgb(255 255 255 / .3); border-radius: 10px; color: var(--color-paper); font-size: 15px; font-weight: 600; cursor: pointer }
     @media (hover: hover) { .install:hover { border-color: var(--color-paper) } }
     .install:focus-visible { outline: 2px solid var(--color-saffron); outline-offset: 2px }

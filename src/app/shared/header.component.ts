@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
 import { ChatSocket } from '../core/chat-socket.service';
+import { TPipe } from '../core/i18n';
 import { HeaderScrollState, nextHeaderState } from './header-scroll';
 import { IconComponent } from './icon.component';
 import { LogoComponent } from './logo.component';
@@ -17,33 +18,33 @@ import { SearchBoxComponent } from './search-box.component';
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [RouterLink, IconComponent, LogoComponent, SearchBoxComponent],
+  imports: [RouterLink, IconComponent, LogoComponent, SearchBoxComponent, TPipe],
   template: `
     <header class="hdr" [class.hdr--up]="hidden()" (focusin)="onFocus(true)" (focusout)="onFocus(false)">
       <div class="wrap row">
         <app-logo />
         <!-- Телефон: личные сообщения — значок справа от логотипа, как в Instagram; на широком экране он в .nav -->
         @if (auth.loggedIn()) {
-          <a routerLink="/chats" class="dm" data-test="dm-link" [attr.aria-label]="chat.unreadTotal() ? 'Сообщения, непрочитанных: ' + chat.unreadTotal() : 'Сообщения'">
+          <a routerLink="/chats" class="dm" data-test="dm-link" [attr.aria-label]="chat.unreadTotal() ? ('Сообщения, непрочитанных: {n}' | t: { n: chat.unreadTotal() }) : ('Сообщения' | t)">
             <app-icon name="message-circle" [size]="24" [stroke]="1.8" />
             @if (chat.unreadTotal()) { <span class="dm-badge" aria-hidden="true">{{ unread() }}</span> }
           </a>
         }
         <app-search-box class="search" />
-        <nav class="nav" aria-label="Основное меню">
-          <a routerLink="/sell" class="sell"><span class="lbl">Продавцам</span></a>
-          <a routerLink="/favorites" class="ico-link"><app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl sr-only">Избранное</span></a>
+        <nav class="nav" [attr.aria-label]="'Основное меню' | t">
+          <a routerLink="/sell" class="sell"><span class="lbl">{{ 'Продавцам' | t }}</span></a>
+          <a routerLink="/favorites" class="ico-link"><app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl sr-only">{{ 'Избранное' | t }}</span></a>
           @if (auth.loggedIn()) {
-            <a routerLink="/chats" class="ico-link chat-link" [attr.aria-label]="chat.unreadTotal() ? 'Сообщения, непрочитанных: ' + chat.unreadTotal() : null"><app-icon name="message-circle" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Сообщения</span>
+            <a routerLink="/chats" class="ico-link chat-link" [attr.aria-label]="chat.unreadTotal() ? ('Сообщения, непрочитанных: {n}' | t: { n: chat.unreadTotal() }) : null"><app-icon name="message-circle" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">{{ 'Сообщения' | t }}</span>
               @if (chat.unreadTotal()) { <span class="badge badge--msg" data-test="chat-badge" aria-hidden="true">{{ chat.unreadTotal() }}</span> }
             </a>
-            <a routerLink="/me" class="ico-link"><app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Профиль</span></a>
+            <a routerLink="/me" class="ico-link"><app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">{{ 'Профиль' | t }}</span></a>
           } @else {
-            <a routerLink="/login" class="ico-link"><app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">Войти</span></a>
+            <a routerLink="/login" class="ico-link"><app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">{{ 'Войти' | t }}</span></a>
           }
-          <a routerLink="/cart" class="cart" data-cart-target [attr.aria-label]="cart.count() ? 'Корзина, товаров: ' + cart.count() : null">
+          <a routerLink="/cart" class="cart" data-cart-target [attr.aria-label]="cart.count() ? ('Корзина, товаров: {n}' | t: { n: cart.count() }) : null">
             <app-icon name="bag" [size]="22" [stroke]="1.8" />
-            <span class="lbl hide-sm">Корзина</span>
+            <span class="lbl hide-sm">{{ 'Корзина' | t }}</span>
             @if (cart.count()) { <span class="badge" aria-hidden="true">{{ badge() }}</span> }
           </a>
         </nav>
