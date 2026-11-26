@@ -140,7 +140,7 @@ const MORE = 12;
     .score-count { font-size: 14px; color: var(--color-ink-soft) }
     .bars { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 2px }
     .bar { display: grid; grid-template-columns: 30px 1fr 32px; align-items: center; gap: 10px; width: 100%; min-height: 32px; padding: 0 6px; border-radius: 8px; color: var(--color-ink); font: inherit; text-align: left; cursor: pointer }
-    @media (hover: hover) { .bar:not(:disabled):hover { background: rgb(255 255 255 / .7) } }
+    @media (hover: hover) { .bar:not(:disabled):hover { background: color-mix(in srgb, var(--color-paper) 70%, transparent) } }
     .bar.on { background: var(--color-paper); box-shadow: 0 1px 2px rgb(19 35 91 / .08) }
     .bar:disabled { cursor: default; opacity: .55 }
     .bar:focus-visible { outline: 2px solid var(--color-lapis); outline-offset: 1px }

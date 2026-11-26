@@ -54,7 +54,7 @@ import { ratingLabel } from './rating';
     }
     /* Видимый кружок 36px, а сама кнопка 44px — палец не промахивается */
     .fav { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 9999px; color: var(--color-ink) }
-    .fav-dot { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9999px; background: rgb(255 255 255 / .9) }
+    .fav-dot { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9999px; background: color-mix(in srgb, var(--color-paper) 90%, transparent) }
     @media (hover: hover) { .fav:hover .fav-dot { background: var(--color-paper) } }
     .fav.on { color: var(--color-anor) }
   `,

@@ -211,7 +211,7 @@ export function buyBarVisible(e: ButtonView): boolean {
     .thumbs button { flex: none; width: 64px; height: 64px; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 10px; background: var(--color-mist) }
     .thumbs button.on { border-color: var(--color-ink) }
     .thumbs img { width: 100%; height: 100%; object-fit: cover }
-    .main.video { background: var(--color-ink) }
+    .main.video { background: var(--color-night) }
     .main app-video-player { position: absolute; inset: 0 }
     .thumbs .play { position: relative; display: grid; place-items: center; color: #fff }
     .thumbs .play img { position: absolute; inset: 0; filter: brightness(.6) }

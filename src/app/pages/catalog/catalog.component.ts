@@ -44,10 +44,10 @@ import { IconComponent } from '../../shared/icon.component';
     .tile app-icon { flex: none; color: var(--color-ink-soft) }
     @media (hover: hover) { .tile:hover { background: var(--color-line) } }
     .tile:active { background: var(--color-line) }
-    .tile--all { background: var(--color-ink); color: var(--color-paper) }
+    .tile--all { background: var(--color-night); color: var(--color-on-night) }
     .tile--all app-icon { color: var(--color-saffron) }
-    @media (hover: hover) { .tile--all:hover { background: var(--color-lapis-press) } }
-    .tile--all:active { background: var(--color-lapis-press) }
+    @media (hover: hover) { .tile--all:hover { background: var(--color-night-press) } }
+    .tile--all:active { background: var(--color-night-press) }
     .tile-skel { min-height: 88px; border-radius: var(--radius-photo) }
     /* Строка «Продавцам»: контур, как вторичная кнопка; высота от 64px */
     .sell { margin-top: 32px; display: flex; align-items: center; gap: 14px; min-height: 64px; padding: 12px 16px; border: 1px solid var(--color-line); border-radius: var(--radius-photo); line-height: 1.35 }

@@ -88,7 +88,7 @@ import { chatListTime } from './chat-time';
     .unread .name { font-weight: 800 }
     .unread .last { color: var(--color-ink); font-weight: 500 }
     .unread .when { color: var(--color-lapis); font-weight: 600 }
-    .badge { flex: none; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 9999px; background: var(--color-anor); color: var(--color-paper); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums }
+    .badge { flex: none; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 9999px; background: var(--color-anor); color: var(--color-on-anor); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums }
     /* Заглушка: строки той же высоты 76px, без подсветки при наведении */
     li.row { pointer-events: none }
     .ava-skel { flex: none; width: 52px; height: 52px }

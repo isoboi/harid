@@ -116,7 +116,7 @@ const CASH_STEPS = [
     .tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover }
     .tag { position: absolute; top: 12px; left: 10px }
     .big .tag { top: 16px; left: 12px }
-    .cap { position: absolute; left: 12px; right: 12px; bottom: 12px; border-radius: var(--radius-lg); background: rgb(255 255 255 / .95); padding: 8px 12px; font-size: 14px; line-height: 1.375 }
+    .cap { position: absolute; left: 12px; right: 12px; bottom: 12px; border-radius: var(--radius-lg); background: color-mix(in srgb, var(--color-paper) 95%, transparent); padding: 8px 12px; font-size: 14px; line-height: 1.375 }
     .cap-t { font-weight: 600 }
     .cap-s { display: block; color: var(--color-ink-soft) }
     .fresh { scroll-margin-top: 96px; padding-bottom: 64px }

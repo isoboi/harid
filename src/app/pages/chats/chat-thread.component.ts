@@ -90,7 +90,7 @@ interface Row { message: ChatMessage; day: string | null; grouped: boolean }
     .screen { --bar-top: 0px; display: flex; flex-direction: column; max-width: 760px; min-height: 100dvh; margin: 0 auto; background: var(--color-paper) }
     @media (min-width: 641px) { .screen { --bar-top: 69px; min-height: calc(100dvh - 69px); border-inline: 1px solid var(--color-line) } }
 
-    .bar { position: sticky; top: var(--bar-top); z-index: 5; display: flex; align-items: center; gap: 4px; min-height: 64px; padding: 8px 12px 8px 4px; padding-top: max(8px, env(safe-area-inset-top)); border-bottom: 1px solid var(--color-line); background: rgb(255 255 255 / .96); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px) }
+    .bar { position: sticky; top: var(--bar-top); z-index: 5; display: flex; align-items: center; gap: 4px; min-height: 64px; padding: 8px 12px 8px 4px; padding-top: max(8px, env(safe-area-inset-top)); border-bottom: 1px solid var(--color-line); background: color-mix(in srgb, var(--color-paper) 96%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px) }
     .back { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 12px; color: var(--color-ink) }
     .who { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 4px 8px 4px 4px; border-radius: 12px; color: inherit; text-decoration: none }
     @media (hover: hover) { .back:hover, .who:hover { background: var(--color-mist) } }
@@ -123,7 +123,7 @@ interface Row { message: ChatMessage; day: string | null; grouped: boolean }
     .composer textarea { flex: 1; min-height: 44px; max-height: 128px; padding: 11px 16px; border: 1px solid transparent; border-radius: 22px; background: var(--color-mist); color: var(--color-ink); font: inherit; font-size: 16px; line-height: 1.35; resize: none; field-sizing: content; outline: none }
     .composer textarea:focus { border-color: var(--color-lapis); background: var(--color-paper) }
     .composer textarea::placeholder { color: var(--color-ink-soft) }
-    .send { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--color-lapis); color: var(--color-paper); cursor: pointer; transition: background-color .15s, opacity .15s }
+    .send { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--color-lapis); color: var(--color-on-lapis); cursor: pointer; transition: background-color .15s, opacity .15s }
     .send:not(:disabled):active { background: var(--color-lapis-press) }
     .send:disabled { opacity: .35; cursor: default }
   `,
