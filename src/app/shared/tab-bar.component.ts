@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/ro
 import { filter, map } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
+import { TPipe } from '../core/i18n';
 import { IconComponent } from './icon.component';
 
 /** Открытая переписка: /chats/<id> (не список и не /chats/new). */
@@ -28,34 +29,34 @@ export function pathOf(url: string): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-tab-bar',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, IconComponent],
+  imports: [RouterLink, RouterLinkActive, IconComponent, TPipe],
   template: `
     @if (!onCheckout()) {
-      <nav class="tabbar" aria-label="Основная навигация">
+      <nav class="tabbar" [attr.aria-label]="'Основная навигация' | t">
         <a class="tab" routerLink="/" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">
-          <app-icon name="house" [size]="22" [stroke]="1.8" /><span class="lbl">Главная</span>
+          <app-icon name="house" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Главная' | t }}</span>
         </a>
         <!-- Каталог горит и на /catalog, и внутри любой категории /c/… -->
         <a class="tab" routerLink="/catalog" [class.on]="catalogActive()" [attr.aria-current]="catalogActive() ? 'page' : null">
-          <app-icon name="layout-grid" [size]="22" [stroke]="1.8" /><span class="lbl">Каталог</span>
+          <app-icon name="layout-grid" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Каталог' | t }}</span>
         </a>
         <a class="tab" routerLink="/favorites" routerLinkActive="on" ariaCurrentWhenActive="page">
-          <app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl">Избранное</span>
+          <app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Избранное' | t }}</span>
         </a>
-        <a class="tab" routerLink="/cart" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.aria-label]="cart.count() ? 'Корзина, товаров: ' + cart.count() : null">
+        <a class="tab" routerLink="/cart" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.aria-label]="cart.count() ? ('Корзина, товаров: {n}' | t: { n: cart.count() }) : null">
           <span class="ico" data-cart-target><app-icon name="bag" [size]="22" [stroke]="1.8" />
             @if (cart.count()) { <span class="badge" aria-hidden="true">{{ badge() }}</span> }
           </span>
-          <span class="lbl">Корзина</span>
+          <span class="lbl">{{ 'Корзина' | t }}</span>
         </a>
         @if (auth.loggedIn()) {
           <!-- Профиль горит и на /me, и в его разделах (/me/orders) -->
           <a class="tab" routerLink="/me" [class.on]="profileActive()" [attr.aria-current]="profileActive() ? 'page' : null">
-            <app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl">Профиль</span>
+            <app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Профиль' | t }}</span>
           </a>
         } @else {
           <a class="tab" routerLink="/login" routerLinkActive="on" ariaCurrentWhenActive="page">
-            <app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl">Войти</span>
+            <app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Войти' | t }}</span>
           </a>
         }
       </nav>

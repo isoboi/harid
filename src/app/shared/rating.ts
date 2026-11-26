@@ -1,5 +1,5 @@
+import { I18nLike, RU } from '../core/i18n';
 import { Shop } from '../core/models';
-import { plural } from './plural';
 
 const REVIEW_FORMS: [string, string, string] = ['отзыв', 'отзыва', 'отзывов'];
 
@@ -7,7 +7,7 @@ const REVIEW_FORMS: [string, string, string] = ['отзыв', 'отзыва', '�
 export const ratingNumber = (r: number): string => r.toFixed(1).replace('.', ',');
 
 /** «12 отзывов», «1 отзыв», «3 отзыва». */
-export const reviewsCount = (n: number): string => `${n} ${plural(n, REVIEW_FORMS)}`;
+export const reviewsCount = (n: number, i18n: I18nLike = RU): string => `${n} ${i18n.plural(n, REVIEW_FORMS)}`;
 
 /** Подпись к звезде: «4,8 · 12 отзывов». Без отзывов — пустая строка, и звезду не показываем. */
 /**
@@ -17,12 +17,12 @@ export const reviewsCount = (n: number): string => `${n} ${plural(n, REVIEW_FORM
  */
 export type ShopRating = { kind: 'rated'; value: string; count: string } | { kind: 'none' } | { kind: 'direct' };
 
-export function shopRating(shop: Pick<Shop, 'rating' | 'reviews_count' | 'verified'>): ShopRating {
-  if (shop.rating != null) return { kind: 'rated', value: ratingNumber(shop.rating), count: reviewsCount(shop.reviews_count ?? 0) };
+export function shopRating(shop: Pick<Shop, 'rating' | 'reviews_count' | 'verified'>, i18n: I18nLike = RU): ShopRating {
+  if (shop.rating != null) return { kind: 'rated', value: ratingNumber(shop.rating), count: reviewsCount(shop.reviews_count ?? 0, i18n) };
   return shop.verified === false ? { kind: 'direct' } : { kind: 'none' };
 }
 
-export function ratingLabel(rating: number | null | undefined, count: number | null | undefined): string {
+export function ratingLabel(rating: number | null | undefined, count: number | null | undefined, i18n: I18nLike = RU): string {
   if (!count || count <= 0) return '';
-  return rating == null ? reviewsCount(count) : `${ratingNumber(rating)} · ${reviewsCount(count)}`;
+  return rating == null ? reviewsCount(count, i18n) : `${ratingNumber(rating)} · ${reviewsCount(count, i18n)}`;
 }

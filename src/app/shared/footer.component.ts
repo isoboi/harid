@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PwaService } from '../core/pwa.service';
+import { TPipe } from '../core/i18n';
 import { ThemeMode, ThemeService } from '../core/theme.service';
 import { IconComponent, IconName } from './icon.component';
+import { LangSwitchComponent } from './lang-switch.component';
 import { LogoComponent } from './logo.component';
 
 const THEMES: readonly { mode: ThemeMode; label: string; icon: IconName }[] = [
@@ -19,46 +21,47 @@ const THEMES: readonly { mode: ThemeMode; label: string; icon: IconName }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-footer',
   standalone: true,
-  imports: [RouterLink, LogoComponent, IconComponent],
+  imports: [RouterLink, LogoComponent, IconComponent, LangSwitchComponent, TPipe],
   template: `
     <footer class="ftr">
       <div class="wrap cols">
         <div class="about">
           <app-logo class="logo" />
-          <p class="pitch">Instagram-магазины Таджикистана в одном месте. Платите наличными курьеру, когда заказ у вас в руках.</p>
+          <p class="pitch">{{ 'Instagram-магазины Таджикистана в одном месте. Платите наличными курьеру, когда заказ у вас в руках.' | t }}</p>
+          <app-lang-switch class="lang" />
           <!-- Только там, где браузер разрешил установку (Chrome, Edge, Samsung Internet); в Safari — «Поделиться → На экран Домой» -->
           @if (pwa.canInstall()) {
             <button type="button" class="install" data-test="install-app" (click)="pwa.install()">
-              <app-icon name="smartphone" [size]="18" />Установить приложение
+              <app-icon name="smartphone" [size]="18" />{{ 'Установить приложение' | t }}
             </button>
           }
         </div>
         <div>
-          <h2 class="h">Покупателям</h2>
+          <h2 class="h">{{ 'Покупателям' | t }}</h2>
           <ul class="links">
-            <li><a routerLink="/" fragment="cash">Оплата наличными курьеру</a></li>
-            <li><a routerLink="/cart">Корзина</a></li>
-            <li><a routerLink="/me/orders">Мои заказы</a></li>
+            <li><a routerLink="/" fragment="cash">{{ 'Оплата наличными курьеру' | t }}</a></li>
+            <li><a routerLink="/cart">{{ 'Корзина' | t }}</a></li>
+            <li><a routerLink="/me/orders">{{ 'Мои заказы' | t }}</a></li>
           </ul>
         </div>
         <div>
-          <h2 class="h">Продавцам</h2>
+          <h2 class="h">{{ 'Продавцам' | t }}</h2>
           <ul class="links">
-            <li><a routerLink="/sell">Открыть лавку</a></li>
-            <li><a routerLink="/sell" fragment="terms">Как это работает</a></li>
+            <li><a routerLink="/sell">{{ 'Открыть лавку' | t }}</a></li>
+            <li><a routerLink="/sell" fragment="terms">{{ 'Как это работает' | t }}</a></li>
           </ul>
         </div>
       </div>
       <div class="bottom">
         <div class="wrap bottom-row">
-          <p class="legal">© {{ year }} Харид, Таджикистан. Instagram — товарный знак Meta Platforms, Inc.</p>
+          <p class="legal">{{ '© {year} Харид, Таджикистан. Instagram — товарный знак Meta Platforms, Inc.' | t: { year } }}</p>
           <fieldset class="theme">
-            <legend class="theme-h">Тема</legend>
+            <legend class="theme-h">{{ 'Тема' | t }}</legend>
             <div class="seg">
               @for (t of themes; track t.mode) {
                 <label class="opt" [class.on]="theme.mode() === t.mode">
                   <input type="radio" name="theme" class="sr-only" [value]="t.mode" [checked]="theme.mode() === t.mode" (change)="theme.set(t.mode)" [attr.data-test]="'theme-' + t.mode" />
-                  <app-icon [name]="t.icon" [size]="16" />{{ t.label }}
+                  <app-icon [name]="t.icon" [size]="16" />{{ t.label | t }}
                 </label>
               }
             </div>
@@ -76,6 +79,8 @@ const THEMES: readonly { mode: ThemeMode; label: string; icon: IconName }[] = [
     .about { max-width: 34ch }
     .logo { color: var(--color-on-night) }
     .pitch { margin-top: 16px; font-size: 15px; line-height: 1.625 }
+    /* Выбранный язык — светлая заливка с тёмно-синим текстом: подвал тёмный в обеих темах, поэтому on-night/night, а не paper/ink */
+    .lang { display: block; margin-top: 20px; --lang-switch-bg: var(--color-on-night); --lang-switch-fg: var(--color-night) }
     .install { display: inline-flex; align-items: center; gap: 8px; height: 44px; margin-top: 20px; padding: 0 16px; border: 1px solid rgb(255 255 255 / .3); border-radius: 10px; color: var(--color-on-night); font-size: 15px; font-weight: 600; cursor: pointer }
     @media (hover: hover) { .install:hover { border-color: var(--color-on-night) } }
     .install:focus-visible { outline: 2px solid var(--color-saffron); outline-offset: 2px }

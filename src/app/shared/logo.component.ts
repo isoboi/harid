@@ -1,14 +1,15 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { TPipe } from '../core/i18n';
 
 /** Логотип прототипа: шафрановая бирка с дырочкой, наклонённая на −6°, и слово «харид». */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-logo',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, TPipe],
   template: `
-    <a routerLink="/" class="logo" aria-label="Харид — на главную">
+    <a routerLink="/" class="logo" [attr.aria-label]="'Харид — на главную' | t">
       <svg width="30" height="22" viewBox="0 0 30 22" aria-hidden="true" focusable="false">
         <path fill-rule="evenodd" fill="#FFC93C" d="M9 0H28a2 2 0 0 1 2 2v18a2 2 0 0 1-2 2H9L0 11 9 0Zm-1 13.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z" />
       </svg>
