@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { forkJoin, of, Subscription } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { FavoritesService } from '../../core/favorites.service';
+import { TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { Product } from '../../core/models';
 import { ProductCardComponent } from '../../shared/product-card.component';
@@ -13,10 +14,10 @@ import { SkelProductsComponent } from '../../shared/skeleton.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-favorites',
   standalone: true,
-  imports: [ProductCardComponent, RouterLink, SkelProductsComponent],
+  imports: [ProductCardComponent, RouterLink, SkelProductsComponent, TPipe],
   template: `
     <div class="wrap page-top">
-      <h1 class="page-title head">Избранное</h1>
+      <h1 class="page-title head">{{ 'Избранное' | t }}</h1>
       <!-- Перезагрузка списка (сняли сердечко) не прячет уже показанные карточки за заглушкой -->
       @if (!fav.ready() || (loading() && !products().length)) { <app-skel-products [count]="skelCount()" /> }
       @else if (products().length) {
@@ -24,8 +25,8 @@ import { SkelProductsComponent } from '../../shared/skeleton.component';
       }
       @else {
         <div class="empty">
-          <p>Пока пусто. Нажмите на сердечко у товара — он появится здесь.</p>
-          <a class="btn" routerLink="/">Смотреть товары</a>
+          <p>{{ 'Пока пусто. Нажмите на сердечко у товара — он появится здесь.' | t }}</p>
+          <a class="btn" routerLink="/">{{ 'Смотреть товары' | t }}</a>
         </div>
       }
     </div>

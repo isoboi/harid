@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
+import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { prettyPhone } from '../../core/phone';
 import { ToastService } from '../../core/toast.service';
@@ -34,10 +35,10 @@ export function initialsOf(name: string): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-profile',
   standalone: true,
-  imports: [FormsModule, RouterLink, IconComponent],
+  imports: [FormsModule, RouterLink, IconComponent, TPipe],
   template: `
     <div class="wrap page-top">
-      <h1 class="page-title head">Профиль</h1>
+      <h1 class="page-title head">{{ 'Профиль' | t }}</h1>
       @if (auth.buyer(); as b) {
         @if (!editing()) {
           <button class="card who" type="button" data-test="profile-card" (click)="edit()">
@@ -45,42 +46,42 @@ export function initialsOf(name: string): string {
               @if (initials()) { {{ initials() }} } @else { <app-icon name="user" [size]="28" [stroke]="1.8" /> }
             </span>
             <span class="who-text">
-              <span class="who-name" [class.empty]="!b.name" data-test="name">{{ b.name || 'Укажите имя' }}</span>
+              <span class="who-name" [class.empty]="!b.name" data-test="name">{{ b.name || ('Укажите имя' | t) }}</span>
               <span class="phone" data-test="phone">{{ phone() }}</span>
             </span>
-            <app-icon class="go" name="pencil" [size]="20" [stroke]="1.8" /><span class="sr-only">Изменить</span>
+            <app-icon class="go" name="pencil" [size]="20" [stroke]="1.8" /><span class="sr-only">{{ 'Изменить' | t }}</span>
           </button>
         } @else {
           <form class="card" (ngSubmit)="save()" (keydown.escape)="cancelEdit()" data-test="name-form">
             <div class="field">
-              <label for="profile-name">Как к вам обращаться</label>
+              <label for="profile-name">{{ 'Как к вам обращаться' | t }}</label>
               <input id="profile-name" name="name" class="field-control" autocomplete="name" [maxlength]="nameMax"
                 [ngModel]="name()" (ngModelChange)="name.set($event)" [attr.aria-invalid]="error() ? true : null" />
               @if (error()) { <p class="field-error" role="alert" data-test="name-error">{{ error() }}</p> }
             </div>
             <div class="field">
-              <span class="label">Номер телефона</span>
+              <span class="label">{{ 'Номер телефона' | t }}</span>
               <p class="phone" data-test="phone">{{ phone() }}</p>
-              <p class="field-hint">По этому номеру вы входите на Харид, поэтому изменить его нельзя.</p>
+              <p class="field-hint">{{ 'По этому номеру вы входите на Харид, поэтому изменить его нельзя.' | t }}</p>
             </div>
             <div class="actions">
-              <button class="btn" type="submit" data-test="save" [disabled]="!canSave()">{{ busy() ? 'Сохраняем…' : 'Сохранить' }}</button>
-              <button class="btn btn--ghost" type="button" data-test="cancel-edit" [disabled]="busy()" (click)="cancelEdit()">Отмена</button>
+              <button class="btn" type="submit" data-test="save" [disabled]="!canSave()">{{ busy() ? ('Сохраняем…' | t) : ('Сохранить' | t) }}</button>
+              <button class="btn btn--ghost" type="button" data-test="cancel-edit" [disabled]="busy()" (click)="cancelEdit()">{{ 'Отмена' | t }}</button>
             </div>
           </form>
         }
 
-        <nav class="links" aria-label="Личные разделы">
+        <nav class="links" [attr.aria-label]="'Личные разделы' | t">
           <ul>
             @for (l of links; track l.path) {
-              <li><a class="link-row" [routerLink]="l.path"><app-icon [name]="l.icon" [size]="22" [stroke]="1.8" /><span>{{ l.label }}</span><app-icon class="go" name="chevron-right" [size]="20" /></a></li>
+              <li><a class="link-row" [routerLink]="l.path"><app-icon [name]="l.icon" [size]="22" [stroke]="1.8" /><span>{{ l.label | t }}</span><app-icon class="go" name="chevron-right" [size]="20" /></a></li>
             }
           </ul>
         </nav>
 
-        <button class="btn btn--ghost out" type="button" data-test="logout" (click)="logout()">Выйти</button>
+        <button class="btn btn--ghost out" type="button" data-test="logout" (click)="logout()">{{ 'Выйти' | t }}</button>
       } @else {
-        <div class="card" role="status"><span class="sr-only">Загрузка…</span><span class="skel skel--line" aria-hidden="true"></span></div>
+        <div class="card" role="status"><span class="sr-only">{{ 'Загрузка…' | t }}</span><span class="skel skel--line" aria-hidden="true"></span></div>
       }
     </div>
   `,
@@ -112,6 +113,7 @@ export class ProfileComponent {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly i18n = inject(I18n);
   readonly links = LINKS;
   readonly nameMax = NAME_MAX;
   readonly name = signal('');
@@ -174,12 +176,12 @@ export class ProfileComponent {
         this.auth.setBuyer(b);
         this.name.set(b.name ?? '');
         this.editing.set(false);
-        this.toast.show({ text: 'Имя сохранено' });
+        this.toast.show({ text: this.i18n.t('Имя сохранено') });
       },
       error: (e) => {
         this.busy.set(false);
         if (e instanceof HttpErrorResponse && e.status === 401) { this.toLogin(); return; }
-        this.error.set(apiErrorMessage(e));
+        this.error.set(apiErrorMessage(e, this.i18n));
       },
     });
   }

@@ -2,6 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, PLATFORM_ID, signal } from '@angular/core';
 import { SeoService } from '../core/seo.service';
 import { ToastService } from '../core/toast.service';
+import { I18n, TPipe } from '../core/i18n';
 import { IconComponent } from './icon.component';
 
 /** Ссылки «поделиться» в мессенджерах: в Telegram ссылка и текст идут отдельно, в WhatsApp — одной строкой. */
@@ -23,11 +24,11 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-share',
   standalone: true,
-  imports: [IconComponent],
+  imports: [IconComponent, TPipe],
   host: { '(document:keydown.escape)': 'close(true)', '(document:click)': 'outside($event)' },
   template: `
     <button #trigger type="button" class="trigger" data-test="share" [attr.aria-expanded]="open()" [attr.aria-controls]="menuId" (click)="toggle()">
-      <app-icon name="share" [size]="20" />Поделиться
+      <app-icon name="share" [size]="20" />{{ 'Поделиться' | t }}
     </button>
     @if (open()) {
       <div class="menu" [id]="menuId" data-test="share-menu">
@@ -38,11 +39,11 @@ let nextId = 0;
           <span class="ico wa"><app-icon name="message-circle" [size]="16" [stroke]="2" /></span>WhatsApp
         </a>
         <button type="button" class="item" data-test="share-copy" (click)="copy()">
-          <span class="ico"><app-icon name="link" [size]="16" [stroke]="2" /></span>Копировать ссылку
+          <span class="ico"><app-icon name="link" [size]="16" [stroke]="2" /></span>{{ 'Копировать ссылку' | t }}
         </button>
         @if (native) {
           <button type="button" class="item" data-test="share-native" (click)="nativeShare()">
-            <span class="ico"><app-icon name="ellipsis" [size]="16" [stroke]="2.5" /></span>Другие приложения
+            <span class="ico"><app-icon name="ellipsis" [size]="16" [stroke]="2.5" /></span>{{ 'Другие приложения' | t }}
           </button>
         }
       </div>
@@ -79,6 +80,7 @@ export class ShareComponent {
 
   protected readonly menuId = `share-menu-${nextId++}`;
   private readonly toasts = inject(ToastService);
+  private readonly i18n = inject(I18n);
   readonly open = signal(false);
   readonly url = computed(() => this.seo.origin() + this.path());
   readonly links = computed(() => shareLinks(this.url(), this.text()));
@@ -100,8 +102,8 @@ export class ShareComponent {
     this.close(true);
     if (!this.browser || !navigator.clipboard?.writeText) return;
     navigator.clipboard.writeText(this.url()).then(
-      () => this.toasts.show({ text: 'Ссылка скопирована' }),
-      () => this.toasts.error('Не удалось скопировать ссылку'),
+      () => this.toasts.show({ text: this.i18n.t('Ссылка скопирована') }),
+      () => this.toasts.error(this.i18n.t('Не удалось скопировать ссылку')),
     );
   }
 

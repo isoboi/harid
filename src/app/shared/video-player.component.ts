@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
+import { I18n, TPipe } from '../core/i18n';
 import { IconComponent } from './icon.component';
 import { clampTime, formatTime, fromScrubber, scrubberValue, SCRUBBER_MAX, SEEK_STEP } from './video-time';
 
@@ -28,7 +29,7 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-video-player',
   standalone: true,
-  imports: [IconComponent],
+  imports: [IconComponent, TPipe],
   host: { '(document:visibilitychange)': 'onVisibility()', '(document:fullscreenchange)': 'onFullscreenChange()' },
   template: `
     <div #frame class="frame" data-test="frame" [class.reels]="reels()" [class.portrait]="portrait()" [class.still]="away()" (pointermove)="wake()" (pointerdown)="wake()" (focusin)="wake()" (keydown)="key($event)">
@@ -37,7 +38,7 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
         (play)="onPlay()" (pause)="onPause()" (playing)="waiting.set(false)" (canplay)="waiting.set(false)" (waiting)="waiting.set(true)"
         (timeupdate)="sync()" (durationchange)="sync()" (loadedmetadata)="sync()" (volumechange)="muted.set(video().nativeElement.muted)"
         (emptied)="reset()" (error)="failed.set(true)"></video>
-      <button type="button" class="surface" data-test="surface" [attr.aria-label]="playing() ? 'Пауза' : started() ? 'Воспроизвести' : 'Смотреть видео'" (click)="tap($event)"></button>
+      <button type="button" class="surface" data-test="surface" [attr.aria-label]="playing() ? ('Пауза' | t) : started() ? ('Воспроизвести' | t) : ('Смотреть видео' | t)" (click)="tap($event)"></button>
       @if (!playing() && !failed() && !waiting()) {
         @if (reels()) { <span class="reel-play" data-test="big-play" aria-hidden="true"><app-icon name="play" [size]="76" [filled]="true" /></span> }
         @else { <span class="big" data-test="big-play" aria-hidden="true"><app-icon name="play" [size]="30" [filled]="true" /></span> }
@@ -46,31 +47,31 @@ type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
       @if (waiting() && !failed()) { <span class="spinner" data-test="spinner" aria-hidden="true"></span> }
       @if (failed()) {
         <div class="fail" data-test="error" role="alert">
-          <p>Не удалось загрузить видео</p>
-          <button type="button" class="retry" data-test="retry" (click)="retry()"><app-icon name="rotate-ccw" [size]="18" />Повторить</button>
+          <p>{{ 'Не удалось загрузить видео' | t }}</p>
+          <button type="button" class="retry" data-test="retry" (click)="retry()"><app-icon name="rotate-ccw" [size]="18" />{{ 'Повторить' | t }}</button>
         </div>
       }
       @if (reels()) { <div class="slot" data-test="slot"><ng-content /></div> }
       <div class="bar" data-test="bar" [class.away]="away()">
         @if (!reels()) {
-          <button type="button" class="ctl" data-test="toggle" [attr.aria-label]="playing() ? 'Пауза' : 'Воспроизвести'" (click)="toggle()">
+          <button type="button" class="ctl" data-test="toggle" [attr.aria-label]="playing() ? ('Пауза' | t) : ('Воспроизвести' | t)" (click)="toggle()">
             <app-icon [name]="playing() ? 'pause' : 'play'" [size]="22" [filled]="true" />
           </button>
         }
         <span class="scrub">
           <span class="track" aria-hidden="true"><span class="fill" [class.snap]="snap()" [style.width.%]="percent()"></span></span>
           <!-- max задан числом в разметке, а не привязкой: иначе value выставится раньше max и обрежется до 100 (значение — SCRUBBER_MAX) -->
-          <input type="range" data-test="scrub" min="0" max="1000" step="1" [value]="scrub()" aria-label="Перемотка" [attr.aria-valuetext]="spoken()" (input)="seek($event)" />
+          <input type="range" data-test="scrub" min="0" max="1000" step="1" [value]="scrub()" [attr.aria-label]="'Перемотка' | t" [attr.aria-valuetext]="spoken()" (input)="seek($event)" />
         </span>
         @if (!reels()) { <span class="time" data-test="time">{{ elapsed() }} / {{ total() }}</span> }
-        <button type="button" class="ctl mute" data-test="mute" [attr.aria-label]="muted() ? 'Включить звук' : 'Выключить звук'" (click)="toggleMute()">
+        <button type="button" class="ctl mute" data-test="mute" [attr.aria-label]="muted() ? ('Включить звук' | t) : ('Выключить звук' | t)" (click)="toggleMute()">
           <app-icon [name]="muted() ? 'volume-x' : 'volume-2'" [size]="22" />
         </button>
         @if (expandable() && !reels()) {
-          <button type="button" class="ctl" data-test="expand" aria-label="Вертикальный режим" (click)="expand.emit()"><app-icon name="smartphone" [size]="22" /></button>
+          <button type="button" class="ctl" data-test="expand" [attr.aria-label]="'Вертикальный режим' | t" (click)="expand.emit()"><app-icon name="smartphone" [size]="22" /></button>
         }
         @if (canFullscreen() && !reels()) {
-          <button type="button" class="ctl" data-test="fullscreen" [attr.aria-label]="fullscreen() ? 'Выйти из полноэкранного режима' : 'Во весь экран'" (click)="toggleFullscreen()">
+          <button type="button" class="ctl" data-test="fullscreen" [attr.aria-label]="fullscreen() ? ('Выйти из полноэкранного режима' | t) : ('Во весь экран' | t)" (click)="toggleFullscreen()">
             <app-icon [name]="fullscreen() ? 'minimize' : 'maximize'" [size]="22" />
           </button>
         }
@@ -151,7 +152,7 @@ export class VideoPlayerComponent {
   /** Постер: виден до запуска и размытым фоном по бокам вертикального ролика. */
   readonly poster = input<string>('');
   /** Подпись для экранных дикторов, например «Видео: Наушники». */
-  readonly label = input<string>('Видео');
+  readonly label = input<string>(inject(I18n).t('Видео'));
   /** Начать играть сразу: нужно, когда человек сам выбрал видео и второе нажатие было бы лишним. */
   readonly autoplay = input<boolean>(false);
   /** Вид плеера: обычный с панелью кнопок или вертикальный, как в Instagram. */
@@ -168,6 +169,7 @@ export class VideoPlayerComponent {
   readonly expand = output<void>();
 
   private readonly doc = inject(DOCUMENT);
+  private readonly i18n = inject(I18n);
   protected readonly video = viewChild.required<ElementRef<HTMLVideoElement>>('v');
   private readonly frame = viewChild.required<ElementRef<HTMLElement>>('frame');
 
@@ -199,7 +201,7 @@ export class VideoPlayerComponent {
   protected readonly percent = computed(() => (this.scrub() / SCRUBBER_MAX) * 100);
   protected readonly elapsed = computed(() => formatTime(this.current()));
   protected readonly total = computed(() => formatTime(this.duration()));
-  protected readonly spoken = computed(() => `${this.elapsed()} из ${this.total()}`);
+  protected readonly spoken = computed(() => this.i18n.t('{elapsed} из {total}', { elapsed: this.elapsed(), total: this.total() }));
 
   constructor() {
     // Возможности браузера известны только в нём: на сервере кнопки полного экрана нет

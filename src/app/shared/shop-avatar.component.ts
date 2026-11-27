@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { I18n } from '../core/i18n';
 
 /**
  * Кружок лавки как в прототипе: кольцо 3px (шафран — есть свежие посты, иначе серое),
@@ -42,6 +43,7 @@ export class ShopAvatarComponent {
   /** Url, который не загрузился: при смене url фото пробуется заново. */
   protected readonly failedUrl = signal<string | null | undefined>(null);
   protected readonly showPhoto = computed(() => !!this.avatarUrl() && this.avatarUrl() !== this.failedUrl());
-  protected readonly alt = computed(() => `Аватар @${(this.handle() || this.name()).replace(/^@/, '')}`);
+  private readonly i18n = inject(I18n);
+  protected readonly alt = computed(() => this.i18n.t('Аватар @{handle}', { handle: (this.handle() || this.name()).replace(/^@/, '') }));
   protected readonly letter = computed(() => this.name().replace(/^@/, '').charAt(0).toUpperCase());
 }

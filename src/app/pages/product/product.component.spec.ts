@@ -13,6 +13,8 @@ import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { PLATFORM_ID } from '@angular/core';
 import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { Product, Review } from '../../core/models';
+import { LANG_COOKIE, LANG_DICT } from '../../core/i18n';
+import { TG } from '../../i18n/tg';
 
 const prod = (over: Partial<Product> = {}): Product => ({ id: '16', shop_handle: 'technomir.tj', title: 'Наушники', price: 540, old_price: 600, image: 'a.jpg', images: ['a.jpg', 'b.jpg'], category: 'gadgets', description: 'Описание', sizes: [], in_stock: true, posted_at: '', ...over });
 
@@ -775,5 +777,38 @@ describe('ProductComponent', () => {
       f.detectChanges();
       expect(links(f)).toEqual(['/product/41', '/product/42']);
     });
+  });
+});
+
+describe('ProductComponent по-таджикски', () => {
+  beforeEach(() => { localStorage.clear(); document.cookie = `${LANG_COOKIE}=tg; path=/`; });
+  afterEach(() => { TestBed.resetTestingModule(); document.cookie = `${LANG_COOKIE}=; path=/; max-age=0`; });
+
+  async function renderTg(p: Product) {
+    const api = { product: jest.fn(() => of(p)), products: jest.fn(() => of([])), reviews: jest.fn(() => of([])), reviewSummary: jest.fn(() => of(null)), reviewable: jest.fn(() => of([])), shop: jest.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+    await TestBed.configureTestingModule({ imports: [ProductComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }, { provide: LANG_DICT, useValue: TG }] }).compileComponents();
+    const f = TestBed.createComponent(ProductComponent);
+    f.componentRef.setInput('id', p.id);
+    f.detectChanges();
+    return f;
+  }
+
+  it('кнопки, обещание оплаты, размер и отзывы — на таджикском; название товара не переводится', async () => {
+    const f = await renderTg(prod({ sizes: ['S', 'M'], rating: 4.5, reviews_count: 3 }));
+    const el = f.nativeElement as HTMLElement;
+    expect(el.querySelector('h1')?.textContent).toBe('Наушники');
+    expect(el.querySelector('[data-test="add"]')?.textContent?.trim()).toBe('Ба сабад илова кардан');
+    expect(el.querySelector('.sizes legend')?.textContent).toBe('Андоза');
+    expect(el.querySelector('[data-test="cash-promise"]')?.textContent).toContain('Пардохти нақд ба курйер');
+    expect(el.querySelector('[data-test="rating"]')?.textContent).toContain('4,5 · 3 шарҳ');
+    expect(el.querySelector('[data-test="write-seller"]')?.textContent).toBe('Ба фурӯшанда навиштан');
+    expect(el.querySelector('#reviews-title')?.textContent).toBe('Шарҳҳо');
+    expect(el.querySelector('.trust')?.textContent).toContain('Дар Душанбе — 15 смн, дар Вахдат ва Ҳисор — 25 смн.');
+    expect(TestBed.inject(Title).getTitle()).toBe('Наушники — 540 смн · Харид');
+  });
+
+  it('нет в наличии — подпись кнопки по-таджикски', async () => {
+    const f = await renderTg(prod({ in_stock: false }));
+    expect((f.nativeElement as HTMLElement).querySelector('[data-test="add"]')?.textContent?.trim()).toBe('Дар анбор нест');
   });
 });

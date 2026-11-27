@@ -1,6 +1,7 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, effect, inject, input, signal, untracked } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { I18n, TPipe } from '../core/i18n';
 import { MarketApi } from '../core/market-api.service';
 import { ToastService } from '../core/toast.service';
 import { Product, ProductQuery } from '../core/models';
@@ -15,6 +16,7 @@ export const FEED_PAGE_SIZE = 24;
 export class ProductFeed {
   private readonly api = inject(MarketApi);
   private readonly toasts = inject(ToastService);
+  private readonly i18n = inject(I18n);
   private query: ProductQuery | null = null;
   private sub?: Subscription;
   readonly items = signal<Product[]>([]);
@@ -62,7 +64,7 @@ export class ProductFeed {
       error: () => {
         this.refreshing.set(false);
         // Без сообщения индикатор просто пропадал, и старая лента выглядела обновлённой
-        this.toasts.error('Не удалось обновить — проверьте интернет');
+        this.toasts.error(this.i18n.t('Не удалось обновить — проверьте интернет'));
       },
     });
   }
@@ -100,10 +102,11 @@ export class ProductFeed {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-feed-more',
   standalone: true,
+  imports: [TPipe],
   host: { class: 'more' },
   template: `
-    @if (feed().failed()) { <button type="button" class="btn btn--ghost" data-test="more" (click)="feed().more()">Показать ещё</button> }
-    @else if (feed().loading() && feed().items().length) { <span class="muted">Загружаем…</span> }
+    @if (feed().failed()) { <button type="button" class="btn btn--ghost" data-test="more" (click)="feed().more()">{{ 'Показать ещё' | t }}</button> }
+    @else if (feed().loading() && feed().items().length) { <span class="muted">{{ 'Загружаем…' | t }}</span> }
   `,
   styles: `:host { display: flex; justify-content: center; min-height: 1px; margin-top: 24px }`,
 })

@@ -9,6 +9,8 @@ import { AuthService } from '../../core/auth.service';
 import { Order, OrderStage } from '../../core/models';
 import { RepeatOrderService, RepeatResult } from '../../core/repeat-order.service';
 import { ToastService } from '../../core/toast.service';
+import { LANG_COOKIE, LANG_DICT } from '../../core/i18n';
+import { TG } from '../../i18n/tg';
 
 const ORDER: Order = { number: 'R-221526', stage: 'in_delivery', items_total: 640, delivery_total: 15, created_at: '2026-11-17T05:08:07Z', slot: 'Сегодня, 18:00–21:00', payment: 'cash', customer: { name: 'Ф', phone: '+992 93 111 00 02', district: 'Сино', address: 'ул' }, lines: [], shops: [] };
 const notFound = () => throwError(() => new HttpErrorResponse({ status: 404, error: { error: { message: 'Заказ не найден' } } }));
@@ -418,5 +420,35 @@ describe('OrderComponent', () => {
       expect(btn()!.disabled).toBe(false);
       expect(btn()!.textContent?.trim()).toBe('Повторить заказ');
     });
+  });
+});
+
+describe('OrderComponent по-таджикски', () => {
+  beforeEach(() => { localStorage.clear(); document.cookie = `${LANG_COOKIE}=tg; path=/`; });
+  afterEach(() => { TestBed.resetTestingModule(); document.cookie = `${LANG_COOKIE}=; path=/; max-age=0`; });
+
+  it('благодарность, этапы и слот с таджикской датой; данные заказа и слот в заказе — как есть', async () => {
+    const o: Order = { ...ORDER, stage: 'placed', slot: 'Завтра, 10:00–14:00', lines: [{ product_id: '16', shop_handle: 'technomir.tj', title: 'Наушники', price: 320, image: '', size: 'M', qty: 2 }], shops: [{ shop_handle: 'technomir.tj', status: 'new' }] };
+    await TestBed.configureTestingModule({
+      imports: [OrderComponent],
+      providers: [provideRouter([]), { provide: MarketApi, useValue: { order: jest.fn(() => of(o)) } }, { provide: LANG_DICT, useValue: TG }],
+    }).compileComponents();
+    const f = TestBed.createComponent(OrderComponent);
+    TestBed.inject(AuthService).hydrate();
+    f.componentRef.setInput('number', 'R-221526');
+    f.componentRef.setInput('t', 'tok-1');
+    f.componentRef.setInput('fresh', '1');
+    f.detectChanges();
+    const t = text(f.nativeElement);
+    expect(t).toContain('Ташаккур! Фармоиш қабул шуд');
+    expect(t).toContain('Дӯкони @technomir.tj барои тасдиқи фармоиш занг мезанад');
+    expect(t).toContain('Курйер меорад: 18 ноябр, 10:00–14:00');
+    expect(t).toContain('Пули нақд омода кунед: 655 смн');
+    expect(t).toContain('Андоза M · 2 адад × 320 смн');
+    expect(t).toContain('Наушники');
+    expect(t).not.toContain('Заказ');
+    const now = f.nativeElement.querySelector('.steps [aria-current="step"]') as HTMLElement;
+    expect(now.textContent?.trim()).toBe('Қабул шуд');
+    expect(TestBed.inject(Title).getTitle()).toBe('Фармоиши R-221526 — Харид');
   });
 });

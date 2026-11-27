@@ -1,5 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { apiErrorMessage } from './api-error';
+import { I18nLike, translate } from './i18n';
+import { TG } from '../i18n/tg';
+
+const TJ: I18nLike = { lang: 'tg', locale: 'tg-TJ', t: (text, params) => translate(TG, text, params), plural: (_n, forms) => translate(TG, forms[0]) };
 
 describe('apiErrorMessage', () => {
   it('берёт error.error.message бэкенда', () => {
@@ -23,5 +27,12 @@ describe('apiErrorMessage', () => {
   });
   it('неизвестная ошибка — общий текст', () => {
     expect(apiErrorMessage(new Error('x'))).toBe('Что-то пошло не так. Попробуйте ещё раз.');
+  });
+  it('по-таджикски: свои тексты переведены, сообщение сервера — как пришло', () => {
+    expect(apiErrorMessage(new HttpErrorResponse({ status: 0 }), TJ)).toBe('Бо сервер алоқа нест. Интернетро санҷед.');
+    expect(apiErrorMessage(new HttpErrorResponse({ status: 422, error: { error: { message: 'Validation failed', errors: [] } } }), TJ)).toBe('Маълумоти воридкардаатонро санҷед');
+    expect(apiErrorMessage(new Error('x'), TJ)).toBe('Хатогӣ рух дод. Бори дигар кӯшиш кунед.');
+    const server = new HttpErrorResponse({ status: 400, error: { error: { message: 'Выберите размер' } } });
+    expect(apiErrorMessage(server, TJ)).toBe('Выберите размер');
   });
 });

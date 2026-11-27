@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Product, Shop } from '../core/models';
+import { TPipe } from '../core/i18n';
 import { IconComponent } from './icon.component';
 import { PriceTagComponent } from './price-tag.component';
 import { ShopAvatarComponent } from './shop-avatar.component';
@@ -24,16 +25,16 @@ const DRAG_START = 10;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-reel-viewer',
   standalone: true,
-  imports: [VideoPlayerComponent, IconComponent, RouterLink, ShopAvatarComponent, PriceTagComponent],
+  imports: [VideoPlayerComponent, IconComponent, RouterLink, ShopAvatarComponent, PriceTagComponent, TPipe],
   host: { '(document:keydown.escape)': 'close()' },
   template: `
     <div class="scrim" data-test="reel-scrim" (click)="close()"></div>
-    <div #stage class="stage" data-test="reel-stage" role="dialog" aria-modal="true" [attr.aria-label]="'Видео: ' + product().title"
+    <div #stage class="stage" data-test="reel-stage" role="dialog" aria-modal="true" [attr.aria-label]="'Видео: {title}' | t: { title: product().title }"
       [class.dragging]="dragging()" [style.transform]="dragY() ? 'translateY(' + dragY() + 'px)' : null" [style.opacity]="dragY() ? 1 - dragY() / 700 : null"
       (keydown)="trap($event)" (pointerdown)="down($event)" (pointermove)="move($event)" (pointerup)="up()" (pointercancel)="up()">
-      <app-video-player variant="reels" [src]="product().video || ''" [poster]="poster()" [label]="'Видео: ' + product().title" [autoplay]="true" [likeable]="true" (liked)="liked.emit()">
+      <app-video-player variant="reels" [src]="product().video || ''" [poster]="poster()" [label]="'Видео: {title}' | t: { title: product().title }" [autoplay]="true" [likeable]="true" (liked)="liked.emit()">
         <div class="rail">
-          <button type="button" class="rail-btn" data-test="reel-fav" [attr.aria-pressed]="favorite()" [attr.aria-label]="favorite() ? 'Убрать из избранного' : 'В избранное'" (click)="toggleFavorite.emit()">
+          <button type="button" class="rail-btn" data-test="reel-fav" [attr.aria-pressed]="favorite()" [attr.aria-label]="favorite() ? ('Убрать из избранного' | t) : ('В избранное' | t)" (click)="toggleFavorite.emit()">
             <app-icon name="heart" [size]="30" [filled]="favorite()" />
           </button>
         </div>
@@ -50,7 +51,7 @@ const DRAG_START = 10;
           @else { <button type="button" class="btn cta" data-test="reel-cta" [disabled]="a.disabled" (click)="act.emit()">{{ a.label }}</button> }
         </div>
       </app-video-player>
-      <button #closeBtn type="button" class="close" data-test="reel-close" aria-label="Закрыть" (click)="close()"><app-icon name="x" [size]="24" /></button>
+      <button #closeBtn type="button" class="close" data-test="reel-close" [attr.aria-label]="'Закрыть' | t" (click)="close()"><app-icon name="x" [size]="24" /></button>
     </div>
   `,
   styles: `

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { TPipe } from '../core/i18n';
 import { ToastService } from '../core/toast.service';
 import { IconComponent } from './icon.component';
 
@@ -12,7 +13,7 @@ import { IconComponent } from './icon.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-toast',
   standalone: true,
-  imports: [RouterLink, IconComponent],
+  imports: [RouterLink, IconComponent, TPipe],
   template: `
     <div class="live" role="status">
       @if (toasts.current(); as t) {
@@ -26,7 +27,7 @@ import { IconComponent } from './icon.component';
               <button type="button" class="act" data-test="toast-action" (click)="toasts.act()">{{ a.label }}</button>
             }
           }
-          <button type="button" class="close" data-test="toast-close" aria-label="Закрыть сообщение" (click)="toasts.dismiss()">
+          <button type="button" class="close" data-test="toast-close" [attr.aria-label]="'Закрыть сообщение' | t" (click)="toasts.dismiss()">
             <app-icon name="x" [size]="16" [stroke]="2.5" />
           </button>
         </div>

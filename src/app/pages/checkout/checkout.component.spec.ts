@@ -7,6 +7,8 @@ import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
 import { AuthService } from '../../core/auth.service';
 import { CLOCK } from '../../core/clock';
+import { LANG_COOKIE, LANG_DICT } from '../../core/i18n';
+import { TG } from '../../i18n/tg';
 
 // 04:00Z = 09:00 в Душанбе: все слоты доступны; 13:00Z = 18:00 — вечерний на сегодня уже скрыт
 const MORNING = new Date('2026-11-17T04:00:00Z');
@@ -303,5 +305,34 @@ describe('CheckoutComponent', () => {
     expect(readLastAddress(['x'])).toEqual({});
     expect(readLastAddress({ name: 5, district: 'Марс', address: '  ' })).toEqual({});
     expect(readLastAddress({ name: ' Фаррух ', district: 'Сино', address: 'ул' })).toEqual({ name: 'Фаррух', district: 'Сино', address: 'ул' });
+  });
+});
+
+describe('CheckoutComponent по-таджикски', () => {
+  beforeEach(() => { localStorage.clear(); document.cookie = `${LANG_COOKIE}=tg; path=/`; });
+  afterEach(() => { TestBed.resetTestingModule(); document.cookie = `${LANG_COOKIE}=; path=/; max-age=0`; });
+
+  it('подписи слотов переведены, а в форму и заказ уходит русский слот', async () => {
+    const placeOrder = jest.fn(() => of({ number: 'R-1', access_token: 't' }));
+    await TestBed.configureTestingModule({
+      imports: [CheckoutComponent],
+      providers: [provideRouter([]), { provide: MarketApi, useValue: { placeOrder } }, { provide: CLOCK, useValue: () => MORNING }, { provide: LANG_DICT, useValue: TG }],
+    }).compileComponents();
+    TestBed.inject(CartService).hydrate();
+    TestBed.inject(AuthService).hydrate();
+    TestBed.inject(CartService).add(product, null, 2);
+    const f = TestBed.createComponent(CheckoutComponent);
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    const opts = Array.from(el.querySelectorAll<HTMLOptionElement>('select[formControlName="slot"] option'));
+    expect(opts.map((o) => o.textContent?.trim())).toEqual(['Имрӯз, 18:00–21:00', 'Пагоҳ, 10:00–14:00', 'Пагоҳ, 14:00–18:00', 'Пагоҳ, 18:00–21:00']);
+    expect(opts.map((o) => o.value)).toEqual(['Сегодня, 18:00–21:00', 'Завтра, 10:00–14:00', 'Завтра, 14:00–18:00', 'Завтра, 18:00–21:00']);
+    expect(el.querySelector('h1')?.textContent?.trim()).toBe('Фармоиш додан');
+    expect(el.querySelector('button[type="submit"]')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Фармоиш додан — 655 смн нақд ба курйер');
+    expect(el.textContent).toContain('Расонидан 15 смн, ба Вахдат ва Ҳисор — 25 смн');
+    jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    f.componentInstance.form.patchValue({ name: 'Фаррух', phone: '93 111 00 02', address: 'кӯчаи Рӯдакӣ 10', slot: 'Завтра, 14:00–18:00' });
+    f.componentInstance.submit();
+    expect(placeOrder).toHaveBeenCalledWith(expect.objectContaining({ slot: 'Завтра, 14:00–18:00', customer: expect.objectContaining({ district: 'Сино', address: 'кӯчаи Рӯдакӣ 10' }) }));
   });
 });

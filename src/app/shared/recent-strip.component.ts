@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { I18n, TPipe } from '../core/i18n';
 import { RecentItem, RecentlyViewedService } from '../core/recently-viewed.service';
 import { MoneyPipe } from './money.pipe';
 
@@ -15,7 +16,7 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-recent-strip',
   standalone: true,
-  imports: [RouterLink, MoneyPipe],
+  imports: [RouterLink, MoneyPipe, TPipe],
   template: `
     <!-- Живой регион есть всегда: после «Очистить» секция исчезает вместе с кнопкой — диктор озвучит итог,
          а фокус переходит сюда (tabindex=-1), а не падает на body -->
@@ -23,8 +24,8 @@ let nextId = 0;
     @if (visible().length) {
       <section class="recent" [attr.aria-labelledby]="titleId">
         <div class="head">
-          <h2 [id]="titleId" class="title">Вы смотрели</h2>
-          <button type="button" class="clear" aria-label="Очистить историю просмотров" (click)="clear()">Очистить</button>
+          <h2 [id]="titleId" class="title">{{ 'Вы смотрели' | t }}</h2>
+          <button type="button" class="clear" [attr.aria-label]="'Очистить историю просмотров' | t" (click)="clear()">{{ 'Очистить' | t }}</button>
         </div>
         <ul class="strip">
           @for (i of visible(); track i.id) {
@@ -37,10 +38,10 @@ let nextId = 0;
                 @if (i.price !== null) {
                   <span class="price" data-test="price">
                     <b>{{ i.price | money }}</b>
-                    @if (i.old_price !== null && i.old_price > i.price) { <s><span class="sr-only">Было </span>{{ i.old_price | money }}</s> }
+                    @if (i.old_price !== null && i.old_price > i.price) { <s><span class="sr-only">{{ 'Было' | t }} </span>{{ i.old_price | money }}</s> }
                   </span>
                 }
-                @if (!i.in_stock) { <span class="out">Нет в наличии</span> }
+                @if (!i.in_stock) { <span class="out">{{ 'Нет в наличии' | t }}</span> }
               </a>
             </li>
           }
@@ -74,6 +75,7 @@ let nextId = 0;
 })
 export class RecentStripComponent {
   protected readonly recent = inject(RecentlyViewedService);
+  private readonly i18n = inject(I18n);
   /** Уникальный id заголовка: на главной две полосы (телефон и десктоп), у каждой свой. */
   protected readonly titleId = `recent-title-${++nextId}`;
   private readonly status = viewChild.required<ElementRef<HTMLElement>>('status');
@@ -88,7 +90,7 @@ export class RecentStripComponent {
 
   clear(): void {
     this.recent.clear();
-    this.announce.set('История просмотров очищена');
+    this.announce.set(this.i18n.t('История просмотров очищена'));
     this.status().nativeElement.focus({ preventScroll: true });
   }
 }

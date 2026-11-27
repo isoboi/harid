@@ -6,13 +6,13 @@ import { apiErrorMessage, priceChanges } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { BrowserStorage } from '../../core/browser-storage.service';
 import { CartService } from '../../core/cart.service';
-import { availableSlots, deliveryFor, DISTRICTS, SLOTS, SUBURBS } from '../../core/checkout-options';
+import { availableSlots, deliveryFor, DISTRICTS, slotLabel, SLOTS, SUBURBS } from '../../core/checkout-options';
 import { CLOCK } from '../../core/clock';
+import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { PHONE_PATTERN, phone9 } from '../../core/phone';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
-import { plural } from '../../shared/plural';
 import { SkelSummaryComponent } from '../../shared/skeleton.component';
 
 type Field = 'name' | 'phone' | 'district' | 'address' | 'slot' | 'comment';
@@ -40,14 +40,14 @@ export function readLastAddress(v: unknown): Partial<LastAddress> {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-checkout',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, MoneyPipe, IconComponent, SkelSummaryComponent],
+  imports: [ReactiveFormsModule, RouterLink, MoneyPipe, IconComponent, SkelSummaryComponent, TPipe],
   template: `
     <div class="wrap page-top">
-      <h1 class="page-title head">Оформление заказа</h1>
+      <h1 class="page-title head">{{ 'Оформление заказа' | t }}</h1>
       @if (!cart.ready()) {
         <!-- Заглушка до чтения корзины: два блока полей формы и сводка справа -->
         <div class="layout" role="status" data-test="skel-checkout">
-          <span class="sr-only">Загрузка…</span>
+          <span class="sr-only">{{ 'Загрузка…' | t }}</span>
           <div class="sets" aria-hidden="true">
             @for (set of skelSets; track $index) {
               <div class="skel-set">
@@ -61,73 +61,74 @@ export function readLastAddress(v: unknown): Partial<LastAddress> {
           <app-skel-summary class="side" />
         </div>
       }
-      @else if (!cart.count()) { <p class="empty">Корзина пуста. <a routerLink="/">К товарам</a></p> }
+      @else if (!cart.count()) { <p class="empty">{{ 'Корзина пуста.' | t }} <a routerLink="/">{{ 'К товарам' | t }}</a></p> }
       @else {
-        <!-- novalidate: ошибки показываем свои, по-русски и под полем, а не всплывашкой браузера -->
+        <!-- novalidate: ошибки показываем свои, на языке страницы и под полем, а не всплывашкой браузера -->
         <form [formGroup]="form" (ngSubmit)="submit()" class="layout" novalidate>
           <div class="sets">
             <fieldset>
-              <legend>Кто получит</legend>
+              <legend>{{ 'Кто получит' | t }}</legend>
               <div class="grid two">
                 <div class="field">
-                  <label for="co-name">Имя</label>
+                  <label for="co-name">{{ 'Имя' | t }}</label>
                   <input id="co-name" class="field-control" formControlName="name" autocomplete="name" maxlength="100"
                     [attr.aria-invalid]="bad('name') || null" [attr.aria-describedby]="bad('name') ? 'co-name-err' : null" />
-                  @if (bad('name')) { <p class="field-error" id="co-name-err">Укажите имя</p> }
+                  @if (bad('name')) { <p class="field-error" id="co-name-err">{{ 'Укажите имя' | t }}</p> }
                 </div>
                 <div class="field">
-                  <label for="co-phone">Телефон</label>
+                  <label for="co-phone">{{ 'Телефон' | t }}</label>
                   <div class="tel">
                     <span class="tel-prefix" id="co-phone-prefix">+992</span>
                     <input id="co-phone" class="field-control" formControlName="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="93 123 45 67"
                       [attr.aria-invalid]="bad('phone') || null" [attr.aria-describedby]="bad('phone') ? 'co-phone-prefix co-phone-err' : 'co-phone-prefix co-phone-hint'" />
                   </div>
-                  @if (bad('phone')) { <p class="field-error" id="co-phone-err">Нужен номер из 9 цифр</p> }
-                  @else { <p class="field-hint" id="co-phone-hint">Лавка и курьер позвонят на этот номер</p> }
+                  @if (bad('phone')) { <p class="field-error" id="co-phone-err">{{ 'Нужен номер из 9 цифр' | t }}</p> }
+                  @else { <p class="field-hint" id="co-phone-hint">{{ 'Лавка и курьер позвонят на этот номер' | t }}</p> }
                 </div>
               </div>
             </fieldset>
             <fieldset>
-              <legend>Куда и когда</legend>
+              <legend>{{ 'Куда и когда' | t }}</legend>
               <div class="grid where">
                 <div class="field">
-                  <label for="co-district">Район</label>
+                  <label for="co-district">{{ 'Район' | t }}</label>
                   <select id="co-district" class="field-control" formControlName="district" aria-describedby="co-district-hint">
                     @for (d of districts; track d) { <option [value]="d">{{ d }}</option> }
                   </select>
                   <p class="field-hint" id="co-district-hint">{{ deliveryHint }}</p>
                 </div>
                 <div class="field">
-                  <label for="co-address">Улица, дом, квартира</label>
+                  <label for="co-address">{{ 'Улица, дом, квартира' | t }}</label>
                   <input id="co-address" class="field-control" formControlName="address" autocomplete="street-address" maxlength="255"
                     [attr.aria-invalid]="bad('address') || null" [attr.aria-describedby]="bad('address') ? 'co-address-err' : null" />
-                  @if (bad('address')) { <p class="field-error" id="co-address-err">Укажите адрес</p> }
+                  @if (bad('address')) { <p class="field-error" id="co-address-err">{{ 'Укажите адрес' | t }}</p> }
                 </div>
               </div>
               <div class="grid two">
                 <div class="field">
-                  <label for="co-slot">Когда привезти</label>
+                  <label for="co-slot">{{ 'Когда привезти' | t }}</label>
                   <select id="co-slot" class="field-control" formControlName="slot">
-                    @for (s of slots(); track s) { <option [value]="s">{{ s }}</option> }
+                    <!-- value — русский слот, он уходит в заказ; подпись — на языке страницы -->
+                    @for (s of slots(); track s) { <option [value]="s">{{ slotText(s) }}</option> }
                   </select>
                 </div>
               </div>
               <div class="field">
-                <label for="co-comment">Комментарий курьеру <span class="opt">— необязательно</span></label>
+                <label for="co-comment">{{ 'Комментарий курьеру' | t }} <span class="opt">{{ '— необязательно' | t }}</span></label>
                 <textarea id="co-comment" class="field-control" formControlName="comment" rows="2" maxlength="500"></textarea>
               </div>
             </fieldset>
           </div>
           <aside class="summary side">
             <dl>
-              <div><dt>Товары, {{ cart.count() }} шт.</dt><dd>{{ cart.itemsTotal() | money }}</dd></div>
-              <div><dt>Доставка{{ cart.groups().length > 1 ? ' (' + cart.groups().length + ' ' + plural(cart.groups().length, shopForms) + ')' : '' }}</dt><dd>{{ delivery() | money }}</dd></div>
-              <div class="total"><dt>Итого наличными курьеру</dt><dd>{{ total() | money }}</dd></div>
+              <div><dt>{{ 'Товары, {n} шт.' | t: { n: cart.count() } }}</dt><dd>{{ cart.itemsTotal() | money }}</dd></div>
+              <div><dt>{{ cart.groups().length > 1 ? ('Доставка ({n} {shops})' | t: { n: cart.groups().length, shops: i18n.plural(cart.groups().length, shopForms) }) : ('Доставка' | t) }}</dt><dd>{{ delivery() | money }}</dd></div>
+              <div class="total"><dt>{{ 'Итого наличными курьеру' | t }}</dt><dd>{{ total() | money }}</dd></div>
             </dl>
-            <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></p>
+            <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>{{ 'Оплата наличными курьеру · без предоплаты · проверяете товар при курьере' | t }}</span></p>
             @if (error()) { <p class="field-error err" role="alert">{{ error() }}</p> }
             <!-- Кнопка доступна всегда: неверная форма объясняет себя ошибками под полями, а не молчит -->
-            <button class="btn submit" type="submit" [disabled]="busy()">@if (busy()) { Отправляем… } @else { Заказать — {{ total() | money }} наличными курьеру }</button>
+            <button class="btn submit" type="submit" [disabled]="busy()">@if (busy()) { {{ 'Отправляем…' | t }} } @else { {{ 'Заказать — {total} наличными курьеру' | t: { total: (total() | money) } }} }</button>
           </aside>
         </form>
       }
@@ -164,11 +165,13 @@ export class CheckoutComponent {
   readonly cart = inject(CartService);
   /** Сколько полей в каждом блоке заглушки: «Кто получит» и «Куда и когда». */
   readonly skelSets = [[1, 2], [1, 2, 3, 4]];
-  readonly plural = plural;
+  protected readonly i18n = inject(I18n);
   readonly shopForms: [string, string, string] = ['лавка', 'лавки', 'лавок'];
   readonly districts = DISTRICTS;
   /** «Доставка 15 смн, в Вахдат и Ҳисор — 25 смн» — цены из той же deliveryFor, что и итог. */
-  readonly deliveryHint = `Доставка ${money.transform(deliveryFor(DISTRICTS[0]))}, в ${SUBURBS.join(' и ')} — ${money.transform(deliveryFor(SUBURBS[0]))}`;
+  readonly deliveryHint = this.i18n.t('Доставка {price}, в {places} — {suburbPrice}', {
+    price: money.transform(deliveryFor(DISTRICTS[0])), places: SUBURBS.join(` ${this.i18n.t('и')} `), suburbPrice: money.transform(deliveryFor(SUBURBS[0])),
+  });
   /** На сервере и в первом рендере — все слоты; по часам Душанбе фильтруем только после гидратации. */
   readonly slots = signal<string[]>(SLOTS);
   readonly busy = signal(false);
@@ -215,6 +218,9 @@ export class CheckoutComponent {
     });
   }
 
+  /** Подпись слота в списке; в форме и заказе остаётся русское значение. */
+  slotText(slot: string): string { return slotLabel(slot, this.i18n); }
+
   /** Ошибку поля показываем после касания или попытки отправки, не с первого взгляда. */
   bad(field: Field): boolean {
     const c = this.form.controls[field];
@@ -250,7 +256,7 @@ export class CheckoutComponent {
         // 409 «Цена изменилась»: корзина получает цены сервера, покупатель видит новую сумму и жмёт ещё раз.
         const changed = priceChanges(e);
         if (changed) this.cart.applyPrices(changed);
-        this.error.set(apiErrorMessage(e));
+        this.error.set(apiErrorMessage(e, this.i18n));
       },
     });
   }

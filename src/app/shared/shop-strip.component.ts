@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { TPipe } from '../core/i18n';
 import { Shop } from '../core/models';
 import { ShopAvatarComponent } from './shop-avatar.component';
 
@@ -8,9 +9,9 @@ import { ShopAvatarComponent } from './shop-avatar.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-shop-strip',
   standalone: true,
-  imports: [RouterLink, ShopAvatarComponent],
+  imports: [RouterLink, ShopAvatarComponent, TPipe],
   template: `
-    <section aria-label="Лавки" class="strip-wrap">
+    <section [attr.aria-label]="'Лавки' | t" class="strip-wrap">
       @if (shops(); as list) {
         <ul class="strip">
           @for (s of list; track s.handle) {
@@ -23,7 +24,7 @@ import { ShopAvatarComponent } from './shop-avatar.component';
           }
         </ul>
       } @else {
-        <span class="sr-only" role="status">Загрузка…</span>
+        <span class="sr-only" role="status">{{ 'Загрузка…' | t }}</span>
         <ul class="strip" aria-hidden="true" data-test="skel-shops">
           @for (n of skeleton; track n) { <li class="shop"><span class="skel skel--round ava"></span><span class="skel skel--line h-skel"></span></li> }
         </ul>

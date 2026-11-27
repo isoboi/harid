@@ -33,6 +33,7 @@ import { ShareComponent } from '../../shared/share.component';
 import { rankSimilar } from '../../shared/similar';
 import { VideoPlayerComponent } from '../../shared/video-player.component';
 import { NotFoundComponent } from '../not-found/not-found.component';
+import { I18n, TPipe } from '../../core/i18n';
 
 const money = new MoneyPipe();
 /** С какого сдвига пальца вбок касание фото считаем листанием, а не нажатием. */
@@ -59,10 +60,10 @@ export function buyBarVisible(e: ButtonView): boolean {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-product',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent, SellerCardComponent, ShareComponent, PhotoViewerComponent, NgTemplateOutlet],
+  imports: [RouterLink, ProductCardComponent, NotFoundComponent, IconComponent, PriceTagComponent, ShopAvatarComponent, ReviewsComponent, VideoPlayerComponent, ReelViewerComponent, SellerCardComponent, ShareComponent, PhotoViewerComponent, NgTemplateOutlet, TPipe],
   template: `
     @if (missing()) { <app-not-found /> }
-    @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
+    @else if (failed()) { <div class="wrap page-top"><p class="muted">{{ 'Не удалось загрузить. Попробуйте обновить страницу.' | t }}</p></div> }
     @else { @if (product(); as p) {
       <div class="wrap top">
         <div class="layout">
@@ -75,28 +76,28 @@ export function buyBarVisible(e: ButtonView): boolean {
                    Пока не пришёл (и на сервере, если видео — единственный слайд) — обложка на месте плеера. -->
               @if (video()) {
                 @defer (when videoOn(); prefetch on idle) {
-                  @if (videoOn()) { <app-video-player [src]="video()" [poster]="photos()[0] || ''" [label]="'Видео: ' + p.title" [autoplay]="true" [expandable]="true" [hold]="reel()" (expand)="reel.set(true)" /> }
+                  @if (videoOn()) { <app-video-player [src]="video()" [poster]="photos()[0] || ''" [label]="'Видео: {title}' | t: { title: p.title }" [autoplay]="true" [expandable]="true" [hold]="reel()" (expand)="reel.set(true)" /> }
                 } @placeholder {
                   @if (videoOn() && photos()[0]) { <img data-test="video-poster" [src]="photos()[0]" alt="" /> }
                 }
               }
               @if (!videoOn()) {
                 @if (current()) {
-                  <button type="button" class="zoom" data-test="open-viewer" aria-label="Открыть фото на весь экран" (click)="openViewer()">
+                  <button type="button" class="zoom" data-test="open-viewer" [attr.aria-label]="'Открыть фото на весь экран' | t" (click)="openViewer()">
                     <!-- Главное фото — самый крупный элемент первого экрана (LCP): качается раньше миниатюр и прочего -->
                     <img [src]="current()" [alt]="p.title" fetchpriority="high" [style.transform]="swipeDx() ? 'translateX(' + swipeDx() + 'px)' : null" />
                   </button>
                 }
-                @else { <span class="muted">Нет фото</span> }
+                @else { <span class="muted">{{ 'Нет фото' | t }}</span> }
               }
               @if (slides() > 1 && !videoOn()) { <span class="count" data-test="photo-count" aria-hidden="true">{{ photo() + 1 }} / {{ slides() }}</span> }
             </div>
             @if (photos().length + (video() ? 1 : 0) > 1) {
               <div class="thumbs">@for (src of photos(); track src; let i = $index) {
-                <button type="button" data-test="thumb" [class.on]="i === photo()" [attr.aria-label]="'Фото ' + (i + 1)" [attr.aria-pressed]="i === photo()" (click)="photo.set(i)"><img [src]="src" alt="" fetchpriority="low" /></button>
+                <button type="button" data-test="thumb" [class.on]="i === photo()" [attr.aria-label]="'Фото {n}' | t: { n: i + 1 }" [attr.aria-pressed]="i === photo()" (click)="photo.set(i)"><img [src]="src" alt="" fetchpriority="low" /></button>
               }
               @if (video()) {
-                <button type="button" class="play" data-test="thumb-video" [class.on]="videoOn()" aria-label="Видео" [attr.aria-pressed]="videoOn()" (click)="photo.set(photos().length)">
+                <button type="button" class="play" data-test="thumb-video" [class.on]="videoOn()" [attr.aria-label]="'Видео' | t" [attr.aria-pressed]="videoOn()" (click)="photo.set(photos().length)">
                   @if (photos()[0]) { <img [src]="photos()[0]" alt="" fetchpriority="low" /> }
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg>
                 </button>
@@ -118,52 +119,52 @@ export function buyBarVisible(e: ButtonView): boolean {
             @if (p.price !== null) {
               <div class="price">
                 <app-price-tag [price]="p.price" [old]="p.old_price" size="lg" [swing]="added()" />
-                @if (discount(); as d) { <p class="promo" data-test="promo"><span class="promo-pct">−{{ d }}%</span>@if (promoEnds()) { &ngsp;· акция {{ promoEnds() }} }</p> }
+                @if (discount(); as d) { <p class="promo" data-test="promo"><span class="promo-pct">−{{ d }}%</span>@if (promoEnds()) { &ngsp;· {{ 'акция {until}' | t: { until: promoEnds() } }} }</p> }
               </div>
             }
             @if (!direct() && p.sizes.length > 1) {
               <fieldset class="sizes" #sizes>
-                <legend>Размер</legend>
+                <legend>{{ 'Размер' | t }}</legend>
                 <div class="size-list">@for (s of p.sizes; track s) {
                   <button type="button" data-test="size" class="size" [class.on]="size() === s" [attr.aria-pressed]="size() === s" (click)="size.set(s)">{{ s }}</button>
                 }</div>
-                @if (sizeHint() && !size()) { <p class="field-error size-hint" data-test="size-hint" role="alert">Выберите размер, чтобы добавить в корзину</p> }
+                @if (sizeHint() && !size()) { <p class="field-error size-hint" data-test="size-hint" role="alert">{{ 'Выберите размер, чтобы добавить в корзину' | t }}</p> }
               </fieldset>
             }
             <!-- Неподключённая лавка: заказ и цена — в Instagram Direct продавца, корзины и курьера Харида нет -->
             @if (direct()) {
-              <p class="promise direct-note" data-test="direct-promise"><app-icon name="instagram" [size]="20" /><span>Лавка принимает заказы в Instagram Direct.@if (igPost()) { При нажатии ссылка на этот пост скопируется — вставьте её в сообщение продавцу.}</span></p>
+              <p class="promise direct-note" data-test="direct-promise"><app-icon name="instagram" [size]="20" /><span>{{ 'Лавка принимает заказы в Instagram Direct.' | t }}@if (igPost()) {&ngsp;{{ 'При нажатии ссылка на этот пост скопируется — вставьте её в сообщение продавцу.' | t }}}</span></p>
             } @else {
-              <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></p>
+              <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>{{ 'Оплата наличными курьеру · без предоплаты · проверяете товар при курьере' | t }}</span></p>
             }
             <div class="actions" #actions>
               @if (direct()) {
-                <a class="btn add" data-test="direct" [href]="directUrl()" target="_blank" rel="noopener nofollow" (click)="copyPost()"><app-icon name="instagram" [size]="20" />Написать в Direct</a>
+                <a class="btn add" data-test="direct" [href]="directUrl()" target="_blank" rel="noopener nofollow" (click)="copyPost()"><app-icon name="instagram" [size]="20" />{{ 'Написать в Direct' | t }}</a>
               } @else {
                 <button type="button" class="btn add" data-test="add" [disabled]="!canAdd()" (click)="add(p, $event.currentTarget)">{{ addLabel() }}</button>
-                @if (added()) { <a class="btn btn--ghost" routerLink="/cart">Перейти в корзину</a> }
+                @if (added()) { <a class="btn btn--ghost" routerLink="/cart">{{ 'Перейти в корзину' | t }}</a> }
               }
               <button type="button" class="fav" [attr.aria-pressed]="fav.has(p.id)" (click)="fav.toggle(p.id)">
-                <app-icon name="heart" [size]="20" [filled]="fav.has(p.id)" [class.on]="fav.has(p.id)" />{{ fav.has(p.id) ? 'В избранном' : 'В избранное' }}
+                <app-icon name="heart" [size]="20" [filled]="fav.has(p.id)" [class.on]="fav.has(p.id)" />{{ fav.has(p.id) ? ('В избранном' | t) : ('В избранное' | t) }}
               </button>
               <app-share [path]="sharePath()" [text]="shareText()" />
-              <a class="btn btn--ghost write" data-test="write-seller" routerLink="/chats/new" [queryParams]="{ shop: p.shop_handle, product: p.id }">Написать продавцу</a>
+              <a class="btn btn--ghost write" data-test="write-seller" routerLink="/chats/new" [queryParams]="{ shop: p.shop_handle, product: p.id }">{{ 'Написать продавцу' | t }}</a>
             </div>
-            @if (copied()) { <p class="copied" data-test="copied" role="status">Ссылка на пост скопирована — вставьте её в чат</p> }
-            @if (limitError()) { <p class="error limit" data-test="limit">В корзине уже 30 позиций — оформите заказ или уберите лишнее</p> }
+            @if (copied()) { <p class="copied" data-test="copied" role="status">{{ 'Ссылка на пост скопирована — вставьте её в чат' | t }}</p> }
+            @if (limitError()) { <p class="error limit" data-test="limit">{{ 'В корзине уже 30 позиций — оформите заказ или уберите лишнее' | t }}</p> }
             @if (!direct()) {
               <ul class="trust">
-                <li><app-icon name="truck" [size]="20" /><span>Курьер привезёт в выбранное время. По Душанбе — {{ deliveryCity }}, в {{ suburbs }} — {{ deliverySuburb }}.</span></li>
-                <li><app-icon name="shield-check" [size]="20" /><span>Не подошло — не берёте и ничего не платите. <a routerLink="/" fragment="cash">Как это работает</a></span></li>
+                <li><app-icon name="truck" [size]="20" /><span>{{ 'Курьер привезёт в выбранное время. По Душанбе — {city}, в {suburbs} — {suburb}.' | t: { city: deliveryCity, suburbs, suburb: deliverySuburb } }}</span></li>
+                <li><app-icon name="shield-check" [size]="20" /><span>{{ 'Не подошло — не берёте и ничего не платите.' | t }} <a routerLink="/" fragment="cash">{{ 'Как это работает' | t }}</a></span></li>
               </ul>
             }
             <!-- Подпись из Instagram — сырой текст лавки: свёрнута, чтобы не теснить цену и кнопку. Телефоны из неё вычищает бэкенд -->
             @if (p.description.trim()) {
-              <details class="desc"><summary>Описание из Instagram</summary><p>{{ p.description }}</p></details>
+              <details class="desc"><summary>{{ 'Описание из Instagram' | t }}</summary><p>{{ p.description }}</p></details>
             }
             <!-- Товар импортирован из поста — покупатель может открыть исходный пост -->
             @if (igPost()) {
-              <a class="ig-post" data-test="ig-post" [href]="igPost()" target="_blank" rel="noopener nofollow"><app-icon name="instagram" [size]="20" /><span>Пост в Instagram</span></a>
+              <a class="ig-post" data-test="ig-post" [href]="igPost()" target="_blank" rel="noopener nofollow"><app-icon name="instagram" [size]="20" /><span>{{ 'Пост в Instagram' | t }}</span></a>
             }
             <!-- Кто продаёт: оценка лавки (или почему её нет) и факты — перед решением купить -->
             @if (shop(); as s) { <app-seller-card class="seller-card" [shop]="s" /> }
@@ -174,10 +175,10 @@ export function buyBarVisible(e: ButtonView): boolean {
         <!-- Телефон: цена и кнопка у нижнего края, над панелью вкладок; появляется, когда основная кнопка ушла вверх -->
         <div class="buybar" [class.on]="barShown()" data-test="buybar">
           @if (p.price !== null) { <app-price-tag class="bar-price" [price]="p.price" [old]="p.old_price" size="sm" /> }
-          @if (direct()) { <a class="btn bar-btn" data-test="bar-direct" [href]="directUrl()" target="_blank" rel="noopener nofollow" (click)="copyPost()">Написать в Direct</a> }
-          @else if (!p.in_stock) { <button type="button" class="btn bar-btn" disabled>Нет в наличии</button> }
-          @else if (added()) { <a class="btn bar-btn" routerLink="/cart">Перейти в корзину</a> }
-          @else { <button type="button" class="btn bar-btn" (click)="barAdd(p, $event.currentTarget)">Добавить в корзину</button> }
+          @if (direct()) { <a class="btn bar-btn" data-test="bar-direct" [href]="directUrl()" target="_blank" rel="noopener nofollow" (click)="copyPost()">{{ 'Написать в Direct' | t }}</a> }
+          @else if (!p.in_stock) { <button type="button" class="btn bar-btn" disabled>{{ 'Нет в наличии' | t }}</button> }
+          @else if (added()) { <a class="btn bar-btn" routerLink="/cart">{{ 'Перейти в корзину' | t }}</a> }
+          @else { <button type="button" class="btn bar-btn" (click)="barAdd(p, $event.currentTarget)">{{ 'Добавить в корзину' | t }}</button> }
         </div>
         <!-- Просмотр фото и вертикальный режим видео — отдельные чанки: заранее, пока браузер простаивает, и не в начальной загрузке страницы -->
         @if (photos().length) {
@@ -197,7 +198,7 @@ export function buyBarVisible(e: ButtonView): boolean {
         <app-reviews class="reviews" [reviews]="reviews()" [rating]="p.rating ?? null" [count]="p.reviews_count ?? 0" [product]="p.id" />
         @if (more().length) {
           <section class="more">
-            <h2 class="section-title">Ещё в лавке <a [routerLink]="['/shop', p.shop_handle]">{{ shop()?.name || '@' + p.shop_handle }}</a></h2>
+            <h2 class="section-title">{{ 'Ещё в лавке' | t }} <a [routerLink]="['/shop', p.shop_handle]">{{ shop()?.name || '@' + p.shop_handle }}</a></h2>
             <div class="products">@for (m of more(); track m.id) { <app-product-card [product]="m" /> }</div>
           </section>
         }
@@ -205,7 +206,7 @@ export function buyBarVisible(e: ButtonView): boolean {
         <!-- Похожие из других лавок — альтернатива, если этот товар не подошёл; один шаблон на оба места -->
         <ng-template #similarBlock let-top="top">
           <section class="similar" data-test="similar" [class.similar--top]="top">
-            <h2 class="section-title">Похожие в других лавках</h2>
+            <h2 class="section-title">{{ 'Похожие в других лавках' | t }}</h2>
             <div class="products">@for (m of similar(); track m.id) { <app-product-card [product]="m" /> }</div>
           </section>
         </ng-template>
@@ -213,7 +214,7 @@ export function buyBarVisible(e: ButtonView): boolean {
     } @else {
       <!-- Заглушка загрузки в той же сетке: фото с превью слева, продавец, название, цена и кнопки справа -->
       <div class="wrap top" role="status" data-test="skel-product">
-        <span class="sr-only">Загрузка…</span>
+        <span class="sr-only">{{ 'Загрузка…' | t }}</span>
         <div class="layout" aria-hidden="true">
           <div class="gallery">
             <div class="main skel"></div>
@@ -337,6 +338,7 @@ export class ProductComponent {
   private readonly recent = inject(RecentlyViewedService);
   private readonly fly = inject(FlyToCart);
   private readonly toasts = inject(ToastService);
+  private readonly i18n = inject(I18n);
   readonly id = input.required<string>();
   readonly product = signal<Product | null>(null);
   /** Лавка товара для плашки продавца; не загрузилась — показываем только ник. */
@@ -388,27 +390,28 @@ export class ProductComponent {
   readonly reelAction = computed<ReelAction>(() => {
     const p = this.product();
     if (!p) return { label: '' };
-    if (this.direct()) return { label: 'Написать в Direct', href: this.directUrl() };
-    if (!p.in_stock) return { label: 'Нет в наличии', disabled: true };
-    if (this.added()) return { label: 'Перейти в корзину', link: '/cart' };
-    return { label: p.sizes.length > 1 && !this.size() ? 'Выбрать размер' : 'Добавить в корзину' };
+    const i18n = this.i18n;
+    if (this.direct()) return { label: i18n.t('Написать в Direct'), href: this.directUrl() };
+    if (!p.in_stock) return { label: i18n.t('Нет в наличии'), disabled: true };
+    if (this.added()) return { label: i18n.t('Перейти в корзину'), link: '/cart' };
+    return { label: p.sizes.length > 1 && !this.size() ? i18n.t('Выбрать размер') : i18n.t('Добавить в корзину') };
   });
   /** Что уходит в мессенджер при «Поделиться»: название и цена, ссылка — на канонический адрес товара. */
   readonly sharePath = computed(() => productPath(this.product()?.id ?? ''));
   readonly shareText = computed(() => { const p = this.product(); return !p ? '' : p.price === null ? p.title : `${p.title} — ${money.transform(p.price)}`; });
-  readonly addLabel = computed(() => (!this.product()?.in_stock ? 'Нет в наличии' : this.added() ? 'Добавлено в корзину' : 'Добавить в корзину'));
+  readonly addLabel = computed(() => (!this.product()?.in_stock ? this.i18n.t('Нет в наличии') : this.added() ? this.i18n.t('Добавлено в корзину') : this.i18n.t('Добавить в корзину')));
   /** Цены доставки из той же deliveryFor, что считает итог на оформлении. */
   readonly deliveryCity = money.transform(deliveryFor(DISTRICTS[0]));
   readonly deliverySuburb = money.transform(deliveryFor(SUBURBS[0]));
-  readonly suburbs = SUBURBS.join(' и ');
+  readonly suburbs = this.i18n.t('{a} и {b}', { a: SUBURBS[0], b: SUBURBS[1] });
 
   readonly failed = signal(false);
   /** Отзывы о товаре; null — ещё грузятся или не загрузились (раздел скрыт). Запрос идёт и при серверном рендере. */
   readonly reviews = signal<Review[] | null>(null);
-  readonly ratingText = computed(() => { const p = this.product(); return p ? ratingLabel(p.rating, p.reviews_count) : ''; });
+  readonly ratingText = computed(() => { const p = this.product(); return p ? ratingLabel(p.rating, p.reviews_count, this.i18n) : ''; });
   /** Скидка в процентах и последний день акции — рядом с ценой. */
   readonly discount = computed(() => { const p = this.product(); return p ? discountPercent(p.price, p.old_price) : null; });
-  readonly promoEnds = computed(() => promoUntil(this.product()?.promo_ends_at));
+  readonly promoEnds = computed(() => promoUntil(this.product()?.promo_ends_at, this.i18n));
 
   rating(r: number): string { return ratingNumber(r); }
 
@@ -424,7 +427,7 @@ export class ProductComponent {
           // Снимок для «Вы смотрели» — только в браузере: на сервере хранилища нет
           if (this.browser) this.recent.add(p);
           if (p.sizes.length === 1) this.size.set(p.sizes[0]);
-          this.seo.set({ title: p.price === null ? `${p.title} · Харид` : `${p.title} — ${money.transform(p.price)} · Харид`, description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined, type: 'product', jsonLd: productLd(p, this.photos(), this.seo.origin()), path: productPath(p.id) });
+          this.seo.set({ title: p.price === null ? this.i18n.t('{title} · Харид', { title: p.title }) : this.i18n.t('{title} — {price} · Харид', { title: p.title, price: money.transform(p.price) }), description: `@${p.shop_handle} · ${p.description.slice(0, 140)}`, image: this.photos()[0] || undefined, type: 'product', jsonLd: productLd(p, this.photos(), this.seo.origin()), path: productPath(p.id) });
           nested.push(
             this.api.products({ shop: p.shop_handle, limit: 9 }).pipe(catchError(() => of([]))).subscribe((list) => this.more.set(list.filter((x) => x.id !== p.id).slice(0, 8))),
             this.api.shop(p.shop_handle).pipe(catchError(() => of(null))).subscribe((s) => this.shop.set(s)),
@@ -440,9 +443,9 @@ export class ProductComponent {
           // Товара больше нет — убираем его и из «Вы смотрели»; сетевые ошибки историю не трогают
           if (e instanceof HttpErrorResponse && (e.status === 404 || e.status === 400)) {
             this.missing.set(true);
-            this.title.setTitle('Товар не найден — Харид');
+            this.title.setTitle(this.i18n.t('Товар не найден — Харид'));
             if (this.browser) this.recent.remove(id);
-          } else { this.failed.set(true); this.title.setTitle('Товар не загрузился — Харид'); }
+          } else { this.failed.set(true); this.title.setTitle(this.i18n.t('Товар не загрузился — Харид')); }
         },
       }));
       onCleanup(() => { sub.unsubscribe(); nested.forEach((n) => n.unsubscribe()); });
@@ -525,9 +528,9 @@ export class ProductComponent {
       () => {
         this.copied.set(true);
         // В вертикальном просмотре подсказку под кнопкой не видно — говорим плашкой
-        if (this.reel()) this.toasts.show({ text: 'Ссылка на пост скопирована — вставьте её в чат' });
+        if (this.reel()) this.toasts.show({ text: this.i18n.t('Ссылка на пост скопирована — вставьте её в чат') });
       },
-      () => this.toasts.error('Не удалось скопировать ссылку на пост — напишите лавке название товара'),
+      () => this.toasts.error(this.i18n.t('Не удалось скопировать ссылку на пост — напишите лавке название товара')),
     );
   }
 
@@ -559,7 +562,7 @@ export class ProductComponent {
       return;
     }
     // В вертикальном просмотре корзины и подсказок под кнопкой не видно — полёта нет, говорим плашкой
-    if (ok) this.toasts.show({ text: 'Товар в корзине', action: { label: 'Перейти', link: '/cart' } });
-    else this.toasts.error('В корзине уже 30 позиций — оформите заказ или уберите лишнее');
+    if (ok) this.toasts.show({ text: this.i18n.t('Товар в корзине'), action: { label: this.i18n.t('Перейти'), link: '/cart' } });
+    else this.toasts.error(this.i18n.t('В корзине уже 30 позиций — оформите заказ или уберите лишнее'));
   }
 }

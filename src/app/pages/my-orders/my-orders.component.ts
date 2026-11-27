@@ -4,13 +4,13 @@ import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
-import { dayMonth, STAGE_LABEL } from '../../core/checkout-options';
+import { dayMonth, stageLabel } from '../../core/checkout-options';
+import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { RepeatOrderService } from '../../core/repeat-order.service';
 import { MarketReturn, Order, OrderStage, ReturnableOrder, Reviewable } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
-import { plural } from '../../shared/plural';
 
 /** Сколько превью товаров в строке заказа; остальное — плашкой «+N». */
 const THUMBS = 4;
@@ -19,7 +19,7 @@ const ACTIVE: OrderStage[] = ['placed', 'assembling', 'in_delivery'];
 /** Что по заказу ждёт покупателя: возврат в работе, срок возврата, неоценённые товары. */
 type Hint = { kind: 'return' | 'deadline' | 'rate'; text: string };
 
-/** Короткие статусы возврата для строки списка; подробности — на странице заказа. */
+/** Короткие статусы возврата для строки списка (ключи словаря); подробности — на странице заказа. */
 const RETURN_HINT: Record<MarketReturn['status'], string> = {
   requested: 'Возврат: ждёт ответа лавки',
   approved: 'Возврат одобрен — передайте товар',
@@ -32,14 +32,14 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-my-orders',
   standalone: true,
-  imports: [RouterLink, MoneyPipe, IconComponent],
+  imports: [RouterLink, MoneyPipe, IconComponent, TPipe],
   template: `
     <div class="wrap page-top">
-      <h1 class="page-title head">Мои заказы</h1>
+      <h1 class="page-title head">{{ 'Мои заказы' | t }}</h1>
       <!-- Заглушка и до чтения сессии, и пока список заказов не пришёл: строки в той же сетке, что настоящие -->
       @if (!auth.ready() || (!loaded() && !error())) {
         <div class="group" role="status" data-test="skel-orders">
-          <span class="sr-only">Загрузка…</span>
+          <span class="sr-only">{{ 'Загрузка…' | t }}</span>
           <ul class="list" aria-hidden="true">
             @for (n of [1, 2, 3]; track n) {
               <li>
@@ -61,8 +61,8 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
         @if (error()) { <p class="error">{{ error() }}</p> }
         @if (loaded() && !orders().length && !error()) {
           <div class="empty">
-            <p>Заказов пока нет</p>
-            <a class="btn" routerLink="/">Перейти к покупкам</a>
+            <p>{{ 'Заказов пока нет' | t }}</p>
+            <a class="btn" routerLink="/">{{ 'Перейти к покупкам' | t }}</a>
           </div>
         }
         @for (g of groups(); track g.title) {
@@ -81,7 +81,7 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
                     </div>
                     <div class="body">
                       <p class="top">
-                        <span class="stage" [attr.data-stage]="o.stage">{{ label[o.stage] }}</span>
+                        <span class="stage" [attr.data-stage]="o.stage">{{ label(o.stage) }}</span>
                         <span class="muted">{{ day(o.created_at) }}</span>
                       </p>
                       <p class="what">{{ summary(o) }}</p>
@@ -104,7 +104,7 @@ const RETURN_HINT: Record<MarketReturn['status'], string> = {
                   </a>
                   <!-- Вне ссылки на заказ: кнопка внутри <a> недопустима и перехватывала бы переход -->
                   @if (o.stage === 'delivered' || o.stage === 'cancelled') {
-                    <button type="button" class="repeat" data-test="repeat" [disabled]="repeatingNumber() === o.number" (click)="repeat(o)">{{ repeatingNumber() === o.number ? 'Добавляем…' : 'Повторить заказ' }}</button>
+                    <button type="button" class="repeat" data-test="repeat" [disabled]="repeatingNumber() === o.number" (click)="repeat(o)">{{ repeatingNumber() === o.number ? ('Добавляем…' | t) : ('Повторить заказ' | t) }}</button>
                   }
                 </li>
               }
@@ -175,12 +175,12 @@ export class MyOrdersComponent {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly repeater = inject(RepeatOrderService);
+  private readonly i18n = inject(I18n);
   readonly orders = signal<Order[]>([]);
   /** Номер заказа, который сейчас повторяется; один повтор за раз. */
   readonly repeatingNumber = signal<string | null>(null);
   readonly loaded = signal(false);
   readonly error = signal('');
-  readonly label = STAGE_LABEL;
   readonly thumbs = THUMBS;
   private readonly returns = signal<MarketReturn[]>([]);
   private readonly returnable = signal<ReturnableOrder[]>([]);
@@ -192,8 +192,8 @@ export class MyOrdersComponent {
     const active = this.orders().filter((o) => ACTIVE.includes(o.stage));
     const done = this.orders().filter((o) => !ACTIVE.includes(o.stage));
     return [
-      { title: 'Активные', orders: active },
-      { title: 'Завершённые', orders: done },
+      { title: this.i18n.t('Активные'), orders: active },
+      { title: this.i18n.t('Завершённые'), orders: done },
     ].filter((g) => g.orders.length);
   });
 
@@ -205,16 +205,16 @@ export class MyOrdersComponent {
     for (const r of this.returns()) {
       if (!r.number || seen.has(r.number) || !RETURN_HINT[r.status]) continue;
       seen.add(r.number);
-      add(r.number, { kind: 'return', text: RETURN_HINT[r.status] });
+      add(r.number, { kind: 'return', text: this.i18n.t(RETURN_HINT[r.status]) });
     }
     const deadlines = new Map<string, string>();
     for (const o of this.returnable()) {
       if (o.number && (!deadlines.has(o.number) || o.deadline < deadlines.get(o.number)!)) deadlines.set(o.number, o.deadline);
     }
-    deadlines.forEach((d, n) => add(n, { kind: 'deadline', text: `Можно вернуть до ${dayMonth(d)}` }));
+    deadlines.forEach((d, n) => add(n, { kind: 'deadline', text: this.i18n.t('Можно вернуть до {date}', { date: dayMonth(d, this.i18n) }) }));
     const unrated = new Map<string, number>();
     for (const r of this.reviewable()) if (!r.review) unrated.set(r.order_number, (unrated.get(r.order_number) ?? 0) + 1);
-    unrated.forEach((n, num) => add(num, { kind: 'rate', text: `Оцените ${n} ${plural(n, ['товар', 'товара', 'товаров'])}` }));
+    unrated.forEach((n, num) => add(num, { kind: 'rate', text: this.i18n.t('Оцените {n} {goods}', { n, goods: this.goods(n) }) }));
     return map;
   });
 
@@ -237,7 +237,7 @@ export class MyOrdersComponent {
               this.router.navigate(['/login'], { queryParams: { return: '/me/orders' } });
               return;
             }
-            this.error.set(apiErrorMessage(e));
+            this.error.set(apiErrorMessage(e, this.i18n));
           },
         });
         // Подсказки к строкам — необязательны: ошибка любого из списков просто убирает их
@@ -248,13 +248,17 @@ export class MyOrdersComponent {
     });
   }
 
-  day(iso: string): string { return dayMonth(iso); }
+  day(iso: string): string { return dayMonth(iso, this.i18n); }
+  label(stage: OrderStage): string { return stageLabel(stage, this.i18n); }
+
+  /** «товар / товара / товаров»; по-таджикски после числа всегда «мол». */
+  private goods(n: number): string { return this.i18n.plural(n, ['товар', 'товара', 'товаров']); }
 
   /** «Платье» · «Платье и ещё 2 товара»; пустой заказ — по номеру. */
   summary(o: Order): string {
-    if (!o.lines.length) return `Заказ ${o.number}`;
+    if (!o.lines.length) return this.i18n.t('Заказ {number}', { number: o.number });
     const rest = o.lines.length - 1;
-    return rest ? `${o.lines[0].title} и ещё ${rest} ${plural(rest, ['товар', 'товара', 'товаров'])}` : o.lines[0].title;
+    return rest ? this.i18n.t('{title} и ещё {n} {goods}', { title: o.lines[0].title, n: rest, goods: this.goods(rest) }) : o.lines[0].title;
   }
 
   shops(o: Order): string {

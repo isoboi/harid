@@ -3,10 +3,10 @@ import { RouterLink } from '@angular/router';
 import { CartItem, CartService, MAX_QTY } from '../../core/cart.service';
 import { ToastService } from '../../core/toast.service';
 import { deliveryFor, DISTRICTS, SUBURBS } from '../../core/checkout-options';
+import { I18n, TPipe } from '../../core/i18n';
 import { IconComponent } from '../../shared/icon.component';
 import { RecentStripComponent } from '../../shared/recent-strip.component';
 import { MoneyPipe } from '../../shared/money.pipe';
-import { plural } from '../../shared/plural';
 import { SkelSummaryComponent } from '../../shared/skeleton.component';
 
 const money = new MoneyPipe();
@@ -18,14 +18,14 @@ export const UNDO_MS = 6000;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-cart',
   standalone: true,
-  imports: [RouterLink, MoneyPipe, IconComponent, RecentStripComponent, SkelSummaryComponent],
+  imports: [RouterLink, MoneyPipe, IconComponent, RecentStripComponent, SkelSummaryComponent, TPipe],
   template: `
     <div class="wrap page-top">
-      <h1 class="page-title head">Корзина</h1>
+      <h1 class="page-title head">{{ 'Корзина' | t }}</h1>
       @if (!cart.ready()) {
         <!-- Заглушка до чтения корзины из браузера: лавка с двумя строками и сводка справа -->
         <div class="layout" role="status" data-test="skel-cart">
-          <span class="sr-only">Загрузка…</span>
+          <span class="sr-only">{{ 'Загрузка…' | t }}</span>
           <div class="groups" aria-hidden="true">
             <section>
               <span class="skel skel--line shop-skel"></span>
@@ -49,8 +49,8 @@ export const UNDO_MS = 6000;
       }
       @else if (!cart.count()) {
         <div class="empty">
-          <p>В корзине пока пусто. Загляните в лавки — новые товары появляются каждый день.</p>
-          <a class="btn" routerLink="/">Смотреть товары</a>
+          <p>{{ 'В корзине пока пусто. Загляните в лавки — новые товары появляются каждый день.' | t }}</p>
+          <a class="btn" routerLink="/">{{ 'Смотреть товары' | t }}</a>
         </div>
       }
       @else {
@@ -60,7 +60,7 @@ export const UNDO_MS = 6000;
               <section>
                 <h2 class="shop">
                   <a [routerLink]="['/shop', g.shop_handle]">&#64;{{ g.shop_handle }}</a>
-                  <span class="shop-note">Отдельная доставка от этой лавки</span>
+                  <span class="shop-note">{{ 'Отдельная доставка от этой лавки' | t }}</span>
                 </h2>
                 <ul class="rows">
                   @for (i of g.items; track i.product.id + (i.size ?? '')) {
@@ -71,14 +71,14 @@ export const UNDO_MS = 6000;
                       <div class="body">
                         <div class="line">
                           <a class="t" [routerLink]="['/product', i.product.id]">{{ i.product.title }}</a>
-                          <button type="button" class="x" (click)="remove(i)" [attr.aria-label]="'Убрать «' + i.product.title + '» из корзины'"><app-icon name="x" [size]="18" /></button>
+                          <button type="button" class="x" (click)="remove(i)" [attr.aria-label]="'Убрать «{title}» из корзины' | t: { title: i.product.title }"><app-icon name="x" [size]="18" /></button>
                         </div>
-                        @if (i.size) { <p class="size">Размер: {{ i.size }}</p> }
+                        @if (i.size) { <p class="size">{{ 'Размер: {size}' | t: { size: i.size } }}</p> }
                         <div class="foot">
                           <div class="qty">
-                            <button type="button" [disabled]="i.qty <= 1" (click)="changeQty(i, i.qty - 1)" aria-label="Меньше"><app-icon name="minus" [size]="16" /></button>
+                            <button type="button" [disabled]="i.qty <= 1" (click)="changeQty(i, i.qty - 1)" [attr.aria-label]="'Меньше' | t"><app-icon name="minus" [size]="16" /></button>
                             <span class="n">{{ i.qty }}</span>
-                            <button type="button" [disabled]="i.qty >= maxQty" (click)="changeQty(i, i.qty + 1)" aria-label="Больше"><app-icon name="plus" [size]="16" /></button>
+                            <button type="button" [disabled]="i.qty >= maxQty" (click)="changeQty(i, i.qty + 1)" [attr.aria-label]="'Больше' | t"><app-icon name="plus" [size]="16" /></button>
                           </div>
                           <span class="sum">{{ (i.product.price ?? 0) * i.qty | money }}</span>
                         </div>
@@ -91,12 +91,12 @@ export const UNDO_MS = 6000;
           </div>
           <aside class="summary side">
             <dl>
-              <div><dt>Товары</dt><dd>{{ cart.itemsTotal() | money }}</dd></div>
-              <div><dt>Доставка из {{ cart.groups().length }} {{ plural(cart.groups().length, shopForms) }}</dt><dd>{{ delivery() | money }}</dd></div>
-              <div class="total"><dt>Итого</dt><dd>{{ cart.itemsTotal() + delivery() | money }}</dd></div>
+              <div><dt>{{ 'Товары' | t }}</dt><dd>{{ cart.itemsTotal() | money }}</dd></div>
+              <div><dt>{{ 'Доставка из {n} {shops}' | t: { n: cart.groups().length, shops: i18n.plural(cart.groups().length, shopForms) } }}</dt><dd>{{ delivery() | money }}</dd></div>
+              <div class="total"><dt>{{ 'Итого' | t }}</dt><dd>{{ cart.itemsTotal() + delivery() | money }}</dd></div>
             </dl>
-            <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>Оплата наличными курьеру · без предоплаты · проверяете товар при курьере</span></p>
-            <a class="btn" routerLink="/checkout">Оформить заказ</a>
+            <p class="cash promise" data-test="cash-promise"><app-icon name="banknote" [size]="20" /><span>{{ 'Оплата наличными курьеру · без предоплаты · проверяете товар при курьере' | t }}</span></p>
+            <a class="btn" routerLink="/checkout">{{ 'Оформить заказ' | t }}</a>
             <p class="note">{{ suburbNote }}</p>
           </aside>
         </div>
@@ -151,11 +151,13 @@ export const UNDO_MS = 6000;
 export class CartComponent {
   readonly cart = inject(CartService);
   readonly maxQty = MAX_QTY;
-  readonly plural = plural;
+  protected readonly i18n = inject(I18n);
   readonly shopForms: [string, string, string] = ['лавки', 'лавок', 'лавок'];
   /** Доставка по Душанбе за каждую лавку; пригород дороже — уточним на оформлении. */
   readonly delivery = computed(() => this.cart.deliveryTotal(DISTRICTS[0]));
-  readonly suburbNote = `Доставка в ${SUBURBS.join(' и ')} — ${money.transform(deliveryFor(SUBURBS[0]))} за лавку. Точная сумма будет на следующем шаге.`;
+  readonly suburbNote = this.i18n.t('Доставка в {places} — {price} за лавку. Точная сумма будет на следующем шаге.', {
+    places: SUBURBS.join(` ${this.i18n.t('и')} `), price: money.transform(deliveryFor(SUBURBS[0])),
+  });
   /** id товаров в корзине — их полоса «Вы смотрели» не показывает. */
   readonly inCart = computed(() => this.cart.items().map((i) => i.product.id));
   private readonly toasts = inject(ToastService);
@@ -177,8 +179,8 @@ export class CartComponent {
     const index = this.cart.items().findIndex((x) => x.product.id === i.product.id && x.size === i.size);
     this.cart.remove(i.product.id, i.size);
     this.undoToast = this.toasts.show({
-      text: 'Товар убран',
-      action: { label: 'Вернуть', run: () => this.cart.restore(i, index) },
+      text: this.i18n.t('Товар убран'),
+      action: { label: this.i18n.t('Вернуть'), run: () => this.cart.restore(i, index) },
       duration: UNDO_MS,
     });
   }

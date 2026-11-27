@@ -4,7 +4,7 @@ import { I18nLike, RU } from '../core/i18n';
 const untilFmt = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Dushanbe', day: 'numeric', month: 'long' });
 /** День и номер месяца по Душанбе — для таджикской подписи (ICU в браузерах не везде знает tg-TJ). */
 const partsFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Dushanbe', day: 'numeric', month: 'numeric' });
-const TG_MONTHS = ['январ', 'феврал', 'март', 'апрел', 'май', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
+export const TG_MONTHS = ['январ', 'феврал', 'март', 'апрел', 'май', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
 
 /**
  * 540 вместо 600 → 10. Скидки нет (старой цены нет, она не выше, меньше 1%) → null.

@@ -6,6 +6,7 @@ import { ChatApi } from '../../core/chat-api.service';
 import { ChatSocket } from '../../core/chat-socket.service';
 import { AuthService } from '../../core/auth.service';
 import { apiErrorMessage } from '../../core/api-error';
+import { I18n, TPipe } from '../../core/i18n';
 import { ChatMessage, ChatSummary } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
@@ -26,17 +27,17 @@ interface Row { message: ChatMessage; day: string | null; grouped: boolean }
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chat-thread',
   standalone: true,
-  imports: [FormsModule, RouterLink, ChatBubbleComponent, IconComponent, ShopAvatarComponent],
+  imports: [FormsModule, RouterLink, ChatBubbleComponent, IconComponent, ShopAvatarComponent, TPipe],
   template: `
     <section class="screen">
       <header class="bar">
-        <a class="back" routerLink="/chats" aria-label="Все сообщения"><app-icon name="chevron-left" [size]="24" [stroke]="2" /></a>
+        <a class="back" routerLink="/chats" [attr.aria-label]="'Все сообщения' | t"><app-icon name="chevron-left" [size]="24" [stroke]="2" /></a>
         @if (shop(); as s) {
           <a class="who" data-test="thread-shop" [routerLink]="['/shop', s.handle]">
             <app-shop-avatar [name]="s.name" [color]="s.avatar_color" [handle]="s.handle" [size]="40" />
             <span class="who-text">
               <span class="who-name">{{ s.name }}</span>
-              <span class="who-handle">&#64;{{ s.handle }} · открыть лавку</span>
+              <span class="who-handle">&#64;{{ s.handle }} · {{ 'открыть лавку' | t }}</span>
             </span>
           </a>
         } @else {
@@ -47,19 +48,19 @@ interface Row { message: ChatMessage; day: string | null; grouped: boolean }
 
       <div class="feed" aria-live="polite">
         @if (hasOlder()) {
-          <button type="button" class="older" data-test="older" (click)="older()">Показать предыдущие</button>
+          <button type="button" class="older" data-test="older" (click)="older()">{{ 'Показать предыдущие' | t }}</button>
         } @else if (loaded() && shop()) {
           @let s = shop()!;
           <div class="intro">
             <app-shop-avatar [name]="s.name" [color]="s.avatar_color" [handle]="s.handle" [size]="64" />
             <p class="intro-name">{{ s.name }}</p>
-            <p class="intro-note">Начало переписки с лавкой &#64;{{ s.handle }}. Ответы продавца приходят сюда же.</p>
+            <p class="intro-note">{{ 'Начало переписки с лавкой @{handle}. Ответы продавца приходят сюда же.' | t: { handle: s.handle } }}</p>
           </div>
         }
         @if (!loaded()) {
           <!-- Заглушка переписки: пузыри лавки слева и свои справа, как в настоящей ленте -->
           <div class="skel-feed" role="status" data-test="skel-thread">
-            <span class="sr-only">Загрузка…</span>
+            <span class="sr-only">{{ 'Загрузка…' | t }}</span>
             @for (b of skeleton; track $index) { <span class="skel bubble-skel" aria-hidden="true" [class.mine]="b.mine" [style.width.%]="b.w"></span> }
           </div>
         }
@@ -73,13 +74,13 @@ interface Row { message: ChatMessage; day: string | null; grouped: boolean }
       <div class="dock">
         @if (error()) { <p class="note note--err" role="alert">{{ error() }}</p> }
         @if (failed()) {
-          <p class="note note--err">Сообщение не отправлено. <button type="button" class="retry" data-test="retry" (click)="submit()">Повторить</button></p>
+          <p class="note note--err">{{ 'Сообщение не отправлено.' | t }} <button type="button" class="retry" data-test="retry" (click)="submit()">{{ 'Повторить' | t }}</button></p>
         }
         <form class="composer" (ngSubmit)="submit()">
-          <label class="sr-only" for="chat-text">Сообщение лавке</label>
-          <textarea id="chat-text" name="text" rows="1" maxlength="2000" autocomplete="off" enterkeyhint="send" placeholder="Сообщение"
+          <label class="sr-only" for="chat-text">{{ 'Сообщение лавке' | t }}</label>
+          <textarea id="chat-text" name="text" rows="1" maxlength="2000" autocomplete="off" enterkeyhint="send" [placeholder]="'Сообщение' | t"
             [ngModel]="draft()" (ngModelChange)="draft.set($event)" (keydown.enter)="onEnter($event)"></textarea>
-          <button class="send" type="submit" aria-label="Отправить" [disabled]="sending() || !draft().trim()">
+          <button class="send" type="submit" [attr.aria-label]="'Отправить' | t" [disabled]="sending() || !draft().trim()">
             <app-icon name="send" [size]="20" [stroke]="2" />
           </button>
         </form>
@@ -135,6 +136,7 @@ export class ChatThreadComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly i18n = inject(I18n);
   private readonly end = viewChild<ElementRef<HTMLElement>>('end');
   /** :id из маршрута (withComponentInputBinding). */
   readonly id = input.required<string>();
@@ -155,7 +157,7 @@ export class ChatThreadComponent implements OnInit {
     let prev: ChatMessage | null = null;
     return this.messages().map((m) => {
       const newDay = !prev || chatDay(prev.created_at) !== chatDay(m.created_at);
-      const row = { message: m, day: newDay ? chatDayLabel(m.created_at) : null, grouped: !newDay && prev!.sender === m.sender };
+      const row = { message: m, day: newDay ? chatDayLabel(m.created_at, new Date(), this.i18n) : null, grouped: !newDay && prev!.sender === m.sender };
       prev = m;
       return row;
     });
@@ -169,7 +171,7 @@ export class ChatThreadComponent implements OnInit {
     this.api.list().subscribe({ next: (list) => this.shop.set(list.find((c) => c.id === this.chatId)?.shop ?? null), error: () => undefined });
     this.api.messages(this.chatId).subscribe({
       next: (list) => { this.messages.set(list); this.hasOlder.set(list.length >= PAGE); this.loaded.set(true); this.markRead(); this.scrollToEnd(); },
-      error: (e) => { this.loaded.set(true); this.error.set(e?.status === 404 ? 'Чат не найден' : apiErrorMessage(e)); },
+      error: (e) => { this.loaded.set(true); this.error.set(e?.status === 404 ? this.i18n.t('Чат не найден') : apiErrorMessage(e, this.i18n)); },
     });
     this.socket.messages$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((e) => {
       if (e.chat_id !== this.chatId) return;
@@ -205,7 +207,7 @@ export class ChatThreadComponent implements OnInit {
     this.sending.set(true); this.failed.set(false); this.error.set('');
     this.api.send(this.chatId, { text }).subscribe({
       next: (m) => { this.sending.set(false); this.draft.set(''); this.add([m]); this.scrollToEnd(); },
-      error: (e) => { this.sending.set(false); this.failed.set(true); if (e?.status === 409) this.error.set(apiErrorMessage(e)); },
+      error: (e) => { this.sending.set(false); this.failed.set(true); if (e?.status === 409) this.error.set(apiErrorMessage(e, this.i18n)); },
     });
   }
 

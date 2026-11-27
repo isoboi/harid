@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
+import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { CodeResend } from '../../core/code-resend';
 import { isPhone, phone9 } from '../../core/phone';
@@ -20,35 +21,35 @@ const safeReturn = (v: string): string => (SAFE_PATH.test(v) ? v : DEFAULT_RETUR
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, TPipe],
   template: `
     <section class="wrap box">
-      <h1 class="title">Вход по номеру телефона</h1>
+      <h1 class="title">{{ 'Вход по номеру телефона' | t }}</h1>
       @if (step() === 'phone') {
-        <p class="lead">Пароль не нужен — пришлём код в SMS. Так ваши заказы будут видны в «Мои заказы» на любом устройстве.</p>
+        <p class="lead">{{ 'Пароль не нужен — пришлём код в SMS. Так ваши заказы будут видны в «Мои заказы» на любом устройстве.' | t }}</p>
         <!-- Форма — чтобы Enter в поле отправлял код, как кнопка -->
         <form (ngSubmit)="submitPhone()">
           <div class="field">
-            <label for="login-phone">Номер телефона</label>
+            <label for="login-phone">{{ 'Номер телефона' | t }}</label>
             <div class="tel">
               <span class="tel-prefix" id="login-phone-prefix">+992</span>
               <input id="login-phone" name="phone" class="field-control" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="93 123 45 67" aria-describedby="login-phone-prefix"
                 [ngModel]="phone()" (ngModelChange)="phone.set($event)" />
             </div>
           </div>
-          <button class="btn btn--block go" type="submit" [disabled]="!canSendCode()">Получить код</button>
+          <button class="btn btn--block go" type="submit" [disabled]="!canSendCode()">{{ 'Получить код' | t }}</button>
         </form>
       } @else {
-        <p class="lead">Код отправлен на +992 {{ phone9(phone()) }}</p>
+        <p class="lead">{{ 'Код отправлен на +992 {phone}' | t: { phone: phone9(phone()) } }}</p>
         <form (ngSubmit)="submitCode()">
           <div class="field">
-            <label for="login-code">Код из SMS</label>
+            <label for="login-code">{{ 'Код из SMS' | t }}</label>
             <input id="login-code" name="code" class="field-control code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" [ngModel]="code()" (ngModelChange)="code.set($event)" />
           </div>
-          @if (resend.left() > 0) { <p class="field-hint again" data-test="countdown">Отправить код ещё раз через {{ resend.left() }} с</p> }
-          @else { <button class="link again" type="button" data-test="resend" [disabled]="busy()" (click)="send()">Отправить код ещё раз</button> }
-          <button class="btn btn--block go" type="submit" [disabled]="!canVerify()">Войти</button>
-          <button class="btn btn--ghost btn--block alt" type="button" (click)="step.set('phone')">Другой номер</button>
+          @if (resend.left() > 0) { <p class="field-hint again" data-test="countdown">{{ 'Отправить код ещё раз через {n} с' | t: { n: resend.left() } }}</p> }
+          @else { <button class="link again" type="button" data-test="resend" [disabled]="busy()" (click)="send()">{{ 'Отправить код ещё раз' | t }}</button> }
+          <button class="btn btn--block go" type="submit" [disabled]="!canVerify()">{{ 'Войти' | t }}</button>
+          <button class="btn btn--ghost btn--block alt" type="button" (click)="step.set('phone')">{{ 'Другой номер' | t }}</button>
         </form>
       }
       @if (error()) { <p class="field-error err" role="alert">{{ error() }}</p> }
@@ -71,6 +72,7 @@ const safeReturn = (v: string): string => (SAFE_PATH.test(v) ? v : DEFAULT_RETUR
   `,
 })
 export class LoginComponent {
+  private readonly i18n = inject(I18n);
   private readonly api = inject(MarketApi);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -108,7 +110,7 @@ export class LoginComponent {
     this.error.set('');
     this.api.sendCode(p).subscribe({
       next: () => { this.busy.set(false); this.resend.markSent(p); this.step.set('code'); },
-      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
+      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e, this.i18n)); },
     });
   }
 
@@ -121,7 +123,7 @@ export class LoginComponent {
         this.auth.setSession(r);
         this.router.navigateByUrl(safeReturn(this.return()));
       },
-      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
+      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e, this.i18n)); },
     });
   }
 }

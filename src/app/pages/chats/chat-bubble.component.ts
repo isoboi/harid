@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MoneyPipe } from '../../shared/money.pipe';
+import { I18n } from '../../core/i18n';
 import { ChatMessage } from '../../core/models';
 import { chatTime } from './chat-time';
 
@@ -52,5 +53,6 @@ export class ChatBubbleComponent {
   readonly mine = input<'buyer' | 'shop'>('buyer');
   /** Продолжение серии той же стороны — меньше отступ и без «хвоста». */
   readonly grouped = input(false);
-  readonly time = chatTime;
+  private readonly i18n = inject(I18n);
+  time(iso: string): string { return chatTime(iso, this.i18n); }
 }

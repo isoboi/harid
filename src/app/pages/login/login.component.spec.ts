@@ -5,6 +5,8 @@ import { of, throwError } from 'rxjs';
 import { LoginComponent } from './login.component';
 import { MarketApi } from '../../core/market-api.service';
 import { AuthService } from '../../core/auth.service';
+import { LANG_COOKIE, LANG_DICT } from '../../core/i18n';
+import { TG } from '../../i18n/tg';
 
 describe('LoginComponent', () => {
   beforeEach(() => localStorage.clear());
@@ -187,6 +189,27 @@ describe('LoginComponent', () => {
       f.detectChanges();
       expect(c.resend.left()).toBe(60);
       expect(el.querySelector('[data-test="resend"]')).toBeNull();
+    });
+  });
+
+  describe('по-таджикски (lang=tg)', () => {
+    beforeEach(() => { document.cookie = `${LANG_COOKIE}=tg; path=/`; });
+    afterEach(() => { document.cookie = `${LANG_COOKIE}=; path=/; max-age=0`; });
+
+    it('заголовок, кнопка и отсчёт повтора — на таджикском', async () => {
+      const api = { sendCode: jest.fn(() => of({})), verify: jest.fn() };
+      await TestBed.configureTestingModule({ imports: [LoginComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }, { provide: LANG_DICT, useValue: TG }] }).compileComponents();
+      TestBed.inject(AuthService).hydrate();
+      const f = TestBed.createComponent(LoginComponent);
+      f.detectChanges();
+      const el = f.nativeElement as HTMLElement;
+      expect(el.querySelector('h1')?.textContent?.trim()).toBe('Воридшавӣ бо рақами телефон');
+      expect(el.querySelector('button[type="submit"]')?.textContent?.trim()).toBe('Гирифтани рамз');
+      f.componentInstance.phone.set('93 111 00 02');
+      f.componentInstance.sendCode();
+      f.detectChanges();
+      expect(el.querySelector('.lead')?.textContent?.trim()).toBe('Рамз ба +992 931110002 фиристода шуд');
+      expect(el.querySelector('[data-test="countdown"]')?.textContent?.trim()).toBe('Рамзро пас аз 60 с боз фиристодан мумкин аст');
     });
   });
 });
