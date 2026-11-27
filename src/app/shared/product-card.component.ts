@@ -32,7 +32,7 @@ import { discountPercent } from './promo';
         @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="12" [filled]="true" />{{ ratingText() }}</p> }
         <p class="cod" data-test="cod">{{ direct() ? ('Заказ в Instagram Direct' | t) : ('Оплата при получении' | t) }}</p>
       </a>
-      <button type="button" class="fav" [class.on]="faved()" [attr.aria-pressed]="faved()" [attr.aria-label]="favLabel()" (click)="fav.toggle(p.id)">
+      <button type="button" class="fav" [class.on]="faved()" [attr.aria-pressed]="faved()" [attr.aria-label]="favLabel()" (click)="fav.toggle(p.id, p)">
         <span class="fav-dot"><app-icon name="heart" [size]="18" [filled]="faved()" /></span>
       </button>
     </div>

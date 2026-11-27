@@ -1,6 +1,7 @@
 import { PLATFORM_ID, REQUEST } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { FavoritesService } from '../core/favorites.service';
 import { LANG_DICT } from '../core/i18n';
 import { TG } from '../i18n/tg';
 import { ProductCardComponent } from './product-card.component';
@@ -59,6 +60,15 @@ describe('ProductCardComponent', () => {
     f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: 1, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '', rating: 4.9, reviews_count: 0 });
     f.detectChanges();
     expect((f.nativeElement as HTMLElement).querySelector('[data-test="rating"]')).toBeNull();
+  });
+  it('сердечко запоминает цену товара в момент добавления — для «Подешевело»', async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
+    const f = TestBed.createComponent(ProductCardComponent);
+    f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: 300, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
+    f.detectChanges();
+    (f.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button.fav')!.click();
+    expect(TestBed.inject(FavoritesService).marks()['16']).toEqual({ base: 300, now: 300, stock: true });
   });
 });
 
