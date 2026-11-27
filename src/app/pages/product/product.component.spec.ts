@@ -588,6 +588,16 @@ describe('ProductComponent', () => {
     });
   });
 
+  it('страница товара из избранного сообщает его свежую цену', async () => {
+    localStorage.setItem('harid.fav', JSON.stringify(['16']));
+    localStorage.setItem('harid.fav.prices', JSON.stringify({ '16': { base: 600, now: 600, stock: true } }));
+    const f = await render(prod({ price: 540 }));
+    const fav = TestBed.inject(FavoritesService);
+    fav.hydrate();
+    f.detectChanges();
+    expect(fav.drop('16')).toBe(60);
+  });
+
   it('«В избранное» запоминает цену товара — для «Подешевело»', async () => {
     const p = prod();
     const f = await render(p);

@@ -416,6 +416,11 @@ export class ProductComponent {
   rating(r: number): string { return ratingNumber(r); }
 
   constructor() {
+    // «Подешевело»: открытый товар из избранного сообщает свежую цену (и когда избранное загрузилось позже страницы)
+    effect(() => {
+      const p = this.product();
+      if (p && this.fav.ids().includes(p.id)) untracked(() => this.fav.observe(p.id, p));
+    });
     effect((onCleanup) => {
       const id = this.id();
       this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false); this.copied.set(false); this.reel.set(false); this.viewer.set(false);

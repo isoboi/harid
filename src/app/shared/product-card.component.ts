@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { directOnly } from '../core/direct';
 import { FavoritesService } from '../core/favorites.service';
@@ -79,4 +79,12 @@ export class ProductCardComponent {
     const title = this.product().title;
     return this.faved() ? this.i18n.t('Убрать «{title}» из избранного', { title }) : this.i18n.t('Добавить «{title}» в избранное', { title });
   });
+
+  constructor() {
+    // «Подешевело»: карточка из ленты сама сообщает свежую цену товара из избранного — без лишнего запроса
+    effect(() => {
+      const p = this.product();
+      if (this.faved()) untracked(() => this.fav.observe(p.id, p));
+    });
+  }
 }
