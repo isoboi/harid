@@ -7,6 +7,7 @@ import { Product } from '../core/models';
 import { IconComponent } from './icon.component';
 import { PriceTagComponent } from './price-tag.component';
 import { ratingLabel } from './rating';
+import { MoneyPipe } from './money.pipe';
 import { discountPercent } from './promo';
 
 /**
@@ -17,7 +18,7 @@ import { discountPercent } from './promo';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-product-card',
   standalone: true,
-  imports: [RouterLink, IconComponent, PriceTagComponent, TPipe],
+  imports: [RouterLink, IconComponent, PriceTagComponent, TPipe, MoneyPipe],
   template: `
     @let p = product();
     <div class="card">
@@ -28,6 +29,7 @@ import { discountPercent } from './promo';
           @if (discount(); as d) { <span class="discount" data-test="discount">−{{ d }}%</span> }
         </div>
         <h3 class="title">{{ p.title }}</h3>
+        @if (drop(); as d) { <p class="drop" data-test="price-drop">{{ 'Подешевело на {sum}' | t: { sum: (d | money) } }}</p> }
         <p class="shop">&#64;{{ p.shop_handle }}</p>
         @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="12" [filled]="true" />{{ ratingText() }}</p> }
         <p class="cod" data-test="cod">{{ direct() ? ('Заказ в Instagram Direct' | t) : ('Оплата при получении' | t) }}</p>
@@ -62,10 +64,14 @@ import { discountPercent } from './promo';
     .fav-dot { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9999px; background: color-mix(in srgb, var(--color-paper) 90%, transparent) }
     @media (hover: hover) { .fav:hover .fav-dot { background: var(--color-paper) } }
     .fav.on { color: var(--color-anor) }
+    /* «Подешевело» в избранном: шафрановая плашка под названием, как бейдж корзины; не спорит с плашкой скидки лавки на фото */
+    .drop { justify-self: start; width: fit-content; margin-top: 6px; padding: 2px 8px; border-radius: 9999px; background: var(--color-saffron); color: var(--color-on-saffron); font-size: 13px; font-weight: 700; line-height: 20px }
   `,
 })
 export class ProductCardComponent {
   readonly product = input.required<Product>();
+  /** «Подешевело на N смн» — передаёт только страница избранного; null — плашки нет. */
+  readonly drop = input<number | null>(null);
   readonly fav = inject(FavoritesService);
   private readonly i18n = inject(I18n);
   /** «4,8 · 12 отзывов»; без отзывов — пусто, строку не выводим. */

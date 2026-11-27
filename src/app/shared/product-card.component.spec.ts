@@ -83,6 +83,17 @@ describe('ProductCardComponent', () => {
     f.detectChanges();
     expect(fav.drop('16')).toBe(50);
   });
+  it('плашка «Подешевело на N смн» — только когда страница передала drop', async () => {
+    await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
+    const f = TestBed.createComponent(ProductCardComponent);
+    f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: 250, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('[data-test="price-drop"]')).toBeNull();
+    f.componentRef.setInput('drop', 1250);
+    f.detectChanges();
+    expect(el.querySelector('[data-test="price-drop"]')?.textContent?.trim()).toBe('Подешевело на 1 250 смн');
+  });
   it('карточка товара не из избранного цен не пишет', async () => {
     localStorage.clear();
     await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
