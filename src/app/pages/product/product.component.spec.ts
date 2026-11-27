@@ -296,6 +296,18 @@ describe('ProductComponent', () => {
       expect(fav.has('16')).toBe(true);
     });
 
+    it('сердечко в просмотре и двойной тап запоминают цену товара — для «Подешевело»', async () => {
+      const p = prod({ video: 'v.mp4' });
+      const t = await open(p);
+      const fav = TestBed.inject(FavoritesService);
+      t.q('reel-fav').click();
+      expect(fav.marks()['16']?.base).toBe(p.price);
+      t.q('reel-fav').click();
+      const player = t.f.debugElement.query(By.css('app-reel-viewer app-video-player')).componentInstance as VideoPlayerComponent;
+      player.liked.emit();
+      expect(fav.marks()['16']?.base).toBe(p.price);
+    });
+
     it('переключили товар — просмотр закрыт', async () => {
       const t = await open(prod({ video: 'v.mp4' }));
       t.f.componentRef.setInput('id', '17');
@@ -574,6 +586,23 @@ describe('ProductComponent', () => {
       fav.click(); f.detectChanges();
       expect(spy).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('страница товара из избранного сообщает его свежую цену', async () => {
+    localStorage.setItem('harid.fav', JSON.stringify(['16']));
+    localStorage.setItem('harid.fav.prices', JSON.stringify({ '16': { base: 600, now: 600, stock: true } }));
+    const f = await render(prod({ price: 540 }));
+    const fav = TestBed.inject(FavoritesService);
+    fav.hydrate();
+    f.detectChanges();
+    expect(fav.drop('16')).toBe(60);
+  });
+
+  it('«В избранное» запоминает цену товара — для «Подешевело»', async () => {
+    const p = prod();
+    const f = await render(p);
+    ((f.nativeElement as HTMLElement).querySelector('.fav') as HTMLButtonElement).click();
+    expect(TestBed.inject(FavoritesService).marks()['16']).toEqual({ base: p.price, now: p.price, stock: p.in_stock });
   });
 
   describe('липкая панель покупки (телефон)', () => {

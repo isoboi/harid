@@ -4,6 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import { HeaderComponent } from './header.component';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
+import { FavoritesService } from '../core/favorites.service';
 import { ChatSocket } from '../core/chat-socket.service';
 import { Product } from '../core/models';
 import { MarketApi } from '../core/market-api.service';
@@ -139,6 +140,29 @@ describe('HeaderComponent', () => {
       expect(header().classList).not.toContain('hdr--up');
       scrollTo(1200);
       expect(header().classList).not.toContain('hdr--up');
+    });
+  });
+
+  describe('«Подешевело»', () => {
+    it('есть непросмотренное снижение — точка у сердечка и подпись для скринридера', async () => {
+      localStorage.setItem('harid.fav', JSON.stringify(['1'])); localStorage.setItem('harid.fav.prices', JSON.stringify({ '1': { base: 300, now: 250, stock: true } }));
+      const f = await setup();
+      TestBed.inject(FavoritesService).hydrate();
+      f.detectChanges();
+      const a = (f.nativeElement as HTMLElement).querySelector('a[href="/favorites"]')!;
+      expect(a.querySelector('[data-test="fav-drop-dot"]')).not.toBeNull();
+      expect(a.getAttribute('aria-label')).toBe('Избранное, есть подешевевшие товары');
+    });
+    it('снижения нет или уже видели — ни точки, ни подписи', async () => {
+      localStorage.setItem('harid.fav', JSON.stringify(['1'])); localStorage.setItem('harid.fav.prices', JSON.stringify({ '1': { base: 300, now: 250, stock: true } }));
+      const f = await setup();
+      const fav = TestBed.inject(FavoritesService);
+      fav.hydrate();
+      fav.markSeen(['1']);
+      f.detectChanges();
+      const a = (f.nativeElement as HTMLElement).querySelector('a[href="/favorites"]')!;
+      expect(a.querySelector('[data-test="fav-drop-dot"]')).toBeNull();
+      expect(a.hasAttribute('aria-label')).toBe(false);
     });
   });
 });

@@ -1,6 +1,7 @@
 import { PLATFORM_ID, REQUEST } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { FavoritesService } from '../core/favorites.service';
 import { LANG_DICT } from '../core/i18n';
 import { TG } from '../i18n/tg';
 import { ProductCardComponent } from './product-card.component';
@@ -59,6 +60,49 @@ describe('ProductCardComponent', () => {
     f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: 1, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '', rating: 4.9, reviews_count: 0 });
     f.detectChanges();
     expect((f.nativeElement as HTMLElement).querySelector('[data-test="rating"]')).toBeNull();
+  });
+  it('сердечко запоминает цену товара в момент добавления — для «Подешевело»', async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
+    const f = TestBed.createComponent(ProductCardComponent);
+    f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: 300, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
+    f.detectChanges();
+    (f.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button.fav')!.click();
+    expect(TestBed.inject(FavoritesService).marks()['16']).toEqual({ base: 300, now: 300, stock: true });
+  });
+  it('карточка товара из избранного сообщает его свежую цену — и когда избранное загрузилось позже карточки', async () => {
+    localStorage.clear();
+    localStorage.setItem('harid.fav', JSON.stringify(['16']));
+    localStorage.setItem('harid.fav.prices', JSON.stringify({ '16': { base: 300, now: 300, stock: true } }));
+    await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
+    const f = TestBed.createComponent(ProductCardComponent);
+    f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: 250, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
+    f.detectChanges();
+    const fav = TestBed.inject(FavoritesService);
+    fav.hydrate();
+    f.detectChanges();
+    expect(fav.drop('16')).toBe(50);
+  });
+  it('плашка «Подешевело на N смн» — только когда страница передала drop', async () => {
+    await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
+    const f = TestBed.createComponent(ProductCardComponent);
+    f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: 250, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('[data-test="price-drop"]')).toBeNull();
+    f.componentRef.setInput('drop', 1250);
+    f.detectChanges();
+    expect(el.querySelector('[data-test="price-drop"]')?.textContent?.trim()).toBe('Подешевело на 1 250 смн');
+  });
+  it('карточка товара не из избранного цен не пишет', async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [ProductCardComponent], providers: [provideRouter([])] }).compileComponents();
+    const f = TestBed.createComponent(ProductCardComponent);
+    f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: 250, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
+    TestBed.inject(FavoritesService).hydrate();
+    f.detectChanges();
+    expect(TestBed.inject(FavoritesService).marks()).toEqual({});
+    expect(localStorage.getItem('harid.fav.prices')).toBeNull();
   });
 });
 
