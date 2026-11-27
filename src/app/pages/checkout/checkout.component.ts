@@ -63,7 +63,7 @@ const LAST_ADDRESS = 'harid.lastAddress';
                     @for (r of saved.list(); track rcpKey(r)) {
                       <div class="rcp" data-test="recipient" [class.rcp--on]="isPicked(r)">
                         <button type="button" class="rcp-pick" data-test="recipient-pick" [attr.aria-pressed]="isPicked(r)" (click)="pick(r)">
-                          <span class="rcp-name">{{ r.name }}</span>
+                          <span class="rcp-name">{{ r.name }}@if (phoneTail(r); as tail) { · {{ tail }} }</span>
                           <span class="rcp-where">{{ r.district }} · {{ r.address }}</span>
                         </button>
                         <button type="button" class="rcp-x" data-test="recipient-remove" [attr.aria-label]="'Убрать: {name}' | t: { name: r.name }" (click)="saved.remove(r)">
@@ -245,10 +245,10 @@ export class CheckoutComponent {
         if (this.prefilledFromSaved) return;
         if (first) {
           this.prefilledFromSaved = true;
-          if (name.pristine) name.setValue(first.name);
-          if (phone.pristine) phone.setValue(first.phone);
-          if (district.pristine) district.setValue(first.district);
-          if (address.pristine) address.setValue(first.address);
+          // Только целиком: история пришла, когда покупатель уже начал вводить, — не смешиваем его ввод с чужим
+          // получателем (имя одного, адрес другого). Ряд уже на экране — выберет сам.
+          const fields = [name, phone, district, address];
+          if (fields.every((c) => c.pristine)) this.form.patchValue({ name: first.name, phone: first.phone, district: first.district, address: first.address });
           return;
         }
         // Сохранённых получателей нет: как раньше — профиль и адрес прошлого заказа в старом формате
@@ -274,12 +274,25 @@ export class CheckoutComponent {
     for (const c of [name, phone, district, address]) c.markAsDirty();
   }
 
-  /** «Новый получатель»: имя, телефон и адрес пустые; у района нет пустого значения — он остаётся. */
+  /** «Новый получатель»: форма как пустая — имя, телефон и адрес пустые, район по умолчанию (не район прошлого получателя). */
   newRecipient(): void {
-    const { name, phone, address } = this.form.controls;
-    this.form.patchValue({ name: '', phone: '', address: '' });
-    for (const c of [name, phone, address]) c.markAsDirty();
+    const { name, phone, district, address } = this.form.controls;
+    this.form.patchValue({ name: '', phone: '', district: DISTRICTS[0], address: '' });
+    for (const c of [name, phone, district, address]) c.markAsDirty();
     this.host.nativeElement.querySelector<HTMLInputElement>('#co-name')?.focus();
+  }
+
+  /** Получатели с тем же именем и адресом, но другим номером (сменила номер, опечатка): на кнопке нужен номер, иначе не отличить. */
+  private readonly twins = computed(() => {
+    const seen = new Map<string, number>();
+    const look = (r: Recipient) => recipientKey({ ...r, phone: '' }) + '|' + r.name;
+    for (const r of this.saved.list()) seen.set(look(r), (seen.get(look(r)) ?? 0) + 1);
+    return new Set(this.saved.list().filter((r) => seen.get(look(r))! > 1).map(recipientKey));
+  });
+
+  /** «… 00 02» — конец номера на кнопке у получателей-двойников. */
+  phoneTail(r: Recipient): string | null {
+    return this.twins().has(recipientKey(r)) ? `… ${r.phone.slice(5, 7)} ${r.phone.slice(7)}` : null;
   }
 
   /** Получатель выделен, пока поля совпадают с ним: поменяли номер — выделение снимается. */

@@ -367,11 +367,11 @@ describe('CheckoutComponent: «Кому доставить»', () => {
     f.detectChanges();
     expect(all('[data-test="recipient-pick"]').map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false']);
   });
-  it('«Новый получатель» очищает имя, телефон, адрес и ставит фокус на имя', async () => {
+  it('«Новый получатель» очищает форму (район — как в пустой форме) и ставит фокус на имя', async () => {
     const { f, c, el } = await withSaved([mama]);
     el.querySelector<HTMLElement>('[data-test="recipient-new"]')!.click();
     f.detectChanges();
-    expect(four(c)).toEqual({ name: '', phone: '', district: 'Вахдат', address: '' });
+    expect(four(c)).toEqual({ name: '', phone: '', district: 'Сино', address: '' });
     expect(document.activeElement?.id).toBe('co-name');
   });
   it('убрали получателя, который в форме, — поля не меняются', async () => {
@@ -381,7 +381,7 @@ describe('CheckoutComponent: «Кому доставить»', () => {
     expect(four(c)).toEqual(mama);
     expect(all('[data-test="recipient"]')).toHaveLength(1);
   });
-  it('история пришла позже: нетронутые поля из истории, введённое не трогается', async () => {
+  it('история пришла позже, а покупатель уже начал вводить, — форма не меняется, получатели не смешиваются', async () => {
     const orders = new Subject<Order[]>();
     const { f, c } = await withSaved(null, {
       myOrders: jest.fn(() => orders),
@@ -389,7 +389,22 @@ describe('CheckoutComponent: «Кому доставить»', () => {
     });
     orders.next([{ created_at: '2026-11-20T10:00:00Z', customer: { ...mama, phone: '+992 93 111 00 02' } } as unknown as Order]);
     f.detectChanges();
-    expect(four(c)).toEqual({ ...mama, name: 'Иван' });
+    expect(four(c)).toEqual({ name: 'Иван', phone: '927000000', district: 'Сино', address: '' });
+    expect(f.nativeElement.querySelectorAll('[data-test="recipient"]')).toHaveLength(1);
+  });
+  it('история пришла позже, поля не тронуты — все четыре из получателя истории', async () => {
+    const orders = new Subject<Order[]>();
+    const { f, c } = await withSaved(null, { myOrders: jest.fn(() => orders) });
+    orders.next([{ created_at: '2026-11-20T10:00:00Z', customer: { ...mama, phone: '+992 93 111 00 02' } } as unknown as Order]);
+    f.detectChanges();
+    expect(four(c)).toEqual(mama);
+  });
+  it('одинаковые имя и адрес с разными номерами — на кнопках видно, чем они отличаются', async () => {
+    const { all } = await withSaved([mama, { ...mama, phone: '931110020' }, work]);
+    const texts = all('[data-test="recipient-pick"]').map((b) => b.textContent!.replace(/s+/g, ' ').trim());
+    expect(texts[0]).toContain('00 02');
+    expect(texts[1]).toContain('00 20');
+    expect(texts[2]).not.toMatch(/dd dd$/);
   });
   it('кнопка «Убрать» подписана именем получателя', async () => {
     const { all } = await withSaved([mama]);
