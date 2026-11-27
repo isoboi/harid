@@ -26,9 +26,13 @@ export function langFromCookie(cookie: string | null | undefined): Lang {
   return 'ru';
 }
 
-/** Перевод по словарю (нет перевода — исходный текст) и подстановка {параметров}; неизвестный {x} остаётся как есть. */
-export function translate(dict: Dict | null, text: string, params?: TParams): string {
-  const s = dict?.[text] ?? text;
+/**
+ * Перевод по словарю (нет перевода — исходный текст) и подстановка {параметров}; неизвестный {x} остаётся как есть.
+ * Контекст — когда одному русскому тексту в каком-то месте нужен другой перевод (короче, в другом падеже):
+ * сначала ищется ключ «контекст|текст», без него — обычный перевод. По-русски контекст ни на что не влияет.
+ */
+export function translate(dict: Dict | null, text: string, params?: TParams | null, ctx?: string): string {
+  const s = (ctx ? dict?.[`${ctx}|${text}`] : undefined) ?? dict?.[text] ?? text;
   if (!params) return s;
   return s.replace(/\{(\w+)\}/g, (m, k: string) => (k in params ? String(params[k]) : m));
 }
@@ -58,8 +62,8 @@ export class I18n {
   get needsDict(): boolean { return this.lang === 'tg' && !this.dict; }
   useDict(dict: Dict): void { this.dict = dict; }
 
-  t(text: string, params?: TParams): string {
-    return translate(this.lang === 'tg' ? this.dict : null, text, params);
+  t(text: string, params?: TParams | null, ctx?: string): string {
+    return translate(this.lang === 'tg' ? this.dict : null, text, params, ctx);
   }
 
   /**
@@ -99,9 +103,9 @@ export const provideI18n = () =>
     if (i18n.needsDict) i18n.useDict((await import('../i18n/tg')).TG);
   });
 
-/** {{ 'Корзина' | t }}, {{ 'В корзине {n}' | t: { n: count } }}. */
+/** {{ 'Корзина' | t }}, {{ 'В корзине {n}' | t: { n: count } }}, с контекстом — {{ 'Избранное' | t: null : 'tab' }}. */
 @Pipe({ name: 't', standalone: true })
 export class TPipe implements PipeTransform {
   private readonly i18n = inject(I18n);
-  transform(text: string, params?: TParams): string { return this.i18n.t(text, params); }
+  transform(text: string, params?: TParams | null, ctx?: string): string { return this.i18n.t(text, params, ctx); }
 }

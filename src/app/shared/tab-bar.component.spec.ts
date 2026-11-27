@@ -5,6 +5,8 @@ import { TabBarComponent, isChatThread, pathOf } from './tab-bar.component';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
 import { Product } from '../core/models';
+import { LANG_COOKIE, LANG_DICT } from '../core/i18n';
+import { TG } from '../i18n/tg';
 
 const item = (id: string): Product => ({ id, shop_handle: 'a', title: 'T' + id, price: 10, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '' });
 
@@ -103,5 +105,34 @@ describe('TabBarComponent', () => {
   it('pathOf отбрасывает query и якорь', () => {
     expect(pathOf('/checkout?x=1#a')).toBe('/checkout');
     expect(pathOf('')).toBe('/');
+  });
+});
+
+describe('TabBarComponent по-таджикски', () => {
+  afterEach(() => { TestBed.resetTestingModule(); document.cookie = `${LANG_COOKIE}=; path=/; max-age=0`; localStorage.clear(); });
+
+  async function tg() {
+    document.cookie = `${LANG_COOKIE}=tg; path=/`;
+    await TestBed.configureTestingModule({ imports: [TabBarComponent], providers: [provideRouter([{ path: '**', component: Blank }]), { provide: LANG_DICT, useValue: TG }] }).compileComponents();
+    const f = TestBed.createComponent(TabBarComponent);
+    f.detectChanges();
+    return f;
+  }
+  const labels = (root: HTMLElement) => Array.from(root.querySelectorAll('.tab .lbl')).map((n) => n.textContent?.trim() ?? '');
+
+  it('у вкладок короткие подписи, а не полные из шапки («Интихобшудаҳо», «Ворид шудан»)', async () => {
+    const f = await tg();
+    expect(labels(f.nativeElement)).toEqual(['Асосӣ', 'Каталог', 'Интихобҳо', 'Сабад', 'Ворид']);
+    TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
+    f.detectChanges();
+    expect(labels(f.nativeElement)[4]).toBe('Профил');
+  });
+
+  it('каждая подпись не длиннее 9 букв — иначе на телефоне 360px её обрежет многоточие', async () => {
+    const f = await tg();
+    TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
+    f.detectChanges();
+    const all = [...labels(f.nativeElement), 'Ворид'];
+    expect(all.filter((l) => l.length > 9)).toEqual([]);
   });
 });
