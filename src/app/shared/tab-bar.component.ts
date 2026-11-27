@@ -34,29 +34,29 @@ export function pathOf(url: string): string {
     @if (!onCheckout()) {
       <nav class="tabbar" [attr.aria-label]="'Основная навигация' | t">
         <a class="tab" routerLink="/" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">
-          <app-icon name="house" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Главная' | t }}</span>
+          <app-icon name="house" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Главная' | t: null : 'tab' }}</span>
         </a>
         <!-- Каталог горит и на /catalog, и внутри любой категории /c/… -->
         <a class="tab" routerLink="/catalog" [class.on]="catalogActive()" [attr.aria-current]="catalogActive() ? 'page' : null">
-          <app-icon name="layout-grid" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Каталог' | t }}</span>
+          <app-icon name="layout-grid" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Каталог' | t: null : 'tab' }}</span>
         </a>
         <a class="tab" routerLink="/favorites" routerLinkActive="on" ariaCurrentWhenActive="page">
-          <app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Избранное' | t }}</span>
+          <app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Избранное' | t: null : 'tab' }}</span>
         </a>
         <a class="tab" routerLink="/cart" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.aria-label]="cart.count() ? ('Корзина, товаров: {n}' | t: { n: cart.count() }) : null">
           <span class="ico" data-cart-target><app-icon name="bag" [size]="22" [stroke]="1.8" />
             @if (cart.count()) { <span class="badge" aria-hidden="true">{{ badge() }}</span> }
           </span>
-          <span class="lbl">{{ 'Корзина' | t }}</span>
+          <span class="lbl">{{ 'Корзина' | t: null : 'tab' }}</span>
         </a>
         @if (auth.loggedIn()) {
           <!-- Профиль горит и на /me, и в его разделах (/me/orders) -->
           <a class="tab" routerLink="/me" [class.on]="profileActive()" [attr.aria-current]="profileActive() ? 'page' : null">
-            <app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Профиль' | t }}</span>
+            <app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Профиль' | t: null : 'tab' }}</span>
           </a>
         } @else {
           <a class="tab" routerLink="/login" routerLinkActive="on" ariaCurrentWhenActive="page">
-            <app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Войти' | t }}</span>
+            <app-icon name="user" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Войти' | t: null : 'tab' }}</span>
           </a>
         }
       </nav>
