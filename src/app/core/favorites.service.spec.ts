@@ -82,7 +82,7 @@ describe('FavoritesService', () => {
       const f = TestBed.inject(FavoritesService);
       f.toggle('1', item(300));
       f.observe('1', item(250));
-      f.markSeen();
+      f.markSeen(['1']);
       expect(f.hasFreshDrop()).toBe(false);
       expect(f.drop('1')).toBe(50);
       f.observe('1', item(200));
@@ -138,6 +138,56 @@ describe('FavoritesService', () => {
       fresh.hydrate();
       expect(fresh.drop('1')).toBe(50);
       expect(fresh.hasFreshDrop()).toBe(true);
+    });
+    it('та же цена (и «по запросу») — хранилище не перезаписывается на каждой отрисовке карточки', () => {
+      const f = TestBed.inject(FavoritesService);
+      f.toggle('1', item(null));
+      f.toggle('2', item(300));
+      const set = jest.spyOn(Storage.prototype, 'setItem');
+      f.observe('1', item(null));
+      f.observe('2', item(300));
+      expect(set).not.toHaveBeenCalled();
+      set.mockRestore();
+    });
+    it('markSeen(ids) гасит только показанные товары', () => {
+      const f = TestBed.inject(FavoritesService);
+      f.toggle('1', item(300)); f.toggle('2', item(300));
+      f.observe('1', item(250)); f.observe('2', item(250));
+      f.markSeen(['1']);
+      expect(f.hasFreshDrop()).toBe(true);
+      f.markSeen(['2']);
+      expect(f.hasFreshDrop()).toBe(false);
+    });
+    it('запись цены не затирает метку, которую добавила другая вкладка', () => {
+      const f = TestBed.inject(FavoritesService);
+      f.toggle('1', item(300));
+      // другая вкладка: добавила '2' со своей ценой
+      localStorage.setItem('harid.fav', JSON.stringify(['1', '2']));
+      localStorage.setItem('harid.fav.prices', JSON.stringify({ '1': { base: 300, now: 300, stock: true }, '2': { base: 500, now: 500, stock: true } }));
+      f.observe('1', item(250));
+      expect(JSON.parse(localStorage.getItem('harid.fav.prices')!)['2']).toEqual({ base: 500, now: 500, stock: true });
+    });
+    it('старая вкладка не возвращает точку, которую погасили в другой', () => {
+      const f = TestBed.inject(FavoritesService);
+      f.toggle('1', item(300)); f.toggle('2', item(100));
+      f.observe('1', item(250));
+      // другая вкладка открыла избранное: seen у '1'
+      localStorage.setItem('harid.fav.prices', JSON.stringify({ '1': { base: 300, now: 250, stock: true, seen: 250 }, '2': { base: 100, now: 100, stock: true } }));
+      f.observe('2', item(99));
+      expect(JSON.parse(localStorage.getItem('harid.fav.prices')!)['1'].seen).toBe(250);
+      expect(f.hasFreshDrop()).toBe(false);
+    });
+    it('событие storage из другой вкладки обновляет метки и список — точка гаснет и здесь', () => {
+      const f = TestBed.inject(FavoritesService);
+      f.toggle('1', item(300));
+      f.observe('1', item(250));
+      expect(f.hasFreshDrop()).toBe(true);
+      localStorage.setItem('harid.fav.prices', JSON.stringify({ '1': { base: 300, now: 250, stock: true, seen: 250 } }));
+      window.dispatchEvent(new StorageEvent('storage', { key: 'harid.fav.prices' }));
+      expect(f.hasFreshDrop()).toBe(false);
+      localStorage.setItem('harid.fav', JSON.stringify(['1', '7']));
+      window.dispatchEvent(new StorageEvent('storage', { key: 'harid.fav' }));
+      expect(f.ids()).toEqual(['1', '7']);
     });
     it('повреждённые метки — пусто без исключения, избранное цело', () => {
       localStorage.setItem('harid.fav', JSON.stringify(['1']));

@@ -13,10 +13,14 @@ export interface PriceMark { base: number | null; now: number | null; stock: boo
 /** Меньше 5% — не повод звать обратно (копеечные правки цены). */
 export const DROP_MIN = 0.05;
 
-/** На сколько сомони подешевел с момента добавления; null — не подешевел, неизвестно или нет в наличии. */
+/**
+ * На сколько сомони подешевел с момента добавления; null — не подешевел, неизвестно или нет в наличии.
+ * Меньше 1 смн после округления — тоже null: точка без плашки «Подешевело на 0 смн» сбивала бы с толку.
+ */
 export function dropOf(m: PriceMark | undefined): number | null {
   if (!m || !m.stock || m.base == null || m.now == null) return null;
-  return m.now <= m.base * (1 - DROP_MIN) ? Math.round(m.base - m.now) : null;
+  const drop = Math.round(m.base - m.now);
+  return m.now <= m.base * (1 - DROP_MIN) && drop >= 1 ? drop : null;
 }
 
 /** Подешевел, а покупатель этого ещё не видел (или с тех пор стало ещё дешевле). */

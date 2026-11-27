@@ -41,7 +41,7 @@ export function pathOf(url: string): string {
         <a class="tab" routerLink="/catalog" [class.on]="catalogActive()" [attr.aria-current]="catalogActive() ? 'page' : null">
           <app-icon name="layout-grid" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Каталог' | t: null : 'tab' }}</span>
         </a>
-        <a class="tab" routerLink="/favorites" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.aria-label]="fav.hasFreshDrop() ? ('Избранное, есть подешевевшие товары' | t) : null">
+        <a class="tab" routerLink="/favorites" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.aria-label]="fav.hasFreshDrop() ? ('Избранное, есть подешевевшие товары' | t: null : 'tab') : null">
           <span class="ico"><app-icon name="heart" [size]="22" [stroke]="1.8" />@if (fav.hasFreshDrop()) { <span class="drop-dot" data-test="fav-drop-dot" aria-hidden="true"></span> }</span><span class="lbl">{{ 'Избранное' | t: null : 'tab' }}</span>
         </a>
         <a class="tab" routerLink="/cart" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.aria-label]="cart.count() ? ('Корзина, товаров: {n}' | t: { n: cart.count() }) : null">

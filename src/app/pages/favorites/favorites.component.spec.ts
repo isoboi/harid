@@ -85,6 +85,21 @@ describe('FavoritesComponent: «Подешевело»', () => {
     expect(el.querySelector('[data-test="price-drop"]')).not.toBeNull();
   });
 
+  it('товар, который не загрузился, не считается увиденным — его точка не гаснет', async () => {
+    localStorage.setItem('harid.fav.prices', JSON.stringify({ '1': { base: 300, now: 300, stock: true }, '2': { base: 300, now: 250, stock: true }, '3': { base: 300, now: 300, stock: true } }));
+    const api = { product: (id: string) => (id === '2' ? throwError(() => new Error('сеть')) : of(item(id, 300))) };
+    await TestBed.configureTestingModule({ imports: [FavoritesComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
+    const f = TestBed.createComponent(FavoritesComponent);
+    TestBed.inject(FavoritesService).hydrate();
+    f.detectChanges();
+    expect(TestBed.inject(FavoritesService).hasFreshDrop()).toBe(true);
+  });
+
+  it('загрузили избранное — это и есть свежая проверка цен: фоновая не повторяет те же запросы', async () => {
+    await open();
+    expect(JSON.parse(localStorage.getItem('harid.fav.checkedAt')!)).toEqual(expect.any(Number));
+  });
+
   it('по-таджикски — «Арзон шуд: 50 смн»', async () => {
     const el = await open(TG);
     expect(el.querySelector('[data-test="price-drop"]')?.textContent?.trim()).toBe('Арзон шуд: 50 смн');

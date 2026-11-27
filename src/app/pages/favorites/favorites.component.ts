@@ -5,6 +5,7 @@ import { catchError } from 'rxjs/operators';
 import { FavoritesService } from '../../core/favorites.service';
 import { TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
+import { PriceCheckService } from '../../core/price-check.service';
 import { Product } from '../../core/models';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { SkelProductsComponent } from '../../shared/skeleton.component';
@@ -41,6 +42,7 @@ import { SkelProductsComponent } from '../../shared/skeleton.component';
 export class FavoritesComponent {
   private readonly api = inject(MarketApi);
   readonly fav = inject(FavoritesService);
+  private readonly priceCheck = inject(PriceCheckService);
   readonly products = signal<Product[]>([]);
   readonly loading = signal(true);
   /** Заглушек столько, сколько сохранено товаров (до гидратации — 4), но не больше двух рядов. */
@@ -75,7 +77,9 @@ export class FavoritesComponent {
       for (const p of found) this.fav.observe(p.id, p);
       this.products.set(found);
       this.loading.set(false);
-      this.fav.markSeen();
+      this.fav.markSeen(found.map((p) => p.id));
+      // Это и была проверка цен — фоновая не повторит те же запросы ближайшие 6 часов
+      if (found.length) this.priceCheck.markChecked();
     });
   }
 }

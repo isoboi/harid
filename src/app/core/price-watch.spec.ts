@@ -13,6 +13,11 @@ describe('dropOf', () => {
     expect(dropOf({ base: 300, now: null, stock: true })).toBeNull();
     expect(dropOf(undefined)).toBeNull();
   });
+  it('снижение меньше 1 сомони после округления (дешёвый товар, нулевая цена) — null: точка без плашки сбивала бы с толку', () => {
+    expect(dropOf({ base: 5, now: 4.6, stock: true })).toBeNull();
+    expect(dropOf({ base: 0, now: 0, stock: true })).toBeNull();
+    expect(dropOf({ base: 20, now: 19, stock: true })).toBe(1);
+  });
   it('нет в наличии — null', () => {
     expect(dropOf({ base: 300, now: 200, stock: false })).toBeNull();
   });

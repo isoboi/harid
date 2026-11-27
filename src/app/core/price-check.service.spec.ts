@@ -1,5 +1,6 @@
 import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
 import { CLOCK } from './clock';
 import { FavoritesService } from './favorites.service';
@@ -102,6 +103,44 @@ describe('PriceCheckService', () => {
     expect(api.product).not.toHaveBeenCalled();
     jest.runAllTimers();
     expect(api.product).toHaveBeenCalledTimes(1);
+  });
+
+  it('на странице избранного не проверяет — она сама только что запросила все цены', async () => {
+    favorites(['1']);
+    const api = { product: jest.fn(() => of(product('1', 250))) };
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: '**', children: [] }]), { provide: MarketApi, useValue: api }, { provide: CLOCK, useValue: () => new Date(NOW) }] });
+    await TestBed.inject(Router).navigateByUrl('/favorites');
+    TestBed.inject(PriceCheckService).run().subscribe();
+    expect(api.product).not.toHaveBeenCalled();
+  });
+
+  it('вернулись в открытое приложение (вкладка снова видна) — проверяет, если прошло 6 часов', () => {
+    jest.useFakeTimers();
+    favorites(['1']);
+    let now = NOW;
+    const api = { product: jest.fn(() => of(product('1', 250))) };
+    TestBed.configureTestingModule({ providers: [{ provide: MarketApi, useValue: api }, { provide: CLOCK, useValue: () => new Date(now) }] });
+    const s = TestBed.inject(PriceCheckService);
+    s.start();
+    jest.runAllTimers();
+    expect(api.product).toHaveBeenCalledTimes(1);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(api.product).toHaveBeenCalledTimes(1);
+    now += CHECK_EVERY_MS;
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(api.product).toHaveBeenCalledTimes(2);
+  });
+
+  it('вторая проверка, пока первая ещё идёт, не дублирует запросы', () => {
+    favorites(['1']);
+    const pending: (() => void)[] = [];
+    const api = { product: jest.fn((id: string) => new Observable<ReturnType<typeof product>>((sub) => { pending.push(() => { sub.next(product(id, 250)); sub.complete(); }); })) };
+    const s = setup(api as never);
+    s.run().subscribe();
+    s.run().subscribe();
+    expect(api.product).toHaveBeenCalledTimes(1);
+    pending.shift()!();
   });
 
   it('start() на сервере ничего не планирует', () => {

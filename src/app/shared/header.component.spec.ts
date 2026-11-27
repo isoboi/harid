@@ -158,7 +158,7 @@ describe('HeaderComponent', () => {
       const f = await setup();
       const fav = TestBed.inject(FavoritesService);
       fav.hydrate();
-      fav.markSeen();
+      fav.markSeen(['1']);
       f.detectChanges();
       const a = (f.nativeElement as HTMLElement).querySelector('a[href="/favorites"]')!;
       expect(a.querySelector('[data-test="fav-drop-dot"]')).toBeNull();

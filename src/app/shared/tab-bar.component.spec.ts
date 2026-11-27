@@ -112,7 +112,7 @@ describe('TabBarComponent', () => {
     const a = el(f).querySelector('a[href="/favorites"]')!;
     expect(a.querySelector('[data-test="fav-drop-dot"]')).not.toBeNull();
     expect(a.getAttribute('aria-label')).toBe('Избранное, есть подешевевшие товары');
-    fav.markSeen();
+    fav.markSeen(['1']);
     f.detectChanges();
     expect(a.querySelector('[data-test="fav-drop-dot"]')).toBeNull();
     expect(a.hasAttribute('aria-label')).toBe(false);
@@ -149,7 +149,7 @@ describe('TabBarComponent по-таджикски', () => {
     const f = await tg();
     TestBed.inject(FavoritesService).hydrate();
     f.detectChanges();
-    expect(f.nativeElement.querySelector('a[href="/favorites"]').getAttribute('aria-label')).toBe('Интихобшудаҳо, моли арзоншуда ҳаст');
+    expect(f.nativeElement.querySelector('a[href="/favorites"]').getAttribute('aria-label')).toBe('Интихобҳо, моли арзоншуда ҳаст');
   });
 
   it('каждая подпись не длиннее 9 букв — иначе на телефоне 360px её обрежет многоточие', async () => {
