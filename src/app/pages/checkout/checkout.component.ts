@@ -148,8 +148,9 @@ const LAST_ADDRESS = 'harid.lastAddress';
     .empty a { color: var(--color-lapis); text-decoration: underline; text-underline-offset: 2px }
     .layout { display: grid; align-items: start; gap: 40px }
     @media (min-width: 1024px) { .layout { grid-template-columns: minmax(0, 1fr) 360px } .side { position: sticky; top: 96px } }
-    .sets { display: flex; flex-direction: column; gap: 40px }
-    fieldset { display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 0; border: 0 }
+    .sets { display: flex; flex-direction: column; gap: 40px; min-width: 0 }
+    /* min-width: 0 тут и у .sets: иначе ряд получателей с прокруткой растягивает колонку сетки и форму за экран */
+    fieldset { display: flex; flex-direction: column; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0 }
     /* legend «плавает» над рамкой — отступ даём ему самому */
     legend { margin-bottom: 16px; font-size: 20px; font-weight: 700 }
     .grid { display: grid; gap: 16px }
@@ -175,6 +176,8 @@ const LAST_ADDRESS = 'harid.lastAddress';
     .rcp-where { font-size: 13px; opacity: .75 }
     .rcp-x { flex: none; width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; border-radius: 0 var(--radius-photo) var(--radius-photo) 0; background: none; color: inherit; opacity: .75; cursor: pointer }
     .rcp-new { flex: none; min-height: 52px; display: inline-flex; align-items: center; gap: 6px; padding: 0 16px; border: 1px dashed var(--color-line); border-radius: var(--radius-photo); background: none; color: var(--color-ink); font: inherit; font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer; scroll-snap-align: start }
+    /* Места хватает — переносим на следующую строку вместо прокрутки */
+    @media (min-width: 640px) { .rcp-row { flex-wrap: wrap; overflow-x: visible } }
     @media (hover: hover) { .rcp:hover, .rcp-new:hover { border-color: var(--color-ink) } .rcp-x:hover { opacity: 1 } }
   `,
 })
