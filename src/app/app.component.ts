@@ -10,6 +10,7 @@ import { isChatThread, pathOf, TabBarComponent } from './shared/tab-bar.componen
 import { AuthService } from './core/auth.service';
 import { CartService } from './core/cart.service';
 import { FavoritesService } from './core/favorites.service';
+import { PriceCheckService } from './core/price-check.service';
 import { RecentlyViewedService } from './core/recently-viewed.service';
 import { ChatSocket } from './core/chat-socket.service';
 import { PwaService } from './core/pwa.service';
@@ -46,6 +47,7 @@ export class AppComponent {
   constructor() {
     const cart = inject(CartService);
     const fav = inject(FavoritesService);
+    const priceCheck = inject(PriceCheckService);
     const recent = inject(RecentlyViewedService);
     const auth = inject(AuthService);
     const chat = inject(ChatSocket);
@@ -57,6 +59,8 @@ export class AppComponent {
     afterNextRender(() => {
       cart.hydrate();
       fav.hydrate();
+      // «Подешевело»: цены избранного — в простое браузера, не чаще раза в 6 часов
+      priceCheck.start();
       recent.hydrate();
       pwa.hydrate();
       theme.hydrate();

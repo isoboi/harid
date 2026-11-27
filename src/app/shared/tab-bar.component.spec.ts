@@ -4,6 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import { TabBarComponent, isChatThread, pathOf } from './tab-bar.component';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
+import { FavoritesService } from '../core/favorites.service';
 import { Product } from '../core/models';
 import { LANG_COOKIE, LANG_DICT } from '../core/i18n';
 import { TG } from '../i18n/tg';
@@ -102,6 +103,21 @@ describe('TabBarComponent', () => {
     expect(root.querySelector('nav')).toBeNull();
   });
 
+  it('есть непросмотренное снижение цены — точка у «Избранного» и подпись для скринридера; увидели — гаснет', async () => {
+    localStorage.setItem('harid.fav', JSON.stringify(['1'])); localStorage.setItem('harid.fav.prices', JSON.stringify({ '1': { base: 300, now: 250, stock: true } }));
+    const f = await at('/');
+    const fav = TestBed.inject(FavoritesService);
+    fav.hydrate();
+    f.detectChanges();
+    const a = el(f).querySelector('a[href="/favorites"]')!;
+    expect(a.querySelector('[data-test="fav-drop-dot"]')).not.toBeNull();
+    expect(a.getAttribute('aria-label')).toBe('Избранное, есть подешевевшие товары');
+    fav.markSeen(['1']);
+    f.detectChanges();
+    expect(a.querySelector('[data-test="fav-drop-dot"]')).toBeNull();
+    expect(a.hasAttribute('aria-label')).toBe(false);
+  });
+
   it('pathOf отбрасывает query и якорь', () => {
     expect(pathOf('/checkout?x=1#a')).toBe('/checkout');
     expect(pathOf('')).toBe('/');
@@ -126,6 +142,14 @@ describe('TabBarComponent по-таджикски', () => {
     TestBed.inject(AuthService).setSession({ token: 't', buyer: { id: 1, phone: '931110002', name: null }, is_new: false });
     f.detectChanges();
     expect(labels(f.nativeElement)[4]).toBe('Профил');
+  });
+
+  it('подпись точки «подешевело» — по-таджикски', async () => {
+    localStorage.setItem('harid.fav', JSON.stringify(['1'])); localStorage.setItem('harid.fav.prices', JSON.stringify({ '1': { base: 300, now: 250, stock: true } }));
+    const f = await tg();
+    TestBed.inject(FavoritesService).hydrate();
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('a[href="/favorites"]').getAttribute('aria-label')).toBe('Интихобҳо, моли арзоншуда ҳаст');
   });
 
   it('каждая подпись не длиннее 9 букв — иначе на телефоне 360px её обрежет многоточие', async () => {

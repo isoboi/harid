@@ -2,6 +2,7 @@ import { afterNextRender, ChangeDetectionStrategy, ChangeDetectorRef, Component,
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
+import { FavoritesService } from '../core/favorites.service';
 import { ChatSocket } from '../core/chat-socket.service';
 import { TPipe } from '../core/i18n';
 import { HeaderScrollState, nextHeaderState } from './header-scroll';
@@ -34,7 +35,7 @@ import { SearchBoxComponent } from './search-box.component';
         <app-search-box class="search" />
         <nav class="nav" [attr.aria-label]="'Основное меню' | t">
           <a routerLink="/sell" class="sell"><span class="lbl">{{ 'Продавцам' | t }}</span></a>
-          <a routerLink="/favorites" class="ico-link"><app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl sr-only">{{ 'Избранное' | t }}</span></a>
+          <a routerLink="/favorites" class="ico-link" [attr.aria-label]="fav.hasFreshDrop() ? ('Избранное, есть подешевевшие товары' | t) : null"><span class="ico"><app-icon name="heart" [size]="22" [stroke]="1.8" />@if (fav.hasFreshDrop()) { <span class="drop-dot" data-test="fav-drop-dot" aria-hidden="true"></span> }</span><span class="lbl sr-only">{{ 'Избранное' | t }}</span></a>
           @if (auth.loggedIn()) {
             <a routerLink="/chats" class="ico-link chat-link" [attr.aria-label]="chat.unreadTotal() ? ('Сообщения, непрочитанных: {n}' | t: { n: chat.unreadTotal() }) : null"><app-icon name="message-circle" [size]="22" [stroke]="1.8" /><span class="lbl hide-sm">{{ 'Сообщения' | t }}</span>
               @if (chat.unreadTotal()) { <span class="badge badge--msg" data-test="chat-badge" aria-hidden="true">{{ chat.unreadTotal() }}</span> }
@@ -66,6 +67,9 @@ import { SearchBoxComponent } from './search-box.component';
     /* Счётчик корзины: шафран с тёмным текстом, как в прототипе */
     .badge { display: grid; place-items: center; height: 24px; min-width: 24px; padding: 0 6px; border-radius: 9999px; background: var(--color-saffron); color: var(--color-on-saffron); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums }
     .badge--msg { background: var(--color-anor); color: var(--color-on-anor) }
+    .ico { position: relative; display: inline-flex }
+    /* «Подешевело»: шафрановая точка у сердечка, пока покупатель не открыл избранное (как бейдж корзины) */
+    .drop-dot { position: absolute; top: -3px; right: -5px; width: 8px; height: 8px; border: 2px solid var(--color-paper); border-radius: 9999px; box-sizing: content-box; background: var(--color-saffron) }
     /* Узкий экран 640px: подписи только для скринридера, остаются иконки 44×44 */
     @media (max-width: 639.98px) {
       .hide-sm { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
@@ -98,6 +102,7 @@ export class HeaderComponent {
   readonly cart = inject(CartService);
   readonly chat = inject(ChatSocket);
   readonly auth = inject(AuthService);
+  readonly fav = inject(FavoritesService);
   /** Счётчик корзины: больше 99 не помещается в бейдж — показываем «99+». */
   /** Непрочитанные сообщения для значка: больше 99 — «99+». */
   readonly unread = computed(() => { const n = this.chat.unreadTotal(); return n > 99 ? '99+' : String(n); });

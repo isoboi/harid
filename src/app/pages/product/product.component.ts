@@ -144,7 +144,7 @@ export function buyBarVisible(e: ButtonView): boolean {
                 <button type="button" class="btn add" data-test="add" [disabled]="!canAdd()" (click)="add(p, $event.currentTarget)">{{ addLabel() }}</button>
                 @if (added()) { <a class="btn btn--ghost" routerLink="/cart">{{ 'Перейти в корзину' | t }}</a> }
               }
-              <button type="button" class="fav" [attr.aria-pressed]="fav.has(p.id)" (click)="fav.toggle(p.id)">
+              <button type="button" class="fav" [attr.aria-pressed]="fav.has(p.id)" (click)="fav.toggle(p.id, p)">
                 <app-icon name="heart" [size]="20" [filled]="fav.has(p.id)" [class.on]="fav.has(p.id)" />{{ fav.has(p.id) ? ('В избранном' | t) : ('В избранное' | t) }}
               </button>
               <app-share [path]="sharePath()" [text]="shareText()" />
@@ -191,7 +191,7 @@ export function buyBarVisible(e: ButtonView): boolean {
         @if (video()) {
           @defer (when reel(); prefetch on idle) {
             @if (reel()) {
-              <app-reel-viewer [product]="p" [shop]="shop()" [favorite]="fav.has(p.id)" [action]="reelAction()" (closed)="reel.set(false)" (act)="reelAct(p)" (toggleFavorite)="fav.toggle(p.id)" (liked)="like(p)" />
+              <app-reel-viewer [product]="p" [shop]="shop()" [favorite]="fav.has(p.id)" [action]="reelAction()" (closed)="reel.set(false)" (act)="reelAct(p)" (toggleFavorite)="fav.toggle(p.id, p)" (liked)="like(p)" />
             }
           }
         }
@@ -416,6 +416,11 @@ export class ProductComponent {
   rating(r: number): string { return ratingNumber(r); }
 
   constructor() {
+    // «Подешевело»: открытый товар из избранного сообщает свежую цену (и когда избранное загрузилось позже страницы)
+    effect(() => {
+      const p = this.product();
+      if (p && this.fav.ids().includes(p.id)) untracked(() => this.fav.observe(p.id, p));
+    });
     effect((onCleanup) => {
       const id = this.id();
       this.missing.set(false); this.failed.set(false); this.photo.set(0); this.size.set(null); this.added.set(false); this.limitError.set(false); this.barShown.set(false); this.sizeHint.set(false); this.copied.set(false); this.reel.set(false); this.viewer.set(false);
@@ -544,7 +549,7 @@ export class ProductComponent {
 
   /** Двойной тап в просмотре только добавляет в избранное, как «лайк» в Instagram: повторный тап не убирает. */
   like(p: Product): void {
-    if (!this.fav.has(p.id)) this.fav.toggle(p.id);
+    if (!this.fav.has(p.id)) this.fav.toggle(p.id, p);
   }
 
   /**

@@ -4,6 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { AppComponent } from './app.component';
 import { CartService } from './core/cart.service';
+import { PriceCheckService } from './core/price-check.service';
 import { RecentlyViewedService } from './core/recently-viewed.service';
 import { Product } from './core/models';
 
@@ -47,6 +48,19 @@ describe('AppComponent', () => {
     f.detectChanges();
     await f.whenStable();
     expect(TestBed.inject(CartService).count()).toBe(3);
+  });
+
+  it('после первого рендера запускает фоновую проверку цен избранного, до него — нет', async () => {
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [provideRouter([]), provideHttpClient()],
+    }).compileComponents();
+    const start = jest.spyOn(TestBed.inject(PriceCheckService), 'start').mockImplementation(() => undefined);
+    const f = TestBed.createComponent(AppComponent);
+    expect(start).not.toHaveBeenCalled();
+    f.detectChanges();
+    await f.whenStable();
+    expect(start).toHaveBeenCalledTimes(1);
   });
 
   it('после первого рендера загружает «Вы смотрели» из хранилища', async () => {

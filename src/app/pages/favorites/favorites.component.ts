@@ -5,11 +5,12 @@ import { catchError } from 'rxjs/operators';
 import { FavoritesService } from '../../core/favorites.service';
 import { TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
+import { PriceCheckService } from '../../core/price-check.service';
 import { Product } from '../../core/models';
 import { ProductCardComponent } from '../../shared/product-card.component';
 import { SkelProductsComponent } from '../../shared/skeleton.component';
 
-/** Избранное: товары по сохранённым id; снятые с продажи пропускаются. */
+/** Избранное: товары по сохранённым id; снятые с продажи пропускаются; подешевевшие — первыми, с плашкой «Подешевело». */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-favorites',
@@ -21,7 +22,7 @@ import { SkelProductsComponent } from '../../shared/skeleton.component';
       <!-- Перезагрузка списка (сняли сердечко) не прячет уже показанные карточки за заглушкой -->
       @if (!fav.ready() || (loading() && !products().length)) { <app-skel-products [count]="skelCount()" /> }
       @else if (products().length) {
-        <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div>
+        <div class="products">@for (p of shown(); track p.id) { <app-product-card [product]="p" [drop]="fav.drop(p.id)" /> }</div>
       }
       @else {
         <div class="empty">
@@ -41,9 +42,16 @@ import { SkelProductsComponent } from '../../shared/skeleton.component';
 export class FavoritesComponent {
   private readonly api = inject(MarketApi);
   readonly fav = inject(FavoritesService);
+  private readonly priceCheck = inject(PriceCheckService);
   readonly products = signal<Product[]>([]);
   readonly loading = signal(true);
   /** Заглушек столько, сколько сохранено товаров (до гидратации — 4), но не больше двух рядов. */
+  /** Подешевевшие с момента добавления — первыми, остальные в прежнем порядке. */
+  readonly shown = computed(() => {
+    const list = this.products();
+    const cheaper = list.filter((p) => this.fav.drop(p.id) !== null);
+    return cheaper.length ? [...cheaper, ...list.filter((p) => this.fav.drop(p.id) === null)] : list;
+  });
   readonly skelCount = computed(() => Math.min(this.fav.ids().length || 4, 8));
 
   constructor() {
@@ -64,8 +72,14 @@ export class FavoritesComponent {
     }
     this.loading.set(true);
     return forkJoin(ids.map((id) => this.api.product(id).pipe(catchError(() => of(null))))).subscribe((list) => {
-      this.products.set(list.filter((p): p is Product => !!p));
+      const found = list.filter((p): p is Product => !!p);
+      // Свежие цены — до первой отрисовки, чтобы порядок не прыгал; показали снижение — точка на вкладке гаснет
+      for (const p of found) this.fav.observe(p.id, p);
+      this.products.set(found);
       this.loading.set(false);
+      this.fav.markSeen(found.map((p) => p.id));
+      // Это и была проверка цен — фоновая не повторит те же запросы ближайшие 6 часов
+      if (found.length) this.priceCheck.markChecked();
     });
   }
 }

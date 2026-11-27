@@ -11,6 +11,8 @@ import { CLOCK } from '../../core/clock';
 import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { PHONE_PATTERN, phone9 } from '../../core/phone';
+import { readLastAddress, Recipient, recipientKey } from '../../core/saved-addresses';
+import { SavedAddresses } from '../../core/saved-addresses.service';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { SkelSummaryComponent } from '../../shared/skeleton.component';
@@ -20,21 +22,7 @@ type Field = 'name' | 'phone' | 'district' | 'address' | 'slot' | 'comment';
 const FIELD_ORDER: Field[] = ['name', 'phone', 'district', 'address', 'slot', 'comment'];
 const money = new MoneyPipe();
 
-/** Кто и куда получал прошлый заказ — для префилла следующего. Комментарий не храним: он про один заказ. */
-export interface LastAddress { name: string; district: string; address: string }
 const LAST_ADDRESS = 'harid.lastAddress';
-
-/** Сохранённый адрес, если он цел; район вне текущего списка (список поменяли) — без района. */
-export function readLastAddress(v: unknown): Partial<LastAddress> {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
-  const o = v as Record<string, unknown>;
-  const str = (x: unknown) => (typeof x === 'string' && x.trim() ? x.trim() : undefined);
-  const out: Partial<LastAddress> = {};
-  const name = str(o['name']); if (name) out.name = name;
-  const address = str(o['address']); if (address) out.address = address;
-  const district = str(o['district']); if (district && DISTRICTS.includes(district)) out.district = district;
-  return out;
-}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,6 +56,27 @@ export function readLastAddress(v: unknown): Partial<LastAddress> {
           <div class="sets">
             <fieldset>
               <legend>{{ 'Кто получит' | t }}</legend>
+              @if (saved.list().length) {
+                <div class="recipients" role="group" aria-labelledby="co-rcp-title">
+                  <p class="rcp-title" id="co-rcp-title">{{ 'Кому доставить' | t }}</p>
+                  <div class="rcp-row">
+                    @for (r of saved.list(); track rcpKey(r)) {
+                      <div class="rcp" data-test="recipient" [class.rcp--on]="isPicked(r)">
+                        <button type="button" class="rcp-pick" data-test="recipient-pick" [attr.aria-pressed]="isPicked(r)" (click)="pick(r)">
+                          <span class="rcp-name">{{ r.name }}@if (phoneTail(r); as tail) { · {{ tail }} }</span>
+                          <span class="rcp-where">{{ r.district }} · {{ r.address }}</span>
+                        </button>
+                        <button type="button" class="rcp-x" data-test="recipient-remove" [attr.aria-label]="'Убрать: {name}' | t: { name: r.name }" (click)="saved.remove(r)">
+                          <app-icon name="x" [size]="16" />
+                        </button>
+                      </div>
+                    }
+                    <button type="button" class="rcp-new" data-test="recipient-new" (click)="newRecipient()">
+                      <app-icon name="plus" [size]="18" /><span>{{ 'Новый получатель' | t }}</span>
+                    </button>
+                  </div>
+                </div>
+              }
               <div class="grid two">
                 <div class="field">
                   <label for="co-name">{{ 'Имя' | t }}</label>
@@ -139,8 +148,9 @@ export function readLastAddress(v: unknown): Partial<LastAddress> {
     .empty a { color: var(--color-lapis); text-decoration: underline; text-underline-offset: 2px }
     .layout { display: grid; align-items: start; gap: 40px }
     @media (min-width: 1024px) { .layout { grid-template-columns: minmax(0, 1fr) 360px } .side { position: sticky; top: 96px } }
-    .sets { display: flex; flex-direction: column; gap: 40px }
-    fieldset { display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 0; border: 0 }
+    .sets { display: flex; flex-direction: column; gap: 40px; min-width: 0 }
+    /* min-width: 0 тут и у .sets: иначе ряд получателей с прокруткой растягивает колонку сетки и форму за экран */
+    fieldset { display: flex; flex-direction: column; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0 }
     /* legend «плавает» над рамкой — отступ даём ему самому */
     legend { margin-bottom: 16px; font-size: 20px; font-weight: 700 }
     .grid { display: grid; gap: 16px }
@@ -154,6 +164,21 @@ export function readLastAddress(v: unknown): Partial<LastAddress> {
     .label-skel { width: 90px; margin-block: 3px }
     .control-skel { display: block; height: 48px }
     .submit { min-height: 48px; height: auto; padding-block: 12px; text-wrap: balance }
+    /* «Кому доставить»: получатели в одну строку, на телефоне листаются вбок */
+    .recipients { display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+    .rcp-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--color-ink-soft) }
+    .rcp-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; scrollbar-width: thin }
+    .rcp { flex: none; display: flex; max-width: 260px; border: 1px solid var(--color-line); border-radius: var(--radius-photo); background: var(--color-paper); color: var(--color-ink); scroll-snap-align: start }
+    .rcp--on { border-color: var(--color-ink); background: var(--color-ink); color: var(--color-paper) }
+    .rcp-pick { flex: 1; min-width: 0; min-height: 52px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2px; padding: 6px 2px 6px 14px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+    .rcp-name, .rcp-where { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .rcp-name { font-size: 15px; font-weight: 600 }
+    .rcp-where { font-size: 13px; opacity: .75 }
+    .rcp-x { flex: none; width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; border-radius: 0 var(--radius-photo) var(--radius-photo) 0; background: none; color: inherit; opacity: .75; cursor: pointer }
+    .rcp-new { flex: none; min-height: 52px; display: inline-flex; align-items: center; gap: 6px; padding: 0 16px; border: 1px dashed var(--color-line); border-radius: var(--radius-photo); background: none; color: var(--color-ink); font: inherit; font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer; scroll-snap-align: start }
+    /* Места хватает — переносим на следующую строку вместо прокрутки */
+    @media (min-width: 640px) { .rcp-row { flex-wrap: wrap; overflow-x: visible } }
+    @media (hover: hover) { .rcp:hover, .rcp-new:hover { border-color: var(--color-ink) } .rcp-x:hover { opacity: 1 } }
   `,
 })
 export class CheckoutComponent {
@@ -188,6 +213,12 @@ export class CheckoutComponent {
   private readonly district = toSignal(this.form.controls.district.valueChanges, { initialValue: this.form.controls.district.value });
   readonly delivery = computed(() => this.cart.deliveryTotal(this.district()));
   readonly total = computed(() => this.cart.itemsTotal() + this.delivery());
+  /** «Кому доставить»: свои получатели и, у вошедшего, из истории заказов. */
+  readonly saved = inject(SavedAddresses);
+  readonly rcpKey = recipientKey;
+  private readonly formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
+  private savedLoaded = false;
+  private prefilledFromSaved = false;
 
   constructor() {
     const clock = inject(CLOCK);
@@ -199,10 +230,28 @@ export class CheckoutComponent {
       if (!list.includes(slot.value)) slot.setValue(list[0]);
     });
     // Префилл только после гидратации auth и только в поля, которых пользователь ещё не трогал.
+    // Получатели из истории приходят позже — effect запустится снова и подставит самого свежего.
     effect(() => {
       if (!this.auth.ready()) return;
       untracked(() => {
+        if (this.savedLoaded) return;
+        this.savedLoaded = true;
+        this.saved.load();
+      });
+      const first = this.saved.list()[0];
+      untracked(() => {
         const { name, phone, district, address } = this.form.controls;
+        // Получатель уже подставлен: убрали его или пришла история — введённое и выбранное не меняем
+        if (this.prefilledFromSaved) return;
+        if (first) {
+          this.prefilledFromSaved = true;
+          // Только целиком: история пришла, когда покупатель уже начал вводить, — не смешиваем его ввод с чужим
+          // получателем (имя одного, адрес другого). Ряд уже на экране — выберет сам.
+          const fields = [name, phone, district, address];
+          if (fields.every((c) => c.pristine)) this.form.patchValue({ name: first.name, phone: first.phone, district: first.district, address: first.address });
+          return;
+        }
+        // Сохранённых получателей нет: как раньше — профиль и адрес прошлого заказа в старом формате
         const last = readLastAddress(this.store.get<unknown>(LAST_ADDRESS, null));
         // Имя из профиля важнее имени из прошлого заказа
         const buyerName = this.auth.buyer()?.name || last.name;
@@ -216,6 +265,42 @@ export class CheckoutComponent {
         if (address.pristine && last.address) address.setValue(last.address);
       });
     });
+  }
+
+  /** Нажали на получателя: четыре поля из него; dirty — дальше префилл их не трогает. */
+  pick(r: Recipient): void {
+    const { name, phone, district, address } = this.form.controls;
+    this.form.patchValue({ name: r.name, phone: r.phone, district: r.district, address: r.address });
+    for (const c of [name, phone, district, address]) c.markAsDirty();
+  }
+
+  /** «Новый получатель»: форма как пустая — имя, телефон и адрес пустые, район по умолчанию (не район прошлого получателя). */
+  newRecipient(): void {
+    const { name, phone, district, address } = this.form.controls;
+    this.form.patchValue({ name: '', phone: '', district: DISTRICTS[0], address: '' });
+    for (const c of [name, phone, district, address]) c.markAsDirty();
+    this.host.nativeElement.querySelector<HTMLInputElement>('#co-name')?.focus();
+  }
+
+  /** Получатели с тем же именем и адресом, но другим номером (сменила номер, опечатка): на кнопке нужен номер, иначе не отличить. */
+  private readonly twins = computed(() => {
+    const seen = new Map<string, number>();
+    const look = (r: Recipient) => recipientKey({ ...r, phone: '' }) + '|' + r.name;
+    for (const r of this.saved.list()) seen.set(look(r), (seen.get(look(r)) ?? 0) + 1);
+    return new Set(this.saved.list().filter((r) => seen.get(look(r))! > 1).map(recipientKey));
+  });
+
+  /** «… 00 02» — конец номера на кнопке у получателей-двойников. */
+  phoneTail(r: Recipient): string | null {
+    return this.twins().has(recipientKey(r)) ? `… ${r.phone.slice(5, 7)} ${r.phone.slice(7)}` : null;
+  }
+
+  /** Получатель выделен, пока поля совпадают с ним: поменяли номер — выделение снимается. */
+  isPicked(r: Recipient): boolean {
+    const v = this.formValue();
+    const name = (v.name ?? '').trim();
+    const current = { name, phone: phone9(v.phone ?? ''), district: v.district ?? '', address: (v.address ?? '').trim() };
+    return name === r.name && recipientKey(current) === recipientKey(r);
   }
 
   /** Подпись слота в списке; в форме и заказе остаётся русское значение. */
@@ -243,8 +328,7 @@ export class CheckoutComponent {
     }).subscribe({
       next: (o) => {
         this.cart.clear();
-        this.store.set('harid.lastPhone', phone);
-        this.store.set(LAST_ADDRESS, { name: v.name.trim(), district: v.district, address: v.address.trim() } satisfies LastAddress);
+        this.saved.remember({ name: v.name.trim(), phone, district: v.district, address: v.address.trim() });
         this.busy.set(false);
         // fresh=1 — страница заказа покажет благодарность и следующие шаги; переживает перезагрузку.
         // Телефона в адресе нет: заказ открывается токеном. Старый бэкенд токен не отдаёт — тогда по телефону.

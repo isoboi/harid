@@ -1,12 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { of, throwError } from 'rxjs';
-import { CheckoutComponent, readLastAddress } from './checkout.component';
+import { of, Subject, throwError } from 'rxjs';
+import { CheckoutComponent } from './checkout.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
 import { AuthService } from '../../core/auth.service';
 import { CLOCK } from '../../core/clock';
+import { Order } from '../../core/models';
 import { LANG_COOKIE, LANG_DICT } from '../../core/i18n';
 import { TG } from '../../i18n/tg';
 
@@ -257,19 +258,19 @@ describe('CheckoutComponent', () => {
     f.detectChanges();
     expect(f.componentInstance.form.getRawValue().phone).toBe('931110002');
   });
-  it('после заказа запоминает имя, район и адрес (без комментария)', async () => {
+  it('после заказа получатель запоминается (без комментария)', async () => {
     const { c } = await setup(jest.fn(() => of({ number: 'R-1', access_token: 't' })));
     jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     c.form.controls.district.setValue('Вахдат');
     c.form.controls.address.setValue('  ул. Рудаки 10  ');
     c.form.controls.comment.setValue('домофон 12');
     c.submit();
-    expect(JSON.parse(localStorage.getItem('harid.lastAddress')!)).toEqual({ name: 'Фаррух', district: 'Вахдат', address: 'ул. Рудаки 10' });
+    expect(JSON.parse(localStorage.getItem('harid.addresses')!)).toEqual([{ name: 'Фаррух', phone: '931110002', district: 'Вахдат', address: 'ул. Рудаки 10' }]);
   });
-  it('ошибка заказа — адрес не запоминается', async () => {
+  it('ошибка заказа — получатель не запоминается', async () => {
     const { c } = await setup(jest.fn(() => throwError(() => new HttpErrorResponse({ status: 500 }))));
     c.submit();
-    expect(localStorage.getItem('harid.lastAddress')).toBeNull();
+    expect(localStorage.getItem('harid.addresses')).toBeNull();
   });
   async function prefilled(last: unknown, buyer?: unknown, touch?: (c: CheckoutComponent) => void) {
     localStorage.clear();
@@ -300,11 +301,122 @@ describe('CheckoutComponent', () => {
     });
     expect(c.form.getRawValue().address).toBe('пр. Сомони 5');
   });
-  it('readLastAddress: мусор и неизвестный район отбрасываются', () => {
-    expect(readLastAddress(null)).toEqual({});
-    expect(readLastAddress(['x'])).toEqual({});
-    expect(readLastAddress({ name: 5, district: 'Марс', address: '  ' })).toEqual({});
-    expect(readLastAddress({ name: ' Фаррух ', district: 'Сино', address: 'ул' })).toEqual({ name: 'Фаррух', district: 'Сино', address: 'ул' });
+});
+
+describe('CheckoutComponent: «Кому доставить»', () => {
+  const mama = { name: 'Мама', phone: '931110002', district: 'Вахдат', address: 'ул. Ленина 5' };
+  const work = { name: 'Наим', phone: '927000000', district: 'Сино', address: 'Рудаки 12' };
+
+  async function withSaved(saved: unknown[] | null, opts: { myOrders?: jest.Mock; touch?: (c: CheckoutComponent) => void; dict?: Record<string, string> } = {}) {
+    localStorage.clear();
+    if (saved) localStorage.setItem('harid.addresses', JSON.stringify(saved));
+    if (opts.myOrders) {
+      localStorage.setItem('harid.token', JSON.stringify('t1'));
+      localStorage.setItem('harid.buyer', JSON.stringify({ id: 1, phone: '+992927000000', name: 'Наим' }));
+    }
+    await TestBed.configureTestingModule({
+      imports: [CheckoutComponent],
+      providers: [
+        provideRouter([]),
+        { provide: MarketApi, useValue: { placeOrder: jest.fn(), myOrders: opts.myOrders ?? jest.fn(() => of([])) } },
+        { provide: CLOCK, useValue: () => MORNING },
+        ...(opts.dict ? [{ provide: LANG_DICT, useValue: opts.dict }] : []),
+      ],
+    }).compileComponents();
+    TestBed.inject(CartService).hydrate();
+    TestBed.inject(AuthService).hydrate();
+    TestBed.inject(CartService).add(product, null, 1);
+    const f = TestBed.createComponent(CheckoutComponent);
+    opts.touch?.(f.componentInstance);
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    const all = (sel: string) => Array.from(el.querySelectorAll<HTMLElement>(sel));
+    return { f, c: f.componentInstance, el, all };
+  }
+  const four = (c: CheckoutComponent) => {
+    const { name, phone, district, address } = c.form.getRawValue();
+    return { name, phone, district, address };
+  };
+
+  it('ряд «Кому доставить» с получателями; без сохранённых — ряда нет', async () => {
+    const { el, all } = await withSaved([mama, work]);
+    expect(all('[data-test="recipient"]')).toHaveLength(2);
+    expect(el.textContent).toContain('Кому доставить');
+    expect(el.querySelector('[role="group"][aria-labelledby="co-rcp-title"]')).not.toBeNull();
+    TestBed.resetTestingModule();
+    const empty = await withSaved(null);
+    expect(empty.el.querySelector('.recipients')).toBeNull();
+  });
+  it('при открытии подставлен самый свежий получатель — все четыре поля', async () => {
+    const { c } = await withSaved([mama, work]);
+    expect(four(c)).toEqual(mama);
+    expect(c.delivery()).toBe(25);
+  });
+  it('нажатие на получателя заполняет форму и выделяет его', async () => {
+    const { f, c, all } = await withSaved([mama, work]);
+    all('[data-test="recipient-pick"]')[1].click();
+    f.detectChanges();
+    expect(four(c)).toEqual(work);
+    expect(c.delivery()).toBe(15);
+    expect(all('[data-test="recipient-pick"]').map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+  });
+  it('поменяли номер — выделение снимается', async () => {
+    const { f, c, all } = await withSaved([mama, work]);
+    expect(all('[data-test="recipient-pick"]')[0].getAttribute('aria-pressed')).toBe('true');
+    c.form.controls.phone.setValue('935550000');
+    f.detectChanges();
+    expect(all('[data-test="recipient-pick"]').map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false']);
+  });
+  it('«Новый получатель» очищает форму (район — как в пустой форме) и ставит фокус на имя', async () => {
+    const { f, c, el } = await withSaved([mama]);
+    el.querySelector<HTMLElement>('[data-test="recipient-new"]')!.click();
+    f.detectChanges();
+    expect(four(c)).toEqual({ name: '', phone: '', district: 'Сино', address: '' });
+    expect(document.activeElement?.id).toBe('co-name');
+  });
+  it('убрали получателя, который в форме, — поля не меняются', async () => {
+    const { f, c, all } = await withSaved([mama, work]);
+    all('[data-test="recipient-remove"]')[0].click();
+    f.detectChanges();
+    expect(four(c)).toEqual(mama);
+    expect(all('[data-test="recipient"]')).toHaveLength(1);
+  });
+  it('история пришла позже, а покупатель уже начал вводить, — форма не меняется, получатели не смешиваются', async () => {
+    const orders = new Subject<Order[]>();
+    const { f, c } = await withSaved(null, {
+      myOrders: jest.fn(() => orders),
+      touch: (c) => { c.form.controls.name.markAsDirty(); c.form.controls.name.setValue('Иван'); },
+    });
+    orders.next([{ created_at: '2026-11-20T10:00:00Z', customer: { ...mama, phone: '+992 93 111 00 02' } } as unknown as Order]);
+    f.detectChanges();
+    expect(four(c)).toEqual({ name: 'Иван', phone: '927000000', district: 'Сино', address: '' });
+    expect(f.nativeElement.querySelectorAll('[data-test="recipient"]')).toHaveLength(1);
+  });
+  it('история пришла позже, поля не тронуты — все четыре из получателя истории', async () => {
+    const orders = new Subject<Order[]>();
+    const { f, c } = await withSaved(null, { myOrders: jest.fn(() => orders) });
+    orders.next([{ created_at: '2026-11-20T10:00:00Z', customer: { ...mama, phone: '+992 93 111 00 02' } } as unknown as Order]);
+    f.detectChanges();
+    expect(four(c)).toEqual(mama);
+  });
+  it('одинаковые имя и адрес с разными номерами — на кнопках видно, чем они отличаются', async () => {
+    const { all } = await withSaved([mama, { ...mama, phone: '931110020' }, work]);
+    const texts = all('[data-test="recipient-pick"]').map((b) => b.textContent!.replace(/s+/g, ' ').trim());
+    expect(texts[0]).toContain('00 02');
+    expect(texts[1]).toContain('00 20');
+    expect(texts[2]).not.toMatch(/dd dd$/);
+  });
+  it('кнопка «Убрать» подписана именем получателя', async () => {
+    const { all } = await withSaved([mama]);
+    expect(all('[data-test="recipient-remove"]')[0].getAttribute('aria-label')).toBe('Убрать: Мама');
+  });
+  it('по-таджикски: подпись ряда и кнопки «Убрать»', async () => {
+    document.cookie = `${LANG_COOKIE}=tg; path=/`;
+    try {
+      const { el, all } = await withSaved([mama], { dict: TG });
+      expect(el.textContent).toContain('Ба кӣ расонем');
+      expect(all('[data-test="recipient-remove"]')[0].getAttribute('aria-label')).toBe('Хориҷ кардан: Мама');
+    } finally { document.cookie = `${LANG_COOKIE}=; path=/; max-age=0`; }
   });
 });
 

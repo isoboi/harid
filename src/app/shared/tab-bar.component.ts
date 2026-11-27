@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/ro
 import { filter, map } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../core/cart.service';
+import { FavoritesService } from '../core/favorites.service';
 import { TPipe } from '../core/i18n';
 import { IconComponent } from './icon.component';
 
@@ -40,8 +41,8 @@ export function pathOf(url: string): string {
         <a class="tab" routerLink="/catalog" [class.on]="catalogActive()" [attr.aria-current]="catalogActive() ? 'page' : null">
           <app-icon name="layout-grid" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Каталог' | t: null : 'tab' }}</span>
         </a>
-        <a class="tab" routerLink="/favorites" routerLinkActive="on" ariaCurrentWhenActive="page">
-          <app-icon name="heart" [size]="22" [stroke]="1.8" /><span class="lbl">{{ 'Избранное' | t: null : 'tab' }}</span>
+        <a class="tab" routerLink="/favorites" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.aria-label]="fav.hasFreshDrop() ? ('Избранное, есть подешевевшие товары' | t: null : 'tab') : null">
+          <span class="ico"><app-icon name="heart" [size]="22" [stroke]="1.8" />@if (fav.hasFreshDrop()) { <span class="drop-dot" data-test="fav-drop-dot" aria-hidden="true"></span> }</span><span class="lbl">{{ 'Избранное' | t: null : 'tab' }}</span>
         </a>
         <a class="tab" routerLink="/cart" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.aria-label]="cart.count() ? ('Корзина, товаров: {n}' | t: { n: cart.count() }) : null">
           <span class="ico" data-cart-target><app-icon name="bag" [size]="22" [stroke]="1.8" />
@@ -77,6 +78,8 @@ export function pathOf(url: string): string {
     .tab.on::before { content: ''; position: absolute; top: 0; left: 50%; width: 28px; height: 3px; margin-left: -14px; border-radius: 0 0 3px 3px; background: var(--color-lapis) }
     .tab:active { background: var(--color-mist) }
     .ico { position: relative; display: inline-flex }
+    /* «Подешевело»: шафрановая точка у сердечка, пока покупатель не открыл избранное (как бейдж корзины) */
+    .drop-dot { position: absolute; top: -3px; right: -5px; width: 8px; height: 8px; border: 2px solid var(--color-paper); border-radius: 9999px; box-sizing: content-box; background: var(--color-saffron) }
     /* Счётчик корзины — тот же шафрановый бейдж, что в шапке, только компактнее */
     .badge { position: absolute; top: -6px; left: 14px; display: grid; place-items: center; height: 18px; min-width: 18px; padding: 0 5px; border: 2px solid var(--color-paper); border-radius: 9999px; box-sizing: content-box; background: var(--color-saffron); color: var(--color-on-saffron); font-size: 11px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums }
   `,
@@ -85,6 +88,7 @@ export class TabBarComponent {
   private readonly router = inject(Router);
   readonly cart = inject(CartService);
   readonly auth = inject(AuthService);
+  readonly fav = inject(FavoritesService);
   /** Текущий путь после каждого перехода. */
   private readonly path = toSignal(
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => pathOf(e.urlAfterRedirects))),
