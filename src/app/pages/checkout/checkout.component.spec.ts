@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
-import { CheckoutComponent, readLastAddress } from './checkout.component';
+import { CheckoutComponent } from './checkout.component';
 import { MarketApi } from '../../core/market-api.service';
 import { CartService } from '../../core/cart.service';
 import { AuthService } from '../../core/auth.service';
@@ -299,12 +299,6 @@ describe('CheckoutComponent', () => {
       c.form.controls.address.setValue('пр. Сомони 5');
     });
     expect(c.form.getRawValue().address).toBe('пр. Сомони 5');
-  });
-  it('readLastAddress: мусор и неизвестный район отбрасываются', () => {
-    expect(readLastAddress(null)).toEqual({});
-    expect(readLastAddress(['x'])).toEqual({});
-    expect(readLastAddress({ name: 5, district: 'Марс', address: '  ' })).toEqual({});
-    expect(readLastAddress({ name: ' Фаррух ', district: 'Сино', address: 'ул' })).toEqual({ name: 'Фаррух', district: 'Сино', address: 'ул' });
   });
 });
 

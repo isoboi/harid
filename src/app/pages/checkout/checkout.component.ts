@@ -11,6 +11,7 @@ import { CLOCK } from '../../core/clock';
 import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { PHONE_PATTERN, phone9 } from '../../core/phone';
+import { LastAddress, readLastAddress } from '../../core/saved-addresses';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { SkelSummaryComponent } from '../../shared/skeleton.component';
@@ -20,21 +21,7 @@ type Field = 'name' | 'phone' | 'district' | 'address' | 'slot' | 'comment';
 const FIELD_ORDER: Field[] = ['name', 'phone', 'district', 'address', 'slot', 'comment'];
 const money = new MoneyPipe();
 
-/** Кто и куда получал прошлый заказ — для префилла следующего. Комментарий не храним: он про один заказ. */
-export interface LastAddress { name: string; district: string; address: string }
 const LAST_ADDRESS = 'harid.lastAddress';
-
-/** Сохранённый адрес, если он цел; район вне текущего списка (список поменяли) — без района. */
-export function readLastAddress(v: unknown): Partial<LastAddress> {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
-  const o = v as Record<string, unknown>;
-  const str = (x: unknown) => (typeof x === 'string' && x.trim() ? x.trim() : undefined);
-  const out: Partial<LastAddress> = {};
-  const name = str(o['name']); if (name) out.name = name;
-  const address = str(o['address']); if (address) out.address = address;
-  const district = str(o['district']); if (district && DISTRICTS.includes(district)) out.district = district;
-  return out;
-}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
