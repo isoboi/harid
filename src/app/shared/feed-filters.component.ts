@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { catchError, of, switchMap } from 'rxjs';
+import { TPipe } from '../core/i18n';
 import { MarketApi } from '../core/market-api.service';
 import { FeedFilters, ProductFacets, ProductQuery, ProductSort } from '../core/models';
 import { activeFilterCount, filtersToParams, SORT_OPTIONS } from './feed-filters';
@@ -17,36 +18,37 @@ const NO_FACETS: ProductFacets = { sizes: [], price_min: null, price_max: null }
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-feed-filters',
   standalone: true,
+  imports: [TPipe],
   template: `
     <div class="bar">
       <button type="button" class="chip" data-test="toggle" [class.chip--on]="open()" [attr.aria-expanded]="open()" aria-controls="feed-filters-panel" (click)="open.set(!open())">
-        Фильтры@if (count()) { · {{ count() }} }
+        {{ 'Фильтры' | t }}@if (count()) { · {{ count() }} }
       </button>
-      @if (count()) { <button type="button" class="reset" data-test="reset" (click)="reset()">Сбросить</button> }
+      @if (count()) { <button type="button" class="reset" data-test="reset" (click)="reset()">{{ 'Сбросить' | t }}</button> }
     </div>
     @if (open()) {
       <form id="feed-filters-panel" class="panel" data-test="panel" (submit)="applyPrice($event, min.value, max.value)">
         <div class="row">
           <label class="sort">
-            <span class="sr-only">Сортировка</span>
+            <span class="sr-only">{{ 'Сортировка' | t }}</span>
             <select class="field-control" data-test="sort" [value]="value().sort ?? 'new'" (change)="setSort($any($event.target).value)">
-              @for (o of sorts; track o.value) { <option [value]="o.value">{{ o.label }}</option> }
+              @for (o of sorts; track o.value) { <option [value]="o.value">{{ o.label | t }}</option> }
             </select>
           </label>
-          <button type="button" class="chip" data-test="in-stock" [class.chip--on]="value().in_stock" [attr.aria-pressed]="!!value().in_stock" (click)="toggleStock()">В наличии</button>
+          <button type="button" class="chip" data-test="in-stock" [class.chip--on]="value().in_stock" [attr.aria-pressed]="!!value().in_stock" (click)="toggleStock()">{{ 'В наличии' | t }}</button>
         </div>
         <fieldset class="price">
-          <legend class="label">Цена, смн</legend>
-          <input #min class="field-control" data-test="min" inputmode="numeric" autocomplete="off" aria-label="Цена от"
-                 [value]="value().price_min ?? ''" [placeholder]="facets().price_min !== null ? 'от ' + facets().price_min : 'от'" />
+          <legend class="label">{{ 'Цена, смн' | t }}</legend>
+          <input #min class="field-control" data-test="min" inputmode="numeric" autocomplete="off" [attr.aria-label]="'Цена от' | t"
+                 [value]="value().price_min ?? ''" [placeholder]="facets().price_min !== null ? ('от {n}' | t: { n: facets().price_min ?? '' }) : ('от' | t)" />
           <span aria-hidden="true">—</span>
-          <input #max class="field-control" data-test="max" inputmode="numeric" autocomplete="off" aria-label="Цена до"
-                 [value]="value().price_max ?? ''" [placeholder]="facets().price_max !== null ? 'до ' + facets().price_max : 'до'" />
-          <button type="submit" class="btn" data-test="apply">Показать</button>
+          <input #max class="field-control" data-test="max" inputmode="numeric" autocomplete="off" [attr.aria-label]="'Цена до' | t"
+                 [value]="value().price_max ?? ''" [placeholder]="facets().price_max !== null ? ('до {n}' | t: { n: facets().price_max ?? '' }) : ('до' | t)" />
+          <button type="submit" class="btn" data-test="apply">{{ 'Показать' | t }}</button>
         </fieldset>
         @if (facets().sizes.length) {
           <div class="sizes">
-            <span class="label">Размер / вариант</span>
+            <span class="label">{{ 'Размер / вариант' | t }}</span>
             <div class="chips">
               @for (s of facets().sizes; track s) {
                 <button type="button" class="chip" data-test="size" [class.chip--on]="value().size === s" [attr.aria-pressed]="value().size === s" (click)="toggleSize(s)">{{ s }}</button>

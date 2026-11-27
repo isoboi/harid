@@ -1,15 +1,16 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { apiErrorMessage } from '../../core/api-error';
+import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { ToastService } from '../../core/toast.service';
 import { MarketReturn, ReturnableOrder, ReturnStatus } from '../../core/models';
 import { MoneyPipe } from '../../shared/money.pipe';
-import { plural } from '../../shared/plural';
 
 const MIN_REASON = 5;
 const MAX_REASON = 500;
 
+/** Русские подписи — ключи словаря, на экран идут через пайп t. */
 export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
   requested: 'Ждёт ответа лавки',
   approved: 'Одобрен — передайте товар лавке',
@@ -26,32 +27,32 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-returns',
   standalone: true,
-  imports: [DatePipe, MoneyPipe],
+  imports: [DatePipe, MoneyPipe, TPipe],
   template: `
     @if (shownReturns().length || shownReturnable().length) {
       <section class="returns" aria-labelledby="returns-title">
-        <h2 id="returns-title" class="title">{{ order() ? 'Возврат' : 'Возвраты' }}</h2>
-        <p class="note">Товар можно вернуть в течение 7 дней после доставки. Деньги возвращает лавка.</p>
-        @if (done()) { <p class="ok" role="status">Запрос отправлен. Лавка ответит здесь же.</p> }
+        <h2 id="returns-title" class="title">{{ order() ? ('Возврат' | t) : ('Возвраты' | t) }}</h2>
+        <p class="note">{{ 'Товар можно вернуть в течение 7 дней после доставки. Деньги возвращает лавка.' | t }}</p>
+        @if (done()) { <p class="ok" role="status">{{ 'Запрос отправлен. Лавка ответит здесь же.' | t }}</p> }
 
         @if (shownReturns().length) {
           <ul class="list" data-test="returns">
             @for (r of shownReturns(); track r.id) {
               <li class="card">
                 <p class="head">
-                  @if (!order()) { <b>Заказ {{ r.number }}</b><span class="muted"> · </span> }
-                  <span class="muted">&#64;{{ r.shop_handle }} · запрос от {{ r.created_at | date: 'dd.MM.yyyy' }}</span>
+                  @if (!order()) { <b>{{ 'Заказ {number}' | t: { number: r.number ?? '' } }}</b><span class="muted"> · </span> }
+                  <span class="muted">&#64;{{ r.shop_handle }} · {{ 'запрос от {date}' | t: { date: (r.created_at | date: 'dd.MM.yyyy') ?? '' } }}</span>
                 </p>
-                <p class="status" [attr.data-status]="r.status">{{ label[r.status] }}</p>
+                <p class="status" [attr.data-status]="r.status">{{ label[r.status] | t }}</p>
                 <ul class="items">
                   @for (it of r.items; track it.line_id) {
                     <li>{{ it.title }}@if (it.size) { <span class="muted"> · {{ it.size }}</span> } × {{ it.qty }}</li>
                   }
                 </ul>
-                <p class="sum">К возврату: <b>{{ r.amount | money }}</b></p>
-                @if (r.shop_comment) { <p class="reply"><span class="muted">Ответ лавки:</span> {{ r.shop_comment }}</p> }
+                <p class="sum">{{ 'К возврату:' | t }} <b>{{ r.amount | money }}</b></p>
+                @if (r.shop_comment) { <p class="reply"><span class="muted">{{ 'Ответ лавки:' | t }}</span> {{ r.shop_comment }}</p> }
                 @if (r.status === 'requested') {
-                  <button type="button" class="link" [disabled]="busy()" (click)="cancel(r)">Отменить запрос</button>
+                  <button type="button" class="link" [disabled]="busy()" (click)="cancel(r)">{{ 'Отменить запрос' | t }}</button>
                 }
               </li>
             }
@@ -59,19 +60,19 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
         }
 
         @if (shownReturnable().length) {
-          <h3 class="sub">Можно вернуть</h3>
+          <h3 class="sub">{{ 'Можно вернуть' | t }}</h3>
           <ul class="list" data-test="returnable">
             @for (o of shownReturnable(); track o.order_id) {
               <li class="card">
                 <p class="head">
-                  @if (!order()) { <b>Заказ {{ o.number }}</b><span class="muted"> · </span> }
-                  <span class="muted">&#64;{{ o.shop_handle }} · до {{ o.deadline | date: 'dd.MM.yyyy' }}</span>
+                  @if (!order()) { <b>{{ 'Заказ {number}' | t: { number: o.number ?? '' } }}</b><span class="muted"> · </span> }
+                  <span class="muted">&#64;{{ o.shop_handle }} · {{ 'до {date}' | t: { date: (o.deadline | date: 'dd.MM.yyyy') ?? '' } }}</span>
                 </p>
                 @if (open() !== o.order_id) {
-                  <button type="button" class="btn btn--ghost start" (click)="start(o)">Оформить возврат</button>
+                  <button type="button" class="btn btn--ghost start" (click)="start(o)">{{ 'Оформить возврат' | t }}</button>
                 } @else {
                   <fieldset class="form">
-                    <legend class="sr-only">Что возвращаете из заказа {{ o.number }}</legend>
+                    <legend class="sr-only">{{ 'Что возвращаете из заказа {number}' | t: { number: o.number ?? '' } }}</legend>
                     @for (l of o.lines; track l.line_id) {
                       <div class="line">
                         <label class="pick">
@@ -80,22 +81,22 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
                         </label>
                         @if (l.available > 1 && (qty()[l.line_id] || 0) > 0) {
                           <span class="step">
-                            <button type="button" [attr.aria-label]="'Меньше: ' + l.title" [disabled]="qty()[l.line_id] <= 1" (click)="bump(l.line_id, -1, l.available)">−</button>
+                            <button type="button" [attr.aria-label]="'Меньше: {title}' | t: { title: l.title }" [disabled]="qty()[l.line_id] <= 1" (click)="bump(l.line_id, -1, l.available)">−</button>
                             <b aria-live="polite">{{ qty()[l.line_id] }}</b>
-                            <button type="button" [attr.aria-label]="'Больше: ' + l.title" [disabled]="qty()[l.line_id] >= l.available" (click)="bump(l.line_id, 1, l.available)">+</button>
+                            <button type="button" [attr.aria-label]="'Больше: {title}' | t: { title: l.title }" [disabled]="qty()[l.line_id] >= l.available" (click)="bump(l.line_id, 1, l.available)">+</button>
                           </span>
                         }
                       </div>
                     }
-                    <label class="sr-only" [attr.for]="'return-reason-' + o.order_id">Причина возврата</label>
-                    <textarea [id]="'return-reason-' + o.order_id" rows="3" [attr.maxlength]="maxReason" placeholder="Причина возврата: не подошёл размер, брак, не то прислали…"
+                    <label class="sr-only" [attr.for]="'return-reason-' + o.order_id">{{ 'Причина возврата' | t }}</label>
+                    <textarea [id]="'return-reason-' + o.order_id" rows="3" [attr.maxlength]="maxReason" [placeholder]="'Причина возврата: не подошёл размер, брак, не то прислали…' | t"
                       [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
-                    @if (o.shop_phone) { <p class="hint">Как передать товар, договоритесь с лавкой: {{ o.shop_phone }}</p> }
+                    @if (o.shop_phone) { <p class="hint">{{ 'Как передать товар, договоритесь с лавкой: {phone}' | t: { phone: o.shop_phone } }}</p> }
                     @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
                     <div class="actions">
                       <button type="button" class="btn" [disabled]="!canSend() || busy()" [attr.aria-describedby]="missing() ? 'return-missing-' + o.order_id : null"
-                        (click)="send(o)">Отправить запрос@if (total(o)) { · {{ total(o) | money }} }</button>
-                      <button type="button" class="link" (click)="close()">Отмена</button>
+                        (click)="send(o)">{{ 'Отправить запрос' | t }}@if (total(o)) { · {{ total(o) | money }} }</button>
+                      <button type="button" class="link" (click)="close()">{{ 'Отмена' | t }}</button>
                     </div>
                     <!-- Без подсказки закрытая кнопка выглядит сломанной: называем, чего не хватает -->
                     @if (missing()) { <p class="missing" [id]="'return-missing-' + o.order_id" data-test="return-missing">{{ missing() }}</p> }
@@ -147,6 +148,7 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
 export class ReturnsComponent {
   private readonly api = inject(MarketApi);
   private readonly toasts = inject(ToastService);
+  private readonly i18n = inject(I18n);
   readonly returns = signal<MarketReturn[]>([]);
   readonly returnable = signal<ReturnableOrder[]>([]);
   /** Номер заказа: блок на странице заказа показывает только его возвраты. Пусто — все. */
@@ -176,9 +178,9 @@ export class ReturnsComponent {
   protected readonly missing = computed(() => {
     const picked = Object.values(this.qty()).some((n) => n > 0);
     const left = MIN_REASON - this.reason().trim().length;
-    if (!picked && left > 0) return `Отметьте товар и напишите причину — от ${MIN_REASON} символов`;
-    if (!picked) return 'Отметьте товар, который возвращаете';
-    if (left > 0) return `Причина: ещё ${left} ${plural(left, ['символ', 'символа', 'символов'])}`;
+    if (!picked && left > 0) return this.i18n.t('Отметьте товар и напишите причину — от {n} символов', { n: MIN_REASON });
+    if (!picked) return this.i18n.t('Отметьте товар, который возвращаете');
+    if (left > 0) return this.i18n.t('Причина: ещё {n} {chars}', { n: left, chars: this.i18n.plural(left, ['символ', 'символа', 'символов']) });
     return '';
   });
 
@@ -216,7 +218,7 @@ export class ReturnsComponent {
         this.returns.update((list) => [created, ...list]);
         this.loadReturnable();
       },
-      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
+      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e, this.i18n)); },
     });
   }
 
@@ -228,12 +230,12 @@ export class ReturnsComponent {
         this.busy.set(false);
         this.returns.update((list) => list.map((x) => (x.id === next.id ? next : x)));
         this.loadReturnable();
-        this.toasts.show({ text: 'Запрос на возврат отменён' });
+        this.toasts.show({ text: this.i18n.t('Запрос на возврат отменён') });
       },
       // Лавка успела ответить — перечитываем список, чтобы показать её решение
       error: () => {
         this.busy.set(false);
-        this.toasts.error('Не удалось отменить: лавка уже ответила на запрос или нет сети');
+        this.toasts.error(this.i18n.t('Не удалось отменить: лавка уже ответила на запрос или нет сети'));
         this.api.myReturns().subscribe({ next: (list) => this.returns.set(list), error: () => undefined });
       },
     });

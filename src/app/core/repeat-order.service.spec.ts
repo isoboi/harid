@@ -7,6 +7,8 @@ import { MarketApi } from './market-api.service';
 import { Order, OrderLine, OrderStage, Product } from './models';
 import { RepeatOrderService, RepeatResult, repeatMessage } from './repeat-order.service';
 import { ToastService } from './toast.service';
+import { I18nLike, translate } from './i18n';
+import { TG } from '../i18n/tg';
 
 const r = (over: Partial<RepeatResult>): RepeatResult => ({ added: 0, total: 0, unavailable: [], overflow: 0, offline: false, ...over });
 
@@ -32,6 +34,13 @@ describe('repeatMessage', () => {
   });
   it('ничего: нет в наличии', () => {
     expect(repeatMessage(r({ total: 2, unavailable: ['A', 'B'] }))).toEqual({ text: 'Товаров из этого заказа сейчас нет в наличии', kind: 'error' });
+  });
+  it('по-таджикски: после числа — «мол» в единственном числе, названия товаров не переводятся', () => {
+    const TJ: I18nLike = { lang: 'tg', locale: 'tg-TJ', t: (text, params) => translate(TG, text, params), plural: (_n, forms) => translate(TG, forms[0]) };
+    expect(repeatMessage(r({ added: 3, total: 3 }), TJ).text).toBe('Ба сабад 3 мол илова шуд');
+    expect(repeatMessage(r({ added: 1, total: 5, unavailable: ['Платье', 'B', 'C'], overflow: 1 }), TJ).text)
+      .toBe('1 аз 5 илова шуд. Мавҷуд нест: «Платье», «B» ва боз 1. Сабад пур аст — 1 мол ҷой нашуд');
+    expect(repeatMessage(r({ total: 2, unavailable: ['A', 'B'] }), TJ)).toEqual({ text: 'Молҳои ин фармоиш ҳоло мавҷуд нестанд', kind: 'error' });
   });
 });
 

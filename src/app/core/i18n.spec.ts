@@ -26,6 +26,14 @@ describe('translate', () => {
     expect(translate(null, 'В корзине {n} шт.', { n: 3 })).toBe('В корзине 3 шт.');
     expect(translate(dict, 'Нет {x}', {})).toBe('Нет {x}');
   });
+  it('контекст: сначала «контекст|текст», нет такого — обычный перевод, нет и его — русский', () => {
+    const d = { 'Избранное': 'Интихобшудаҳо', 'tab|Избранное': 'Интихобҳо', 'tab|Мест {n}': '{n} ҷой' };
+    expect(translate(d, 'Избранное', undefined, 'tab')).toBe('Интихобҳо');
+    expect(translate(d, 'Избранное')).toBe('Интихобшудаҳо');
+    expect(translate({ 'Корзина': 'Сабад' }, 'Корзина', undefined, 'tab')).toBe('Сабад');
+    expect(translate(null, 'Избранное', undefined, 'tab')).toBe('Избранное');
+    expect(translate(d, 'Мест {n}', { n: 2 }, 'tab')).toBe('2 ҷой');
+  });
 });
 
 /** В jsdom нет Request: SSR-запрос — только с заголовками. */
@@ -93,14 +101,15 @@ describe('I18n', () => {
 });
 
 describe('TPipe', () => {
-  @Component({ standalone: true, imports: [TPipe], template: `<p>{{ 'Корзина' | t }}</p><i>{{ 'Нет {x}' | t: { x: 'мол' } }}</i>` })
+  @Component({ standalone: true, imports: [TPipe], template: `<p>{{ 'Корзина' | t }}</p><i>{{ 'Нет {x}' | t: { x: 'мол' } }}</i><b>{{ 'Избранное' | t: null : 'tab' }}</b>` })
   class Host { readonly i18n = inject(I18n); }
-  it('переводит в шаблоне и подставляет параметры', () => {
-    TestBed.configureTestingModule({ imports: [Host], providers: [{ provide: REQUEST, useValue: req('lang=tg') }, { provide: PLATFORM_ID, useValue: 'server' }, { provide: LANG_DICT, useValue: { 'Корзина': 'Сабад', 'Нет {x}': '{x} нест' } }] });
+  it('переводит в шаблоне, подставляет параметры и учитывает контекст', () => {
+    TestBed.configureTestingModule({ imports: [Host], providers: [{ provide: REQUEST, useValue: req('lang=tg') }, { provide: PLATFORM_ID, useValue: 'server' }, { provide: LANG_DICT, useValue: { 'Корзина': 'Сабад', 'Нет {x}': '{x} нест', 'Избранное': 'Интихобшудаҳо', 'tab|Избранное': 'Интихобҳо' } }] });
     const f = TestBed.createComponent(Host);
     f.detectChanges();
     expect(f.nativeElement.querySelector('p').textContent).toBe('Сабад');
     expect(f.nativeElement.querySelector('i').textContent).toBe('мол нест');
+    expect(f.nativeElement.querySelector('b').textContent).toBe('Интихобҳо');
   });
 });
 

@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
 import { FeedFilters } from '../../core/models';
+import { I18n, TPipe } from '../../core/i18n';
 import { SeoService } from '../../core/seo.service';
 import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
 import { FeedFiltersComponent } from '../../shared/feed-filters.component';
@@ -15,18 +16,18 @@ import { SkelProductsComponent } from '../../shared/skeleton.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-search',
   standalone: true,
-  imports: [ProductCardComponent, FeedMoreComponent, FeedFiltersComponent, SkelProductsComponent, PullRefreshComponent],
+  imports: [ProductCardComponent, FeedMoreComponent, FeedFiltersComponent, SkelProductsComponent, PullRefreshComponent, TPipe],
   template: `
     <app-pull-refresh [busy]="feed.refreshing()" (refresh)="feed.refresh()" />
     <div class="wrap page-top">
-      @if (!q()) { <p class="muted">Введите запрос</p> }
+      @if (!q()) { <p class="muted">{{ 'Введите запрос' | t }}</p> }
       @else {
-        <h1 class="page-title">Поиск: «{{ q() }}»</h1>
+        <h1 class="page-title">{{ 'Поиск: «{q}»' | t: { q: q() } }}</h1>
         <app-feed-filters class="filters" [base]="base()" [value]="filters()" />
         <div class="list">
           @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
           @else if (feed.loading()) { <app-skel-products /> }
-          @else { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Ничего не нашлось' }}</p> }
+          @else { <p class="muted">{{ filtered() ? ('По этим фильтрам ничего нет' | t) : ('Ничего не нашлось' | t) }}</p> }
           @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
         </div>
       }
@@ -45,9 +46,10 @@ export class SearchComponent {
   readonly filtered = computed(() => activeFilterCount(this.filters()) > 0);
   constructor() {
     const seo = inject(SeoService);
+    const i18n = inject(I18n);
     effect(() => {
       const q = this.q();
-      seo.set({ title: q ? `«${q}» — поиск на Хариде` : 'Поиск — Харид', description: 'Поиск по товарам Instagram-лавок Таджикистана', noindex: true, keepParams: ['q'] });
+      seo.set({ title: q ? i18n.t('«{q}» — поиск на Хариде', { q }) : i18n.t('Поиск — Харид'), description: i18n.t('Поиск по товарам Instagram-лавок Таджикистана'), noindex: true, keepParams: ['q'] });
     });
     // Новый запрос или фильтры — результаты с начала; пустой запрос — без запроса
     effect(() => {

@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { I18n } from '../core/i18n';
 import { IconComponent } from './icon.component';
 
 /** Сколько «резинки» нужно вытянуть, чтобы отпускание запустило обновление. */
@@ -60,6 +61,7 @@ export function isStandalone(win: Window): boolean {
 })
 export class PullRefreshComponent {
   private readonly doc = inject(DOCUMENT);
+  private readonly i18n = inject(I18n);
   /** Лента обновляется — индикатор остаётся на экране. */
   readonly busy = input(false);
   /** Тянули достаточно и отпустили. */
@@ -85,7 +87,7 @@ export class PullRefreshComponent {
     // «Обновляем…» и «Готово» для скринридера
     effect(() => {
       const busy = this.busy();
-      untracked(() => { if (busy) this.status.set('Обновляем ленту…'); else if (this.status()) this.status.set('Лента обновлена'); });
+      untracked(() => { if (busy) this.status.set(this.i18n.t('Обновляем ленту…')); else if (this.status()) this.status.set(this.i18n.t('Лента обновлена')); });
     });
     afterNextRender(() => {
       const win = this.doc.defaultView;

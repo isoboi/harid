@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { TPipe } from '../core/i18n';
 import { PwaService } from '../core/pwa.service';
 
 /**
@@ -10,10 +11,11 @@ import { PwaService } from '../core/pwa.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-offline-banner',
   standalone: true,
+  imports: [TPipe],
   template: `
     <div class="live" role="status">
       @if (!pwa.online()) {
-        <p class="bar" data-test="offline">Нет интернета. Показываем то, что уже загружалось; заказать получится, когда сеть вернётся.</p>
+        <p class="bar" data-test="offline">{{ 'Нет интернета. Показываем то, что уже загружалось; заказать получится, когда сеть вернётся.' | t }}</p>
       }
     </div>
   `,

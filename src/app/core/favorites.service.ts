@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { BrowserStorage } from './browser-storage.service';
 import { Router } from '@angular/router';
 import { Haptics } from './haptics.service';
+import { I18n } from './i18n';
 import { ToastService } from './toast.service';
 
 const KEY = 'harid.fav';
@@ -12,6 +13,7 @@ export class FavoritesService {
   private readonly store = inject(BrowserStorage);
   private readonly haptics = inject(Haptics);
   private readonly toasts = inject(ToastService);
+  private readonly i18n = inject(I18n);
   /** Только чтобы не предлагать «Открыть» на самой странице избранного; в тестах сервиса роутера может не быть. */
   private readonly router = inject(Router, { optional: true });
   private loaded = false;
@@ -41,11 +43,11 @@ export class FavoritesService {
       this.save([...this.state(), id]);
       this.haptics.light();
       const onFavorites = (this.router?.url ?? '').startsWith('/favorites');
-      this.toasts.show({ text: 'Добавлено в избранное', action: onFavorites ? undefined : { label: 'Открыть', link: '/favorites' } });
+      this.toasts.show({ text: this.i18n.t('Добавлено в избранное'), action: onFavorites ? undefined : { label: this.i18n.t('Открыть'), link: '/favorites' } });
       return;
     }
     this.save(this.state().filter((x) => x !== id));
-    this.toasts.show({ text: 'Убрано из избранного', action: { label: 'Вернуть', run: () => this.restore(id, index) } });
+    this.toasts.show({ text: this.i18n.t('Убрано из избранного'), action: { label: this.i18n.t('Вернуть'), run: () => this.restore(id, index) } });
   }
 
   /** «Вернуть»: на прежнее место; если товар уже добавили снова — ничего не меняется. */

@@ -2,12 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signa
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, of, Subject, switchMap } from 'rxjs';
+import { I18n, TPipe } from '../core/i18n';
 import { MarketApi } from '../core/market-api.service';
 import { RecentSearchesService } from '../core/recent-searches.service';
 import { SearchSuggestions } from '../core/models';
 import { IconComponent } from './icon.component';
 import { MoneyPipe } from './money.pipe';
-import { plural } from './plural';
 import { highlight, moveActive, SUGGEST_DEBOUNCE_MS, SUGGEST_MIN_LENGTH, SuggestOption, suggestOptions } from './search-suggest';
 import { ShopAvatarComponent } from './shop-avatar.component';
 
@@ -34,7 +34,7 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-search-box',
   standalone: true,
-  imports: [RouterLink, IconComponent, ShopAvatarComponent, MoneyPipe],
+  imports: [RouterLink, IconComponent, ShopAvatarComponent, MoneyPipe, TPipe],
   host: { '(focusout)': 'onFocusOut($event)' },
   template: `
     <div class="anchor">
@@ -43,24 +43,24 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
     <form role="search" (submit)="$event.preventDefault(); submit()">
       <label class="box">
         <app-icon class="search-icon" name="search" [size]="18" />
-        <span class="sr-only">Поиск по товарам</span>
+        <span class="sr-only">{{ 'Поиск по товарам' | t }}</span>
         <input #field name="q" type="search" enterkeyhint="search" autocomplete="off" spellcheck="false"
-          placeholder="Платье, кроссовки, @магазин"
+          [placeholder]="'Платье, кроссовки, @магазин' | t"
           role="combobox" aria-autocomplete="list" aria-controls="search-suggest"
           [attr.aria-expanded]="visible()"
           [attr.aria-activedescendant]="visible() && active() >= 0 ? 'sg-' + active() : null"
           [value]="q()" (input)="onInput(field.value)"
           (focus)="open.set(true)" (keydown)="onKey($event)" />
         @if (q()) {
-          <button type="button" class="clear" aria-label="Очистить поиск" (click)="clear()"><app-icon name="x" [size]="16" /></button>
+          <button type="button" class="clear" [attr.aria-label]="'Очистить поиск' | t" (click)="clear()"><app-icon name="x" [size]="16" /></button>
         }
       </label>
     </form>
 
-    <div id="search-suggest" class="panel" role="listbox" aria-label="Подсказки поиска" [hidden]="!visible()" (mousedown)="$event.preventDefault()">
+    <div id="search-suggest" class="panel" role="listbox" [attr.aria-label]="'Подсказки поиска' | t" [hidden]="!visible()" (mousedown)="$event.preventDefault()">
       @if (history()) {
-        <div class="group" role="group" aria-label="Недавние запросы" data-test="recent-searches">
-          <p class="group-label" aria-hidden="true">Недавние запросы</p>
+        <div class="group" role="group" [attr.aria-label]="'Недавние запросы' | t" data-test="recent-searches">
+          <p class="group-label" aria-hidden="true">{{ 'Недавние запросы' | t }}</p>
           @for (r of recent.items(); track r; let i = $index) {
             <div class="recent">
               <a class="opt" role="option" tabindex="-1" data-test="recent-search" [id]="'sg-' + i" [attr.aria-selected]="i === active()"
@@ -69,7 +69,7 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
                 <span class="txt"><span class="title">{{ r }}</span></span>
               </a>
               <!-- С клавиатуры и в скринридере запрос убирает Delete, поэтому кнопка от них скрыта -->
-              <button type="button" class="forget" tabindex="-1" aria-hidden="true" data-test="forget-search" [title]="'Удалить «' + r + '» из истории'" (click)="forget(r)">
+              <button type="button" class="forget" tabindex="-1" aria-hidden="true" data-test="forget-search" [title]="'Удалить «{q}» из истории' | t: { q: r }" (click)="forget(r)">
                 <app-icon name="x" [size]="16" />
               </button>
             </div>
@@ -78,15 +78,15 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
         <div class="opt opt--clear" role="option" tabindex="-1" data-test="clear-history" [id]="'sg-' + recent.items().length"
           [attr.aria-selected]="recent.items().length === active()" [class.is-active]="recent.items().length === active()"
           (click)="clearHistory()" (mousemove)="active.set(recent.items().length)">
-          <span class="txt"><span class="title">Очистить историю</span></span>
+          <span class="txt"><span class="title">{{ 'Очистить историю' | t }}</span></span>
         </div>
       } @else if (visible()) {
         @if (empty()) {
-          <p class="empty">Ничего не нашлось — попробуйте иначе</p>
+          <p class="empty">{{ 'Ничего не нашлось — попробуйте иначе' | t }}</p>
         }
         @for (g of groups(); track g.kind) {
-          <div class="group" role="group" [attr.aria-label]="g.label">
-            <p class="group-label" aria-hidden="true">{{ g.label }}</p>
+          <div class="group" role="group" [attr.aria-label]="g.label | t">
+            <p class="group-label" aria-hidden="true">{{ g.label | t }}</p>
             @for (it of g.items; track it.index) {
               <a class="opt" role="option" tabindex="-1" [id]="'sg-' + it.index" [attr.aria-selected]="it.index === active()"
                 [class.is-active]="it.index === active()" [routerLink]="it.opt.link" (click)="picked()" (mousemove)="active.set(it.index)">
@@ -118,7 +118,7 @@ const GROUPS: { kind: SuggestOption['kind']; label: string }[] = [
         <a class="opt opt--all" role="option" tabindex="-1" data-test="suggest-all" [id]="'sg-' + allIndex()" [attr.aria-selected]="allIndex() === active()"
           [class.is-active]="allIndex() === active()" routerLink="/search" [queryParams]="{ q: query() }" (click)="picked()" (mousemove)="active.set(allIndex())">
           <app-icon name="search" [size]="18" />
-          <span class="txt"><span class="title">{{ empty() ? 'Искать' : 'Все результаты по' }} «{{ query() }}»</span></span>
+          <span class="txt"><span class="title">{{ empty() ? ('Искать «{q}»' | t: { q: query() }) : ('Все результаты по «{q}»' | t: { q: query() }) }}</span></span>
           <app-icon class="chev" name="chevron-right" [size]="18" />
         </a>
       }
@@ -174,6 +174,7 @@ export class SearchBoxComponent {
   private readonly api = inject(MarketApi);
   protected readonly recent = inject(RecentSearchesService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
   private readonly typed$ = new Subject<string>();
@@ -206,11 +207,11 @@ export class SearchBoxComponent {
   readonly announce = computed(() => {
     if (this.history()) {
       const n = this.recent.items().length;
-      return `${n} ${plural(n, ['недавний запрос', 'недавних запроса', 'недавних запросов'])}`;
+      return `${n} ${this.i18n.plural(n, ['недавний запрос', 'недавних запроса', 'недавних запросов'])}`;
     }
     if (!this.visible()) return '';
     const n = this.options().length - 1;
-    return n ? `${n} ${plural(n, ['подсказка', 'подсказки', 'подсказок'])}` : 'Ничего не нашлось';
+    return n ? `${n} ${this.i18n.plural(n, ['подсказка', 'подсказки', 'подсказок'])}` : this.i18n.t('Ничего не нашлось');
   });
 
   constructor() {

@@ -1,5 +1,8 @@
+import { PLATFORM_ID, REQUEST } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { LANG_DICT } from '../core/i18n';
+import { TG } from '../i18n/tg';
 import { ProductCardComponent } from './product-card.component';
 
 describe('ProductCardComponent', () => {
@@ -56,5 +59,26 @@ describe('ProductCardComponent', () => {
     f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Т', price: 1, old_price: null, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '', rating: 4.9, reviews_count: 0 });
     f.detectChanges();
     expect((f.nativeElement as HTMLElement).querySelector('[data-test="rating"]')).toBeNull();
+  });
+});
+
+describe('ProductCardComponent по-таджикски', () => {
+  /** Язык страницы — из cookie запроса (как на SSR), словарь — настоящий таджикский. */
+  const req = { headers: { get: (k: string) => (k === 'cookie' ? 'lang=tg' : null) } };
+  afterEach(() => TestBed.resetTestingModule());
+  it('оплата, оценка и подпись сердечка — на тоҷикӣ', async () => {
+    await TestBed.configureTestingModule({
+      imports: [ProductCardComponent],
+      providers: [provideRouter([]), { provide: PLATFORM_ID, useValue: 'server' }, { provide: REQUEST, useValue: req }, { provide: LANG_DICT, useValue: TG }],
+    }).compileComponents();
+    const f = TestBed.createComponent(ProductCardComponent);
+    f.componentRef.setInput('product', { id: '16', shop_handle: 'a', title: 'Наушники', price: 1250, old_price: 1500, image: '', category: null, description: '', sizes: [], in_stock: true, posted_at: '', rating: 4.8, reviews_count: 12 });
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('[data-test="cod"]')?.textContent?.trim()).toBe('Пардохт ҳангоми гирифтан');
+    expect(el.querySelector('[data-test="rating"]')?.textContent?.trim()).toBe('4,8 · 12 шарҳ');
+    expect(el.querySelector('.ph')?.textContent?.trim()).toBe('Акс нест');
+    expect(el.querySelector('.price-tag s')?.textContent).toContain('Пештар');
+    expect(el.querySelector('.fav')?.getAttribute('aria-label')).toBe('«Наушники»-ро ба интихобшудаҳо илова кардан');
   });
 });

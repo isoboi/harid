@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal, viewChild } from '@angular/core';
+import { TPipe } from '../core/i18n';
 import { IconComponent } from './icon.component';
 import { SWIPE_X } from './swipe';
 
@@ -43,25 +44,25 @@ export function clampScale(s: number): number { return Math.min(MAX_SCALE, Math.
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-photo-viewer',
   standalone: true,
-  imports: [IconComponent],
+  imports: [IconComponent, TPipe],
   host: { '(document:keydown)': 'key($event)' },
   template: `
-    <div #stage class="stage" role="dialog" aria-modal="true" [attr.aria-label]="'Фото: ' + alt()" data-test="photo-viewer"
+    <div #stage class="stage" role="dialog" aria-modal="true" [attr.aria-label]="'Фото: {name}' | t: { name: alt() }" data-test="photo-viewer"
       [class.moving]="moving()" (pointerdown)="down($event)" (pointermove)="move($event)" (pointerup)="up($event)" (pointercancel)="up($event)" (wheel)="wheel($event)">
       <div class="track" [style.transform]="'translate3d(calc(' + (-index() * 100) + '% + ' + dx() + 'px), ' + dy() + 'px, 0)'" [style.opacity]="dy() ? 1 - dy() / 600 : null">
         @for (src of photos(); track $index; let i = $index) {
           <div class="slide" [attr.aria-hidden]="i !== index()">
-            <img [src]="src" [alt]="alt() + ' — фото ' + (i + 1)" draggable="false" data-test="viewer-img"
+            <img [src]="src" [alt]="'{name} — фото {n}' | t: { name: alt(), n: i + 1 }" draggable="false" data-test="viewer-img"
               [style.transform]="i === index() && scale() > 1 ? 'translate(' + pan().x + 'px, ' + pan().y + 'px) scale(' + scale() + ')' : null" />
           </div>
         }
       </div>
       @if (photos().length > 1) {
         <p class="count" data-test="viewer-count">{{ index() + 1 }} / {{ photos().length }}</p>
-        <button type="button" class="nav prev" aria-label="Предыдущее фото" [disabled]="index() === 0" (click)="go(-1)"><app-icon name="chevron-left" [size]="28" /></button>
-        <button type="button" class="nav next" aria-label="Следующее фото" [disabled]="index() === photos().length - 1" (click)="go(1)"><app-icon name="chevron-right" [size]="28" /></button>
+        <button type="button" class="nav prev" [attr.aria-label]="'Предыдущее фото' | t" [disabled]="index() === 0" (click)="go(-1)"><app-icon name="chevron-left" [size]="28" /></button>
+        <button type="button" class="nav next" [attr.aria-label]="'Следующее фото' | t" [disabled]="index() === photos().length - 1" (click)="go(1)"><app-icon name="chevron-right" [size]="28" /></button>
       }
-      <button #closeBtn type="button" class="close" data-test="viewer-close" aria-label="Закрыть" (click)="close()"><app-icon name="x" [size]="24" /></button>
+      <button #closeBtn type="button" class="close" data-test="viewer-close" [attr.aria-label]="'Закрыть' | t" (click)="close()"><app-icon name="x" [size]="24" /></button>
     </div>
   `,
   styles: `

@@ -7,7 +7,8 @@ import { RouterLink } from '@angular/router';
 import { finalize, Subscription } from 'rxjs';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
-import { dayMonth, slotWithDate, STAGE_LABEL } from '../../core/checkout-options';
+import { dayMonth, slotWithDate, stageLabel } from '../../core/checkout-options';
+import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { RepeatOrderService } from '../../core/repeat-order.service';
 import { Order, OrderLine, OrderStage, Reviewable } from '../../core/models';
@@ -15,7 +16,6 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
 import { ToastService } from '../../core/toast.service';
 import { IconComponent } from '../../shared/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
-import { plural } from '../../shared/plural';
 import { SkelSummaryComponent } from '../../shared/skeleton.component';
 import { RateItemComponent } from '../my-orders/rate-purchases.component';
 import { ReturnsComponent } from '../my-orders/returns.component';
@@ -34,36 +34,36 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-order',
   standalone: true,
-  imports: [RouterLink, ReactiveFormsModule, NgTemplateOutlet, MoneyPipe, IconComponent, RateItemComponent, ReturnsComponent, SkelSummaryComponent],
+  imports: [RouterLink, ReactiveFormsModule, NgTemplateOutlet, MoneyPipe, IconComponent, RateItemComponent, ReturnsComponent, SkelSummaryComponent, TPipe],
   template: `
     <div class="wrap page-top">
     @if (lookup()) {
       <section class="lookup" data-test="lookup" aria-labelledby="lookup-title">
-        <h1 id="lookup-title" class="page-title">Найти заказ</h1>
-        @if (lookupMiss()) { <p class="lead error" role="alert">Заказ не найден. Проверьте номер и телефон, на который оформляли заказ.</p> }
-        @else { <p class="lead">Введите номер заказа и телефон, на который его оформляли.</p> }
+        <h1 id="lookup-title" class="page-title">{{ 'Найти заказ' | t }}</h1>
+        @if (lookupMiss()) { <p class="lead error" role="alert">{{ 'Заказ не найден. Проверьте номер и телефон, на который оформляли заказ.' | t }}</p> }
+        @else { <p class="lead">{{ 'Введите номер заказа и телефон, на который его оформляли.' | t }}</p> }
         <form [formGroup]="lookupForm" (ngSubmit)="findOrder()" class="form" novalidate>
           <div class="field">
-            <label for="ol-number">Номер заказа</label>
+            <label for="ol-number">{{ 'Номер заказа' | t }}</label>
             <input id="ol-number" class="field-control" formControlName="number" placeholder="R-123456" autocomplete="off" autocapitalize="characters" spellcheck="false"
               [attr.aria-invalid]="bad('number') || null" [attr.aria-describedby]="bad('number') ? 'ol-number-err' : null" />
-            @if (bad('number')) { <p class="field-error" id="ol-number-err">Укажите номер заказа</p> }
+            @if (bad('number')) { <p class="field-error" id="ol-number-err">{{ 'Укажите номер заказа' | t }}</p> }
           </div>
           <div class="field">
-            <label for="ol-phone">Телефон</label>
+            <label for="ol-phone">{{ 'Телефон' | t }}</label>
             <div class="tel">
               <span class="tel-prefix" id="ol-phone-prefix">+992</span>
               <input id="ol-phone" class="field-control" formControlName="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="93 123 45 67"
                 [attr.aria-invalid]="bad('phone') || null" [attr.aria-describedby]="bad('phone') ? 'ol-phone-prefix ol-phone-err' : 'ol-phone-prefix'" />
             </div>
-            @if (bad('phone')) { <p class="field-error" id="ol-phone-err">Нужен номер из 9 цифр</p> }
+            @if (bad('phone')) { <p class="field-error" id="ol-phone-err">{{ 'Нужен номер из 9 цифр' | t }}</p> }
           </div>
-          <button class="btn" type="submit">Найти заказ</button>
+          <button class="btn" type="submit">{{ 'Найти заказ' | t }}</button>
         </form>
         <ng-container [ngTemplateOutlet]="actions" />
       </section>
     }
-    @else if (error()) { <p class="error">{{ error() }}</p><a class="home" routerLink="/">На главную</a> }
+    @else if (error()) { <p class="error">{{ error() }}</p><a class="home" routerLink="/">{{ 'На главную' | t }}</a> }
     @else { @if (order(); as o) {
       @if (isFresh()) {
         <!-- Первый визит сразу после оформления: благодарность и что будет дальше -->
@@ -71,29 +71,30 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
           <div class="confirm-head">
             <app-icon name="circle-check" [size]="28" />
             <div>
-              <h1 id="confirm-title">Спасибо! Заказ принят</h1>
-              <p class="num">Номер заказа <b>{{ o.number }}</b></p>
+              <h1 id="confirm-title">{{ 'Спасибо! Заказ принят' | t }}</h1>
+              <p class="num">{{ 'Номер заказа' | t }} <b>{{ o.number }}</b></p>
             </div>
           </div>
           <ul class="next">
-            @for (s of o.shops; track s.shop_handle) { <li>Лавка &#64;{{ s.shop_handle }} позвонит, чтобы подтвердить заказ</li> }
-            @empty { <li>Лавка позвонит, чтобы подтвердить заказ</li> }
-            <li>Курьер привезёт: {{ slot(o) }}</li>
-            <li>Приготовьте <b>{{ o.items_total + o.delivery_total | money }}</b> наличными</li>
-            <li>Проверьте товар при курьере — не подошло, не берёте</li>
+            @for (s of o.shops; track s.shop_handle) { <li>{{ shopWillCall(s.shop_handle) }}</li> }
+            @empty { <li>{{ 'Лавка позвонит, чтобы подтвердить заказ' | t }}</li> }
+            <li>{{ 'Курьер привезёт: {slot}' | t: { slot: slot(o) } }}</li>
+            <!-- Сумма жирным внутри фразы: перевод делится по {sum}, порядок слов — как в языке страницы -->
+            <li>{{ cashNote[0] }}<b>{{ o.items_total + o.delivery_total | money }}</b>{{ cashNote[1] }}</li>
+            <li>{{ 'Проверьте товар при курьере — не подошло, не берёте' | t }}</li>
           </ul>
         </section>
       } @else {
         @if (auth.loggedIn()) {
-          <a class="back" routerLink="/me/orders" data-test="back"><app-icon name="chevron-left" [size]="18" />Мои заказы</a>
+          <a class="back" routerLink="/me/orders" data-test="back"><app-icon name="chevron-left" [size]="18" />{{ 'Мои заказы' | t }}</a>
         }
-        <h1 class="page-title">Заказ {{ o.number }}</h1>
-        <p class="sub">от {{ day(o.created_at) }} · {{ count(o) }}</p>
+        <h1 class="page-title">{{ 'Заказ {number}' | t: { number: o.number } }}</h1>
+        <p class="sub">{{ 'от {date} · {count}' | t: { date: day(o.created_at), count: count(o) } }}</p>
       }
       <!-- Этап показан один раз: текущий шаг выделен и отмечен aria-current, без отдельной строки над списком -->
       @if (o.stage === 'cancelled') { <p class="cancelled">{{ label(o.stage) }}</p> }
       @else {
-        <ol class="steps" aria-label="Этапы заказа">@for (s of steps; track s) {
+        <ol class="steps" [attr.aria-label]="'Этапы заказа' | t">@for (s of steps; track s) {
           <li [class.done]="reached(o.stage, s)" [class.now]="o.stage === s" [attr.aria-current]="o.stage === s ? 'step' : null">{{ label(s) }}</li>
         }</ol>
       }
@@ -101,11 +102,11 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
         <div class="main">
           <!-- Состав по лавкам: у каждой своя сборка, свой возврат и свой чат -->
           @for (g of groups(); track g.shop) {
-            <section class="shop" [attr.aria-label]="'Лавка @' + g.shop">
+            <section class="shop" [attr.aria-label]="shopLabel(g.shop)">
               <div class="shop-head">
                 <a class="shop-name" [routerLink]="['/shop', g.shop]">&#64;{{ g.shop }}</a>
                 @if (auth.loggedIn()) {
-                  <a class="shop-chat" routerLink="/chats/new" [queryParams]="{ shop: g.shop }"><app-icon name="message-circle" [size]="16" />Написать лавке</a>
+                  <a class="shop-chat" routerLink="/chats/new" [queryParams]="{ shop: g.shop }"><app-icon name="message-circle" [size]="16" />{{ 'Написать лавке' | t }}</a>
                 }
               </div>
               <ul class="lines">
@@ -116,12 +117,12 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
                     </a>
                     <div class="info">
                       <a class="t" [routerLink]="['/product', l.product_id]">{{ l.title }}</a>
-                      <p class="meta">@if (l.size) { Размер {{ l.size }} · }{{ l.qty }} шт × {{ l.price | money }}</p>
+                      <p class="meta">@if (l.size) { {{ 'Размер {size}' | t: { size: l.size } }} · }{{ '{n} шт × {price}' | t: { n: l.qty, price: (l.price | money) } }}</p>
                     </div>
                     <b class="price">{{ l.price * l.qty | money }}</b>
                     @if (rateFor(l); as r) {
                       <div class="rate" data-test="rate">
-                        @if (!r.review) { <p class="rate-q">Как вам товар?</p> }
+                        @if (!r.review) { <p class="rate-q">{{ 'Как вам товар?' | t }}</p> }
                         <app-rate-item [item]="r" [compact]="true" (saved)="rated($event)" />
                       </div>
                     }
@@ -134,27 +135,27 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
         </div>
         <aside class="side">
           <div class="summary bill">
-            <h2 class="side-title">Доставка</h2>
+            <h2 class="side-title">{{ 'Доставка' | t }}</h2>
             <p class="where">{{ slot(o) }}<br />{{ o.customer.district }}, {{ o.customer.address }}</p>
             <dl>
-              <div class="row"><dt>Товары</dt><dd>{{ o.items_total | money }}</dd></div>
-              <div class="row"><dt>Доставка</dt><dd>{{ o.delivery_total | money }}</dd></div>
-              <div class="row total"><dt>{{ o.stage === 'delivered' ? 'Оплачено' : 'Наличными курьеру' }}</dt><dd>{{ o.items_total + o.delivery_total | money }}</dd></div>
+              <div class="row"><dt>{{ 'Товары' | t }}</dt><dd>{{ o.items_total | money }}</dd></div>
+              <div class="row"><dt>{{ 'Доставка' | t }}</dt><dd>{{ o.delivery_total | money }}</dd></div>
+              <div class="row total"><dt>{{ (o.stage === 'delivered' ? 'Оплачено' : 'Наличными курьеру') | t }}</dt><dd>{{ o.items_total + o.delivery_total | money }}</dd></div>
             </dl>
           </div>
           <!-- Отмена — только пока ни одна лавка не начала собирать; дальше — через лавку -->
           @if (canCancel(o)) {
             @if (!confirming()) {
-              <button class="cancel-open" type="button" data-test="cancel-open" (click)="confirming.set(true)">Отменить заказ</button>
+              <button class="cancel-open" type="button" data-test="cancel-open" (click)="confirming.set(true)">{{ 'Отменить заказ' | t }}</button>
             } @else {
               <form class="cancel-box" data-test="cancel-box" (submit)="$event.preventDefault(); cancel(o)">
-                <p class="cancel-q">Отменить заказ {{ o.number }}?</p>
-                <label class="label" for="cancel-reason">Причина — необязательно</label>
+                <p class="cancel-q">{{ 'Отменить заказ {number}?' | t: { number: o.number } }}</p>
+                <label class="label" for="cancel-reason">{{ 'Причина — необязательно' | t }}</label>
                 <textarea id="cancel-reason" class="field-control reason" maxlength="200" rows="2" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
                 @if (cancelError()) { <p class="field-error" role="alert" data-test="cancel-error">{{ cancelError() }}</p> }
                 <div class="cancel-actions">
-                  <button class="btn danger" type="submit" data-test="cancel-yes" [disabled]="cancelling()">{{ cancelling() ? 'Отменяем…' : 'Да, отменить' }}</button>
-                  <button class="btn btn--ghost" type="button" data-test="cancel-no" [disabled]="cancelling()" (click)="closeCancel()">Не отменять</button>
+                  <button class="btn danger" type="submit" data-test="cancel-yes" [disabled]="cancelling()">{{ (cancelling() ? 'Отменяем…' : 'Да, отменить') | t }}</button>
+                  <button class="btn btn--ghost" type="button" data-test="cancel-no" [disabled]="cancelling()" (click)="closeCancel()">{{ 'Не отменять' | t }}</button>
                 </div>
               </form>
             }
@@ -165,7 +166,7 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
     } @else {
       <!-- Заглушка загрузки: номер и дата, этапы, строки состава и сводка доставки справа -->
       <div role="status" data-test="skel-order">
-        <span class="sr-only">Загрузка…</span>
+        <span class="sr-only">{{ 'Загрузка…' | t }}</span>
         <div aria-hidden="true">
           <span class="skel skel--line title-skel"></span>
           <span class="skel skel--line sub-skel"></span>
@@ -191,12 +192,12 @@ type Source = { kind: 'fetch'; number: string; opts: OrderQuery } | { kind: 'wai
       <div class="actions">
         <!-- Купить то же самое снова — у заказов, которые уже закончились -->
         @if (canRepeat()) {
-          <button type="button" class="btn" data-test="repeat" [disabled]="repeating()" (click)="repeat(order()!)">{{ repeating() ? 'Добавляем…' : 'Повторить заказ' }}</button>
+          <button type="button" class="btn" data-test="repeat" [disabled]="repeating()" (click)="repeat(order()!)">{{ (repeating() ? 'Добавляем…' : 'Повторить заказ') | t }}</button>
         }
-        <a class="btn" [class.btn--ghost]="canRepeat()" routerLink="/">Продолжить покупки</a>
+        <a class="btn" [class.btn--ghost]="canRepeat()" routerLink="/">{{ 'Продолжить покупки' | t }}</a>
         <!-- Гостю: вход связывает заказы с номером, и их видно в «Мои заказы» без ссылки -->
         @if (auth.ready() && !auth.loggedIn()) {
-          <a class="btn btn--ghost" routerLink="/login" [queryParams]="{ return: '/me/orders' }">Войти, чтобы следить за заказами</a>
+          <a class="btn btn--ghost" routerLink="/login" [queryParams]="{ return: '/me/orders' }">{{ 'Войти, чтобы следить за заказами' | t }}</a>
         }
       </div>
     </ng-template>
@@ -290,6 +291,9 @@ export class OrderComponent {
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
   readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly i18n = inject(I18n);
+  /** «Приготовьте {sum} наличными» до суммы и после неё: сумма в шаблоне — жирным. */
+  readonly cashNote = this.i18n.t('Приготовьте {sum} наличными').split('{sum}');
   readonly number = input.required<string>();
   /** Токен заказа из ссылки после оформления (?t=…). */
   readonly t = input<string>('');
@@ -349,12 +353,14 @@ export class OrderComponent {
     this.repeating.set(true);
     this.repeater.repeat(o).pipe(finalize(() => this.repeating.set(false))).subscribe({ error: () => undefined });
   }
-  label(s: OrderStage): string { return STAGE_LABEL[s]; }
-  day(iso: string): string { return dayMonth(iso); }
+  label(s: OrderStage): string { return stageLabel(s, this.i18n); }
+  day(iso: string): string { return dayMonth(iso, this.i18n); }
   count(o: Order): string {
     const n = o.lines.reduce((s, l) => s + l.qty, 0);
-    return `${n} ${plural(n, ['товар', 'товара', 'товаров'])}`;
+    return `${n} ${this.i18n.plural(n, ['товар', 'товара', 'товаров'])}`;
   }
+  shopLabel(shop: string): string { return this.i18n.t('Лавка @{shop}', { shop }); }
+  shopWillCall(shop: string): string { return this.i18n.t('Лавка @{shop} позвонит, чтобы подтвердить заказ', { shop }); }
   rateFor(l: OrderLine): Reviewable | undefined { return this.reviewables().find((r) => r.product_id === String(l.product_id)); }
   rated(next: Reviewable): void {
     this.reviewables.update((list) => list.map((r) => (r.product_id === next.product_id ? next : r)));
@@ -386,17 +392,17 @@ export class OrderComponent {
         this.cancelling.set(false);
         this.closeCancel();
         this.order.set(next);
-        this.toast.show({ text: 'Заказ отменён' });
+        this.toast.show({ text: this.i18n.t('Заказ отменён') });
       },
       error: (e) => {
         this.cancelling.set(false);
         // 409: лавка успела начать сборку — показываем причину и свежий этап заказа
         if (e instanceof HttpErrorResponse && e.status === 409) {
-          this.toast.error(apiErrorMessage(e));
+          this.toast.error(apiErrorMessage(e, this.i18n));
           this.refresh();
           return;
         }
-        this.cancelError.set(apiErrorMessage(e));
+        this.cancelError.set(apiErrorMessage(e, this.i18n));
       },
     });
   }
@@ -405,8 +411,8 @@ export class OrderComponent {
     const src = this.source();
     if (src.kind === 'fetch') this.load(src.number, src.opts);
   }
-  /** «Сегодня, 18:00–21:00» → «17 ноября, 18:00–21:00» относительно даты заказа. */
-  slot(o: Order): string { return slotWithDate(o.slot, o.created_at); }
+  /** «Сегодня, 18:00–21:00» → «17 ноября, 18:00–21:00» (по-таджикски «17 ноябр, …») относительно даты заказа. */
+  slot(o: Order): string { return slotWithDate(o.slot, o.created_at, this.i18n); }
 
   constructor() {
     // Смена номера/токена/телефона отменяет прежний запрос: поздний ответ не перетирает новый заказ
@@ -422,7 +428,7 @@ export class OrderComponent {
     const title = inject(Title);
     effect(() => {
       const o = this.order();
-      title.setTitle(o ? `Заказ ${o.number} — Харид` : this.lookup() ? 'Найти заказ — Харид' : 'Заказ — Харид');
+      title.setTitle(o ? this.i18n.t('Заказ {number} — Харид', { number: o.number }) : this.lookup() ? this.i18n.t('Найти заказ — Харид') : this.i18n.t('Заказ — Харид'));
     });
     inject(DestroyRef).onDestroy(() => this.current?.unsubscribe());
   }
@@ -476,7 +482,7 @@ export class OrderComponent {
       next: (o) => { this.order.set(o); this.loadReviewables(o); },
       error: (e) => {
         if (e instanceof HttpErrorResponse && LOOKUP_STATUSES.includes(e.status)) this.showLookup(number, true);
-        else this.error.set(apiErrorMessage(e));
+        else this.error.set(apiErrorMessage(e, this.i18n));
       },
     });
   }

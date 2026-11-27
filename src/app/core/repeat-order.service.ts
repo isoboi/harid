@@ -2,9 +2,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, map, Observable, of, tap } from 'rxjs';
-import { plural } from '../shared/plural';
 import { CartService } from './cart.service';
 import { directOnly } from './direct';
+import { I18n, I18nLike, RU } from './i18n';
 import { MarketApi } from './market-api.service';
 import { Order, OrderLine, Product } from './models';
 import { ToastService } from './toast.service';
@@ -19,22 +19,24 @@ export interface RepeatResult { added: number; total: number; unavailable: strin
 type Fetched = { p: Product } | { err: unknown };
 
 /** Названия недоступных: до двух в кавычках, остальные — числом. */
-function names(list: string[]): string {
+function names(list: string[], i18n: I18nLike): string {
   const shown = list.slice(0, 2).map((t) => `«${t}»`).join(', ');
-  return list.length > 2 ? `${shown} и ещё ${list.length - 2}` : shown;
+  return list.length > 2 ? i18n.t('{shown} и ещё {n}', { shown, n: list.length - 2 }) : shown;
 }
 
 /** Текст тоста по итогу повтора. Ничего не добавлено — ошибка, иначе подтверждение. */
-export function repeatMessage(r: RepeatResult): { text: string; kind: 'info' | 'error' } {
+export function repeatMessage(r: RepeatResult, i18n: I18nLike = RU): { text: string; kind: 'info' | 'error' } {
   if (r.added === 0) {
-    if (r.overflow > 0) return { text: 'В корзине уже 30 позиций — оформите заказ или уберите лишнее', kind: 'error' };
-    if (r.offline) return { text: 'Не удалось повторить заказ. Проверьте интернет и попробуйте ещё раз', kind: 'error' };
-    return { text: 'Товаров из этого заказа сейчас нет в наличии', kind: 'error' };
+    if (r.overflow > 0) return { text: i18n.t('В корзине уже 30 позиций — оформите заказ или уберите лишнее'), kind: 'error' };
+    if (r.offline) return { text: i18n.t('Не удалось повторить заказ. Проверьте интернет и попробуйте ещё раз'), kind: 'error' };
+    return { text: i18n.t('Товаров из этого заказа сейчас нет в наличии'), kind: 'error' };
   }
-  if (r.added === r.total) return { text: `Добавили в корзину ${r.added} ${plural(r.added, ['товар', 'товара', 'товаров'])}`, kind: 'info' };
-  const parts = [`Добавили ${r.added} из ${r.total}`];
-  if (r.unavailable.length) parts.push(`Нет в наличии: ${names(r.unavailable)}`);
-  if (r.overflow) parts.push(`Корзина заполнена — не поместилось ${r.overflow}`);
+  if (r.added === r.total) {
+    return { text: i18n.t('Добавили в корзину {n} {items}', { n: r.added, items: i18n.plural(r.added, ['товар', 'товара', 'товаров']) }), kind: 'info' };
+  }
+  const parts = [i18n.t('Добавили {added} из {total}', { added: r.added, total: r.total })];
+  if (r.unavailable.length) parts.push(i18n.t('Нет в наличии: {names}', { names: names(r.unavailable, i18n) }));
+  if (r.overflow) parts.push(i18n.t('Корзина заполнена — не поместилось {n}', { n: r.overflow }));
   return { text: parts.join('. '), kind: 'info' };
 }
 
@@ -60,6 +62,7 @@ export class RepeatOrderService {
   private readonly cart = inject(CartService);
   private readonly toasts = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   repeat(order: Order): Observable<RepeatResult> {
     const ids = [...new Set(order.lines.map((l) => l.product_id))];
@@ -70,7 +73,7 @@ export class RepeatOrderService {
     return fetched$.pipe(
       map((list) => this.apply(order, new Map(ids.map((id, i) => [id, list[i]])))),
       tap((r) => {
-        this.toasts.show(repeatMessage(r));
+        this.toasts.show(repeatMessage(r, this.i18n));
         if (r.added > 0) void this.router.navigateByUrl('/cart');
       }),
     );

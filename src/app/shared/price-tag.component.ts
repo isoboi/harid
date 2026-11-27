@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { TPipe } from '../core/i18n';
 import { amount } from './money.pipe';
 
 /**
@@ -11,11 +12,12 @@ import { amount } from './money.pipe';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-price-tag',
   standalone: true,
+  imports: [TPipe],
   template: `
     @if (price() !== null) {
       <span class="price-tag" [class.price-tag--sm]="size() === 'sm'" [class.price-tag--lg]="size() === 'lg'" [attr.data-swing]="swing() ? 'true' : null">
         <span>{{ now() }}</span>&ngsp;<span class="cur">смн</span>
-        @if (was()) { <s><span class="sr-only">Было&ngsp;</span>{{ was() }}<span class="sr-only">&ngsp;смн</span></s> }
+        @if (was()) { <s><span class="sr-only">{{ 'Было' | t }}&ngsp;</span>{{ was() }}<span class="sr-only">&ngsp;смн</span></s> }
       </span>
     }
   `,

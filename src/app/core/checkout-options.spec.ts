@@ -1,4 +1,9 @@
-import { availableSlots, deliveryFor, DISTRICTS, slotWithDate, SLOTS } from './checkout-options';
+import { I18nLike, translate } from './i18n';
+import { TG } from '../i18n/tg';
+import { availableSlots, dayMonth, deliveryFor, DISTRICTS, slotLabel, slotWithDate, SLOTS, stageLabel } from './checkout-options';
+
+/** Таджикский без DI: тот же словарь, что грузится на странице. */
+const TJ: I18nLike = { lang: 'tg', locale: 'tg-TJ', t: (text, params) => translate(TG, text, params), plural: (_n, forms) => translate(TG, forms[0]) };
 
 describe('checkout-options', () => {
   it('город 15, Вахдат и Ҳисор 25', () => {
@@ -45,5 +50,31 @@ describe('slotWithDate: относительный слот → абсолютн
   it('незнакомый слот или битая дата — как есть', () => {
     expect(slotWithDate('Как договоримся', '2026-11-17T05:08:07Z')).toBe('Как договоримся');
     expect(slotWithDate('Сегодня, 18:00–21:00', 'не дата')).toBe('Сегодня, 18:00–21:00');
+  });
+});
+
+describe('показ по-таджикски: значение слота остаётся русским, переводится только подпись', () => {
+  it('slotLabel: «Сегодня/Завтра» → «Имрӯз/Пагоҳ», часы как есть; по-русски без изменений', () => {
+    expect(SLOTS.map((s) => slotLabel(s, TJ))).toEqual(['Имрӯз, 18:00–21:00', 'Пагоҳ, 10:00–14:00', 'Пагоҳ, 14:00–18:00', 'Пагоҳ, 18:00–21:00']);
+    expect(SLOTS.map((s) => slotLabel(s))).toEqual(SLOTS);
+    expect(slotLabel('Как договоримся', TJ)).toBe('Как договоримся');
+  });
+  it('slotWithDate: таджикский месяц не склоняется — «17 ноябр»', () => {
+    expect(slotWithDate('Сегодня, 18:00–21:00', '2026-11-17T05:08:07Z', TJ)).toBe('17 ноябр, 18:00–21:00');
+    expect(slotWithDate('Завтра, 14:00–18:00', '2026-12-31T10:00:00Z', TJ)).toBe('1 январ, 14:00–18:00');
+  });
+  it('slotWithDate: битая дата — относительный слот, но подпись переведена', () => {
+    expect(slotWithDate('Завтра, 10:00–14:00', 'не дата', TJ)).toBe('Пагоҳ, 10:00–14:00');
+  });
+  it('dayMonth: по Душанбе, по-русски в родительном, по-таджикски без склонения', () => {
+    expect(dayMonth('2026-03-02T10:00:00Z')).toBe('2 марта');
+    expect(dayMonth('2026-03-02T10:00:00Z', TJ)).toBe('2 март');
+    expect(dayMonth('2026-05-31T20:00:00Z', TJ)).toBe('1 июн');
+    expect(dayMonth('', TJ)).toBe('');
+  });
+  it('stageLabel: этапы заказа', () => {
+    expect(stageLabel('in_delivery')).toBe('Курьер в пути');
+    expect(stageLabel('in_delivery', TJ)).toBe('Курйер дар роҳ аст');
+    expect(stageLabel('cancelled', TJ)).toBe('Бекор шуд');
   });
 });

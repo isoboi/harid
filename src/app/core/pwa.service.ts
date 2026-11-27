@@ -2,6 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { DestroyRef, inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
 import { SwUpdate } from '@angular/service-worker';
 import { filter } from 'rxjs';
+import { I18n } from './i18n';
 import { ToastService } from './toast.service';
 
 /** Плашка «Вышла новая версия» висит дольше обычной: её легко пропустить, а без неё обновление придёт лишь при следующем заходе. */
@@ -26,6 +27,7 @@ interface InstallPromptEvent extends Event {
 export class PwaService {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly toasts = inject(ToastService);
+  private readonly i18n = inject(I18n);
   private readonly onlineState = signal(true);
   private readonly installState = signal(false);
   private prompt: InstallPromptEvent | null = null;
@@ -46,11 +48,11 @@ export class PwaService {
     });
     on('appinstalled', () => {
       this.forgetPrompt();
-      this.toasts.show({ text: 'Харид установлен — ищите иконку на главном экране' });
+      this.toasts.show({ text: this.i18n.t('Харид установлен — ищите иконку на главном экране') });
     });
     on('online', () => {
       // «Снова в сети» — только если плашку «Нет интернета» успели показать
-      if (this.hydrated && !this.onlineState()) this.toasts.show({ text: 'Снова в сети' });
+      if (this.hydrated && !this.onlineState()) this.toasts.show({ text: this.i18n.t('Снова в сети') });
       this.onlineState.set(true);
     });
     on('offline', () => this.onlineState.set(false));
@@ -60,7 +62,7 @@ export class PwaService {
       sw.unrecoverable.subscribe(() => location.reload());
       // Новая версия скачана: перезагрузку не навязываем — она сбросила бы набранный текст
       sw.versionUpdates.pipe(filter((e) => e.type === 'VERSION_READY')).subscribe(() =>
-        this.toasts.show({ text: 'Вышла новая версия Харида', action: { label: 'Обновить', run: () => location.reload() }, duration: UPDATE_TOAST_MS }),
+        this.toasts.show({ text: this.i18n.t('Вышла новая версия Харида'), action: { label: this.i18n.t('Обновить'), run: () => location.reload() }, duration: UPDATE_TOAST_MS }),
       );
     }
   }

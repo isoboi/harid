@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { RouterLink } from '@angular/router';
 import { directOnly } from '../core/direct';
 import { FavoritesService } from '../core/favorites.service';
+import { I18n, TPipe } from '../core/i18n';
 import { Product } from '../core/models';
 import { IconComponent } from './icon.component';
 import { PriceTagComponent } from './price-tag.component';
@@ -16,20 +17,20 @@ import { discountPercent } from './promo';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-product-card',
   standalone: true,
-  imports: [RouterLink, IconComponent, PriceTagComponent],
+  imports: [RouterLink, IconComponent, PriceTagComponent, TPipe],
   template: `
     @let p = product();
     <div class="card">
       <a class="link" [routerLink]="['/product', p.id]">
         <div class="img">
-          @if (p.image) { <img [src]="p.image" [alt]="p.title" loading="lazy" /> } @else { <span class="ph">Нет фото</span> }
+          @if (p.image) { <img [src]="p.image" [alt]="p.title" loading="lazy" /> } @else { <span class="ph">{{ 'Нет фото' | t }}</span> }
           <app-price-tag class="tag" [price]="p.price" [old]="p.old_price" size="sm" />
           @if (discount(); as d) { <span class="discount" data-test="discount">−{{ d }}%</span> }
         </div>
         <h3 class="title">{{ p.title }}</h3>
         <p class="shop">&#64;{{ p.shop_handle }}</p>
         @if (ratingText()) { <p class="rating" data-test="rating"><app-icon class="star" name="star" [size]="12" [filled]="true" />{{ ratingText() }}</p> }
-        <p class="cod" data-test="cod">{{ direct() ? 'Заказ в Instagram Direct' : 'Оплата при получении' }}</p>
+        <p class="cod" data-test="cod">{{ direct() ? ('Заказ в Instagram Direct' | t) : ('Оплата при получении' | t) }}</p>
       </a>
       <button type="button" class="fav" [class.on]="faved()" [attr.aria-pressed]="faved()" [attr.aria-label]="favLabel()" (click)="fav.toggle(p.id)">
         <span class="fav-dot"><app-icon name="heart" [size]="18" [filled]="faved()" /></span>
@@ -66,15 +67,16 @@ import { discountPercent } from './promo';
 export class ProductCardComponent {
   readonly product = input.required<Product>();
   readonly fav = inject(FavoritesService);
+  private readonly i18n = inject(I18n);
   /** «4,8 · 12 отзывов»; без отзывов — пусто, строку не выводим. */
-  protected readonly ratingText = computed(() => ratingLabel(this.product().rating, this.product().reviews_count));
+  protected readonly ratingText = computed(() => ratingLabel(this.product().rating, this.product().reviews_count, this.i18n));
   /** Неподключённая лавка: вместо оплаты курьеру — заказ в Instagram Direct. */
   protected readonly direct = computed(() => directOnly(this.product()));
   /** Скидка в процентах для плашки на фото; null — плашки нет. */
   protected readonly discount = computed(() => discountPercent(this.product().price, this.product().old_price));
   protected readonly faved =computed(() => this.fav.ids().includes(this.product().id));
   protected readonly favLabel = computed(() => {
-    const t = this.product().title;
-    return this.faved() ? `Убрать «${t}» из избранного` : `Добавить «${t}» в избранное`;
+    const title = this.product().title;
+    return this.faved() ? this.i18n.t('Убрать «{title}» из избранного', { title }) : this.i18n.t('Добавить «{title}» в избранное', { title });
   });
 }

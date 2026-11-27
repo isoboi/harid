@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { I18n } from '../core/i18n';
 import { IconComponent } from './icon.component';
 
 /** Пять звёзд для показа оценки, как в прототипе: закрашенные шафраном, остальные — цветом линий. */
@@ -24,5 +25,6 @@ export class StarsComponent {
   readonly size = input(15);
   protected readonly five = [1, 2, 3, 4, 5];
   protected readonly filled = computed(() => Math.round(this.rating()));
-  protected readonly label = computed(() => `Оценка ${String(Math.round(this.rating() * 10) / 10).replace('.', ',')} из 5`);
+  private readonly i18n = inject(I18n);
+  protected readonly label = computed(() => this.i18n.t('Оценка {n} из 5', { n: String(Math.round(this.rating() * 10) / 10).replace('.', ',') }));
 }

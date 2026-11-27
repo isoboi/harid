@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { MarketApi } from '../../core/market-api.service';
 import { Category } from '../../core/models';
+import { I18n, TPipe } from '../../core/i18n';
 import { SeoService } from '../../core/seo.service';
 import { IconComponent } from '../../shared/icon.component';
 
@@ -15,25 +16,25 @@ import { IconComponent } from '../../shared/icon.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-catalog',
   standalone: true,
-  imports: [RouterLink, IconComponent],
+  imports: [RouterLink, IconComponent, TPipe],
   template: `
     <div class="wrap page-top">
-      <h1 class="page-title">Каталог</h1>
+      <h1 class="page-title">{{ 'Каталог' | t }}</h1>
       @if (categories(); as list) {
         <ul class="tiles">
-          <li><a class="tile tile--all" routerLink="/" fragment="fresh" data-test="all"><span>Все товары</span><app-icon name="chevron-right" [size]="20" /></a></li>
+          <li><a class="tile tile--all" routerLink="/" fragment="fresh" data-test="all"><span>{{ 'Все товары' | t }}</span><app-icon name="chevron-right" [size]="20" /></a></li>
           @for (c of list; track c.slug) {
             <li><a class="tile" [routerLink]="['/c', c.slug]" data-test="category"><span>{{ c.name }}</span><app-icon name="chevron-right" [size]="20" /></a></li>
           }
         </ul>
       } @else if (categories() === null) {
-        <p class="muted state">Не удалось загрузить категории. Попробуйте обновить страницу.</p>
-        <a class="btn state-btn" routerLink="/" fragment="fresh">Все товары</a>
+        <p class="muted state">{{ 'Не удалось загрузить категории. Попробуйте обновить страницу.' | t }}</p>
+        <a class="btn state-btn" routerLink="/" fragment="fresh">{{ 'Все товары' | t }}</a>
       } @else {
         <ul class="tiles" aria-hidden="true">@for (n of skeleton; track n) { <li class="skel tile-skel"></li> }</ul>
       }
       <!-- Вход для продавцов: на телефоне первого экрана главной нет, сюда ведёт вкладка «Каталог» -->
-      <a class="sell" routerLink="/sell" data-test="sell"><app-icon name="store" [size]="22" /><span><span class="sell-t">Продавцам</span><span class="sell-s">У вас Instagram-магазин? Откройте лавку на Хариде</span></span><app-icon class="sell-go" name="chevron-right" [size]="20" /></a>
+      <a class="sell" routerLink="/sell" data-test="sell"><app-icon name="store" [size]="22" /><span><span class="sell-t">{{ 'Продавцам' | t }}</span><span class="sell-s">{{ 'У вас Instagram-магазин? Откройте лавку на Хариде' | t }}</span></span><app-icon class="sell-go" name="chevron-right" [size]="20" /></a>
     </div>
   `,
   styles: `
@@ -67,6 +68,7 @@ export class CatalogComponent {
   readonly categories = toSignal<Category[] | null | undefined>(this.api.categories().pipe(catchError(() => of(null))), { initialValue: undefined });
   readonly skeleton = [1, 2, 3, 4, 5, 6];
   constructor() {
-    inject(SeoService).set({ title: 'Каталог — Харид', description: 'Все категории товаров Instagram-лавок Таджикистана с оплатой наличными курьеру.' });
+    const i18n = inject(I18n);
+    inject(SeoService).set({ title: i18n.t('Каталог — Харид'), description: i18n.t('Все категории товаров Instagram-лавок Таджикистана с оплатой наличными курьеру.') });
   }
 }

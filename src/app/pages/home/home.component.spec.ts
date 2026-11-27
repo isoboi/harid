@@ -1,9 +1,12 @@
+import { PLATFORM_ID, REQUEST } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { provideRouter } from '@angular/router';
 import { NEVER, of, throwError } from 'rxjs';
 import { HomeComponent } from './home.component';
+import { LANG_DICT } from '../../core/i18n';
+import { TG } from '../../i18n/tg';
 import { MarketApi } from '../../core/market-api.service';
 import { RecentlyViewedService } from '../../core/recently-viewed.service';
 import { Product, ProductQuery } from '../../core/models';
@@ -168,5 +171,29 @@ describe('HomeComponent: «Вы смотрели»', () => {
   it('без истории полосы нет', async () => {
     const el = await render(false);
     expect(el.textContent).not.toContain('Вы смотрели');
+  });
+});
+
+describe('HomeComponent по-таджикски', () => {
+  afterEach(() => TestBed.resetTestingModule());
+  it('первый экран, шаги оплаты и заголовок вкладки — на тоҷикӣ; после числа — единственное число', async () => {
+    const req = { headers: { get: (k: string) => (k === 'cookie' ? 'lang=tg' : null) } };
+    const shops = Array.from({ length: 5 }, (_, i) => ({ handle: `s${i}`, name: `S${i}` }));
+    await TestBed.configureTestingModule({
+      imports: [HomeComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PLATFORM_ID, useValue: 'server' }, { provide: REQUEST, useValue: req }, { provide: LANG_DICT, useValue: TG },
+        { provide: MarketApi, useValue: { products: () => of([]), shops: () => of(shops), categories: () => of([]) } },
+      ],
+    }).compileComponents();
+    const f = TestBed.createComponent(HomeComponent);
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('.hero-lead')?.textContent?.trim()).toBe('5 дӯкон аллакай дар ин ҷост. Пулро ба курйер нақд диҳед, вақте ки фармоиш дар дасти шумост.');
+    expect(el.querySelector('.fresh-title')?.textContent?.trim()).toBe('Навҳо дар дӯконҳо');
+    expect(el.querySelector('.steps h3')?.textContent?.trim()).toBe('Фармоиш медиҳед');
+    expect(el.textContent).toContain('Ҳоло холӣ');
+    expect(document.title).toBe('Харид — мағозаҳои Instagram-и Тоҷикистон');
   });
 });

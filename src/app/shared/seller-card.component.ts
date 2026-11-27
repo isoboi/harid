@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { dayMonth } from '../core/checkout-options';
+import { I18n, TPipe } from '../core/i18n';
 import { Shop } from '../core/models';
 import { followersCount, followersLabel } from './followers';
 import { IconComponent } from './icon.component';
@@ -15,11 +16,11 @@ import { ShopAvatarComponent } from './shop-avatar.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-seller-card',
   standalone: true,
-  imports: [RouterLink, IconComponent, ShopAvatarComponent],
+  imports: [RouterLink, IconComponent, ShopAvatarComponent, TPipe],
   template: `
     @let s = shop();
     @let r = rate();
-    <h2 class="h" id="seller-card-h">Продавец</h2>
+    <h2 class="h" id="seller-card-h">{{ 'Продавец' | t }}</h2>
     <a class="who" [routerLink]="['/shop', s.handle]">
       <app-shop-avatar [name]="s.name || s.handle" [color]="s.avatar_color" [fresh]="s.has_fresh" [avatarUrl]="s.avatar_url" [handle]="s.handle" [size]="56" />
       <span class="who-t">
@@ -31,17 +32,17 @@ import { ShopAvatarComponent } from './shop-avatar.component';
       @if (r.kind === 'rated') {
         <app-icon class="star" name="star" [size]="18" [filled]="true" /><strong>{{ r.value }}</strong><span class="soft">· {{ r.count }}</span>
       } @else if (r.kind === 'direct') {
-        <strong>Оценок нет — заказы в Direct.</strong> <span class="soft">Отзыв оставляют только после доставки через Харид.</span>
+        <strong>{{ 'Оценок нет — заказы в Direct.' | t }}</strong> <span class="soft">{{ 'Отзыв оставляют только после доставки через Харид.' | t }}</span>
       } @else {
-        <strong>Пока без оценок.</strong> <span class="soft">Отзывы появятся после первых доставок.</span>
+        <strong>{{ 'Пока без оценок.' | t }}</strong> <span class="soft">{{ 'Отзывы появятся после первых доставок.' | t }}</span>
       }
     </p>
     <dl class="facts" data-test="seller-facts">
-      @if (joined()) { <div><dt>На Хариде</dt><dd>с {{ joined() }}</dd></div> }
-      @if (s.followers > 0) { <div><dt>В Instagram</dt><dd>{{ followers(s.followers) }} {{ followersWord(s.followers) }}</dd></div> }
-      @if (s.verified !== false) { <div><dt>Доставлено</dt><dd>{{ s.delivered_orders }}</dd></div> }
+      @if (joined()) { <div><dt>{{ 'На Хариде' | t }}</dt><dd>{{ 'с {date}' | t: { date: joined() } }}</dd></div> }
+      @if (s.followers > 0) { <div><dt>{{ 'В Instagram' | t }}</dt><dd>{{ followers(s.followers, i18n) }} {{ followersWord(s.followers, i18n) }}</dd></div> }
+      @if (s.verified !== false) { <div><dt>{{ 'Доставлено' | t }}</dt><dd>{{ s.delivered_orders }}</dd></div> }
     </dl>
-    <a class="all" data-test="seller-all" [routerLink]="['/shop', s.handle]">Все товары лавки<app-icon name="chevron-right" [size]="18" /></a>
+    <a class="all" data-test="seller-all" [routerLink]="['/shop', s.handle]">{{ 'Все товары лавки' | t }}<app-icon name="chevron-right" [size]="18" /></a>
   `,
   host: { role: 'region', 'aria-labelledby': 'seller-card-h' },
   styles: `
@@ -67,8 +68,9 @@ import { ShopAvatarComponent } from './shop-avatar.component';
 })
 export class SellerCardComponent {
   readonly shop = input.required<Shop>();
-  protected readonly rate = computed(() => shopRating(this.shop()));
-  protected readonly joined = computed(() => dayMonth(this.shop().joined_at));
+  protected readonly i18n = inject(I18n);
+  protected readonly rate = computed(() => shopRating(this.shop(), this.i18n));
+  protected readonly joined = computed(() => dayMonth(this.shop().joined_at, this.i18n));
   protected readonly followers = followersCount;
   protected readonly followersWord = followersLabel;
 }

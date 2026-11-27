@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../../core/api-error';
+import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { Reviewable, ReviewInput } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
@@ -16,7 +17,7 @@ const MAX_TEXT = 1000;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-rate-item',
   standalone: true,
-  imports: [RouterLink, IconComponent, StarsComponent],
+  imports: [RouterLink, IconComponent, StarsComponent, TPipe],
   template: `
     @let it = item();
     <div class="item" [class.item--compact]="compact()">
@@ -28,31 +29,31 @@ const MAX_TEXT = 1000;
       <div class="body">
         @if (!compact()) {
           <a class="t" [routerLink]="['/product', it.product_id]">{{ it.product_title }}</a>
-          <p class="meta">&#64;{{ it.shop_handle }} · заказ {{ it.order_number }}</p>
+          <p class="meta">&#64;{{ it.shop_handle }} · {{ 'заказ {number}' | t: { number: it.order_number } }}</p>
         }
-        @if (thanks()) { <p class="thanks" role="status">Спасибо за отзыв!</p> }
+        @if (thanks()) { <p class="thanks" role="status">{{ 'Спасибо за отзыв!' | t }}</p> }
         @if (!editing() && it.review; as r) {
           <div class="done">
             <app-stars [rating]="r.rating" [size]="16" />
             @if (r.text) { <p class="text">{{ r.text }}</p> }
-            <button type="button" class="link" (click)="edit()">Изменить</button>
+            <button type="button" class="link" (click)="edit()">{{ 'Изменить' | t }}</button>
           </div>
         } @else {
-          <div class="pick" role="radiogroup" [attr.aria-label]="'Оценка товара «' + it.product_title + '»'">
+          <div class="pick" role="radiogroup" [attr.aria-label]="'Оценка товара «{title}»' | t: { title: it.product_title }">
             @for (n of five; track n) {
-              <button type="button" role="radio" class="star-btn" [attr.aria-checked]="rating() === n" [attr.aria-label]="'Оценка ' + n + ' из 5'"
+              <button type="button" role="radio" class="star-btn" [attr.aria-checked]="rating() === n" [attr.aria-label]="'Оценка {n} из 5' | t: { n }"
                 [tabIndex]="n === focusable() ? 0 : -1" (click)="rating.set(n)" (keydown)="onKey($event, n)">
                 <app-icon name="star" [size]="28" [filled]="true" [class.on]="n <= rating()" />
               </button>
             }
           </div>
-          <label class="sr-only" [attr.for]="'review-' + uid">Текст отзыва</label>
-          <textarea [id]="'review-' + uid" rows="3" [attr.maxlength]="maxText" placeholder="Что понравилось, что нет — по желанию"
+          <label class="sr-only" [attr.for]="'review-' + uid">{{ 'Текст отзыва' | t }}</label>
+          <textarea [id]="'review-' + uid" rows="3" [attr.maxlength]="maxText" [placeholder]="'Что понравилось, что нет — по желанию' | t"
             [value]="text()" (input)="text.set($any($event.target).value)"></textarea>
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
           <div class="actions">
-            <button type="button" class="btn" [disabled]="!rating() || sending()" (click)="send()">Отправить отзыв</button>
-            @if (it.review) { <button type="button" class="link" (click)="cancel()">Отмена</button> }
+            <button type="button" class="btn" [disabled]="!rating() || sending()" (click)="send()">{{ 'Отправить отзыв' | t }}</button>
+            @if (it.review) { <button type="button" class="link" (click)="cancel()">{{ 'Отмена' | t }}</button> }
           </div>
         }
       </div>
@@ -88,6 +89,7 @@ const MAX_TEXT = 1000;
   `,
 })
 export class RateItemComponent {
+  private readonly i18n = inject(I18n);
   private static next = 0;
   private readonly api = inject(MarketApi);
   readonly item = input.required<Reviewable>();
@@ -141,7 +143,7 @@ export class RateItemComponent {
         this.thanks.set(true);
         this.saved.emit({ ...this.item(), review: { rating: r?.rating ?? rating, text: r?.text ?? text } });
       },
-      error: (e) => { this.sending.set(false); this.error.set(apiErrorMessage(e)); },
+      error: (e) => { this.sending.set(false); this.error.set(apiErrorMessage(e, this.i18n)); },
     });
   }
 }
@@ -151,12 +153,12 @@ export class RateItemComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-rate-purchases',
   standalone: true,
-  imports: [RateItemComponent],
+  imports: [RateItemComponent, TPipe],
   template: `
     @if (items().length) {
       <section class="rate" aria-labelledby="rate-title">
-        <h2 id="rate-title" class="title">Оцените покупки</h2>
-        <p class="note">Отзыв увидят другие покупатели на странице товара и лавки.</p>
+        <h2 id="rate-title" class="title">{{ 'Оцените покупки' | t }}</h2>
+        <p class="note">{{ 'Отзыв увидят другие покупатели на странице товара и лавки.' | t }}</p>
         <ul class="list">
           @for (it of items(); track it.product_id + '|' + it.order_number) {
             <li><app-rate-item [item]="it" (saved)="update($event)" /></li>

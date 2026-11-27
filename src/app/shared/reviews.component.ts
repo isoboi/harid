@@ -2,6 +2,7 @@ import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, 
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { AuthService } from '../core/auth.service';
+import { I18n, TPipe } from '../core/i18n';
 import { dayMonth } from '../core/checkout-options';
 import { MarketApi } from '../core/market-api.service';
 import { Review, Reviewable, ReviewQuery, ReviewSummary } from '../core/models';
@@ -28,11 +29,11 @@ const MORE = 12;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-reviews',
   standalone: true,
-  imports: [RouterLink, StarsComponent, IconComponent, RateItemComponent],
+  imports: [RouterLink, StarsComponent, IconComponent, RateItemComponent, TPipe],
   template: `
     @if (reviews()) {
       <section class="rv" aria-labelledby="reviews-title">
-        <h2 id="reviews-title" class="title" [class.sr-only]="hideTitle()">Отзывы</h2>
+        <h2 id="reviews-title" class="title" [class.sr-only]="hideTitle()">{{ 'Отзывы' | t }}</h2>
 
         <div class="grid" [class.grid--empty]="!total()" [class.grid--flush]="hideTitle()">
           <aside class="sum" data-test="summary">
@@ -45,11 +46,11 @@ const MORE = 12;
                 </span>
               </div>
               @if (dist(); as d) {
-                <ul class="bars" aria-label="Распределение оценок">
+                <ul class="bars" [attr.aria-label]="'Распределение оценок' | t">
                   @for (s of stars; track s) {
                     <li>
                       <button type="button" class="bar" data-test="bar" [class.on]="isStar(s)" [disabled]="!d[s]"
-                        [attr.aria-pressed]="isStar(s)" [attr.aria-label]="s + ' из 5: ' + d[s] + ' — показать только их'" (click)="toggleStar(s)">
+                        [attr.aria-pressed]="isStar(s)" [attr.aria-label]="'{star} из 5: {n} — показать только их' | t: { star: s, n: d[s] }" (click)="toggleStar(s)">
                         <span class="bar-s">{{ s }}<app-icon name="star" [size]="12" [filled]="true" /></span>
                         <span class="bar-track"><span class="bar-fill" [style.width.%]="share(d[s])"></span></span>
                         <span class="bar-n">{{ d[s] }}</span>
@@ -59,34 +60,34 @@ const MORE = 12;
                 </ul>
               }
             } @else {
-              <p class="none-title" data-test="empty">Отзывов пока нет</p>
+              <p class="none-title" data-test="empty">{{ 'Отзывов пока нет' | t }}</p>
             }
-            <p class="rule"><app-icon name="circle-check" [size]="16" [stroke]="2" />Отзыв оставляют только после получения заказа</p>
+            <p class="rule"><app-icon name="circle-check" [size]="16" [stroke]="2" />{{ 'Отзыв оставляют только после получения заказа' | t }}</p>
           </aside>
 
           <div class="feed">
             @if (rateItem(); as it) {
               <div class="rate" data-test="rate-here">
-                <p class="rate-title">{{ it.review ? 'Ваш отзыв' : 'Вы купили этот товар — оцените его' }}</p>
+                <p class="rate-title">{{ it.review ? ('Ваш отзыв' | t) : ('Вы купили этот товар — оцените его' | t) }}</p>
                 <app-rate-item [item]="it" [compact]="true" (saved)="onRated($event)" />
               </div>
             }
 
             @if (total()) {
-              <div class="chips" role="group" aria-label="Фильтр отзывов">
-                <button type="button" class="chip" [class.on]="filter().kind === 'all'" [attr.aria-pressed]="filter().kind === 'all'" (click)="setFilter({ kind: 'all' })">Все</button>
-                <button type="button" class="chip" data-test="chip-text" [class.on]="filter().kind === 'text'" [attr.aria-pressed]="filter().kind === 'text'" (click)="setFilter({ kind: 'text' })">С текстом</button>
+              <div class="chips" role="group" [attr.aria-label]="'Фильтр отзывов' | t">
+                <button type="button" class="chip" [class.on]="filter().kind === 'all'" [attr.aria-pressed]="filter().kind === 'all'" (click)="setFilter({ kind: 'all' })">{{ 'Все' | t }}</button>
+                <button type="button" class="chip" data-test="chip-text" [class.on]="filter().kind === 'text'" [attr.aria-pressed]="filter().kind === 'text'" (click)="setFilter({ kind: 'text' })">{{ 'С текстом' | t }}</button>
                 @if (starFilter(); as s) {
-                  <button type="button" class="chip on" data-test="chip-star" aria-label="Сбросить фильтр по оценке" (click)="setFilter({ kind: 'all' })">
+                  <button type="button" class="chip on" data-test="chip-star" [attr.aria-label]="'Сбросить фильтр по оценке' | t" (click)="setFilter({ kind: 'all' })">
                     {{ s }}<app-icon name="star" [size]="12" [filled]="true" /><app-icon name="x" [size]="14" [stroke]="2.2" />
                   </button>
                 }
               </div>
 
               @if (loading()) {
-                <p class="state" role="status">Загружаем…</p>
+                <p class="state" role="status">{{ 'Загружаем…' | t }}</p>
               } @else if (!list().length) {
-                <p class="state" data-test="filtered-empty">Таких отзывов нет. <button type="button" class="link" (click)="setFilter({ kind: 'all' })">Показать все</button></p>
+                <p class="state" data-test="filtered-empty">{{ 'Таких отзывов нет.' | t }} <button type="button" class="link" (click)="setFilter({ kind: 'all' })">{{ 'Показать все' | t }}</button></p>
               } @else {
                 <ul class="list">
                   @for (r of shown(); track r.id) {
@@ -95,7 +96,7 @@ const MORE = 12;
                         <span class="ava" aria-hidden="true">{{ initial(r.author) }}</span>
                         <span class="who">
                           <span class="author">{{ r.author }}</span>
-                          <span class="verified"><app-icon name="circle-check" [size]="13" [stroke]="2.2" />Покупка подтверждена</span>
+                          <span class="verified"><app-icon name="circle-check" [size]="13" [stroke]="2.2" />{{ 'Покупка подтверждена' | t }}</span>
                         </span>
                         <time class="date" [attr.datetime]="r.created_at.slice(0, 10)">{{ date(r.created_at) }}</time>
                       </div>
@@ -104,7 +105,7 @@ const MORE = 12;
                       @if (r.text) { <p class="text">{{ r.text }}</p> }
                       @if (r.reply; as reply) {
                         <div class="reply" data-test="reply">
-                          <p class="reply-head"><span class="reply-who">Ответ лавки &#64;{{ r.shop_handle }}</span><time [attr.datetime]="reply.created_at.slice(0, 10)">{{ date(reply.created_at) }}</time></p>
+                          <p class="reply-head"><span class="reply-who">{{ 'Ответ лавки' | t }} &#64;{{ r.shop_handle }}</span><time [attr.datetime]="reply.created_at.slice(0, 10)">{{ date(reply.created_at) }}</time></p>
                           <p class="reply-text">{{ reply.text }}</p>
                         </div>
                       }
@@ -112,11 +113,11 @@ const MORE = 12;
                   }
                 </ul>
                 @if (list().length > shown().length) {
-                  <button type="button" class="more" data-test="more" (click)="limit.set(limit() + more)">Показать ещё {{ Math.min(more, list().length - shown().length) }}</button>
+                  <button type="button" class="more" data-test="more" (click)="limit.set(limit() + more)">{{ 'Показать ещё {n}' | t: { n: Math.min(more, list().length - shown().length) } }}</button>
                 }
               }
             } @else if (!rateItem()) {
-              <p class="state">Здесь появятся оценки покупателей, получивших {{ showProduct() ? 'товары этой лавки' : 'этот товар' }}.</p>
+              <p class="state">{{ showProduct() ? ('Здесь появятся оценки покупателей, получивших товары этой лавки.' | t) : ('Здесь появятся оценки покупателей, получивших этот товар.' | t) }}</p>
             }
           </div>
         </div>
@@ -192,6 +193,7 @@ const MORE = 12;
 export class ReviewsComponent {
   private readonly api = inject(MarketApi);
   private readonly auth = inject(AuthService);
+  private readonly i18n = inject(I18n);
   readonly reviews = input<Review[] | null>(null);
   /** Сводка из объекта товара или лавки — до прихода /reviews/summary. */
   readonly rating = input<number | null>(null);
@@ -222,12 +224,12 @@ export class ReviewsComponent {
   protected readonly avg = computed(() => this.summary()?.rating ?? this.rating());
   protected readonly total = computed(() => this.summary()?.count ?? this.count());
   protected readonly dist = computed(() => this.summary()?.distribution ?? null);
-  protected readonly countText = computed(() => reviewsCount(this.total()));
+  protected readonly countText = computed(() => reviewsCount(this.total(), this.i18n));
   protected readonly list = computed(() => this.filtered() ?? this.fresh() ?? this.reviews() ?? []);
   protected readonly shown = computed(() => this.list().slice(0, this.limit()));
   protected readonly starFilter = computed(() => { const f = this.filter(); return f.kind === 'star' ? f.star : null; });
   protected readonly num = ratingNumber;
-  protected readonly date = dayMonth;
+  protected date(iso: string): string { return dayMonth(iso, this.i18n); }
 
   private get query(): ReviewQuery { return this.product() ? { product: this.product() } : this.shop() ? { shop: this.shop() } : {}; }
 

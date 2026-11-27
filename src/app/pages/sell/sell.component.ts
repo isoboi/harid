@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { environment } from '../../../environments/environment';
 import { apiErrorMessage } from '../../core/api-error';
+import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { CodeResend } from '../../core/code-resend';
 import { PHONE_PATTERN, phone9 } from '../../core/phone';
@@ -11,69 +12,69 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-sell',
   standalone: true,
-  imports: [ReactiveFormsModule, FormsModule],
+  imports: [ReactiveFormsModule, FormsModule, TPipe],
   template: `
     <div class="wrap top">
-      <h1 class="title">Посты из вашего Instagram станут товарами на <span class="nowrap">Хариде</span></h1>
-      <p class="lead">Импортируйте посты в кабинете, отметьте «На витрине» — покупатели закажут, курьер привезёт и заберёт оплату наличными.</p>
-      <section class="card" aria-label="Открыть лавку">
+      <h1 class="title">{{ title.before }}<span class="nowrap">{{ title.brand }}</span>{{ title.after }}</h1>
+      <p class="lead">{{ 'Импортируйте посты в кабинете, отметьте «На витрине» — покупатели закажут, курьер привезёт и заберёт оплату наличными.' | t }}</p>
+      <section class="card" [attr.aria-label]="'Открыть лавку' | t">
         @switch (step()) {
           @case ('form') {
             <form [formGroup]="form" (ngSubmit)="sendCode()" class="form">
               <div class="field">
-                <label for="sell-handle">Ник в Instagram</label>
+                <label for="sell-handle">{{ 'Ник в Instagram' | t }}</label>
                 <div class="at-wrap">
                   <span class="at" aria-hidden="true">&#64;</span>
                   <input id="sell-handle" class="field-control at-input" formControlName="handle" placeholder="my.shop" autocapitalize="none" autocomplete="off" spellcheck="false" maxlength="31" />
                 </div>
               </div>
               <div class="field">
-                <label for="sell-name">Ваше имя</label>
+                <label for="sell-name">{{ 'Ваше имя' | t }}</label>
                 <input id="sell-name" class="field-control" formControlName="owner_name" autocomplete="name" maxlength="150" />
               </div>
               <div class="field">
-                <label for="sell-phone">Телефон</label>
+                <label for="sell-phone">{{ 'Телефон' | t }}</label>
                 <div class="tel">
                   <span class="tel-prefix" id="sell-phone-prefix">+992</span>
                   <input id="sell-phone" class="field-control" formControlName="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="93 123 45 67" aria-describedby="sell-phone-prefix sell-phone-hint" />
                 </div>
-                <p class="field-hint" id="sell-phone-hint">Пришлём код в SMS — по этому номеру вы будете входить в кабинет</p>
+                <p class="field-hint" id="sell-phone-hint">{{ 'Пришлём код в SMS — по этому номеру вы будете входить в кабинет' | t }}</p>
               </div>
-              <button class="btn go" type="submit" [disabled]="form.invalid || busy()">Получить код</button>
+              <button class="btn go" type="submit" [disabled]="form.invalid || busy()">{{ 'Получить код' | t }}</button>
             </form>
           }
           @case ('code') {
             <div class="form">
-              <p class="muted">Код отправлен на +992 {{ phone9(form.getRawValue().phone) }}</p>
+              <p class="muted">{{ 'Код отправлен на +992 {phone}' | t: { phone: phone9(form.getRawValue().phone) } }}</p>
               <div class="field">
-                <label for="sell-code">Код из SMS</label>
+                <label for="sell-code">{{ 'Код из SMS' | t }}</label>
                 <input id="sell-code" class="field-control code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" [ngModel]="code()" (ngModelChange)="code.set($event)" />
               </div>
-              @if (resend.left() > 0) { <p class="field-hint" data-test="countdown">Отправить код ещё раз через {{ resend.left() }} с</p> }
-              @else { <button class="link" type="button" data-test="resend" [disabled]="busy()" (click)="send()">Отправить код ещё раз</button> }
+              @if (resend.left() > 0) { <p class="field-hint" data-test="countdown">{{ 'Отправить код ещё раз через {n} с' | t: { n: resend.left() } }}</p> }
+              @else { <button class="link" type="button" data-test="resend" [disabled]="busy()" (click)="send()">{{ 'Отправить код ещё раз' | t }}</button> }
               <div class="row">
-                <button class="btn" type="button" [disabled]="busy() || code().length !== 6" (click)="apply()">Открыть лавку</button>
-                <button class="btn btn--ghost" type="button" (click)="back()">Изменить данные</button>
+                <button class="btn" type="button" [disabled]="busy() || code().length !== 6" (click)="apply()">{{ 'Открыть лавку' | t }}</button>
+                <button class="btn btn--ghost" type="button" (click)="back()">{{ 'Изменить данные' | t }}</button>
               </div>
             </div>
           }
           @case ('done') {
             <div class="form">
-              <h2 class="done">Лавка открыта</h2>
-              <p>&#64;{{ handle() }} уже на Хариде. Войдите в кабинет по номеру телефона, чтобы добавить товары.</p>
-              <a class="btn go" data-test="cabinet" [href]="cabinetUrl">Перейти в кабинет</a>
+              <h2 class="done">{{ 'Лавка открыта' | t }}</h2>
+              <p>{{ '@{handle} уже на Хариде. Войдите в кабинет по номеру телефона, чтобы добавить товары.' | t: { handle: handle() } }}</p>
+              <a class="btn go" data-test="cabinet" [href]="cabinetUrl">{{ 'Перейти в кабинет' | t }}</a>
             </div>
           }
         }
         @if (error()) { <p class="field-error err" role="alert">{{ error() }}</p> }
       </section>
       <section id="terms" class="terms">
-        <h2 class="terms-title">Как это работает</h2>
+        <h2 class="terms-title">{{ 'Как это работает' | t }}</h2>
         <dl class="terms-list">
-          <div><dt>Посты становятся товарами</dt><dd>Импортируйте посты в кабинете и отметьте «На витрине» — товар появится у покупателей.</dd></div>
-          <div><dt>Без предоплаты</dt><dd>Покупатель платит наличными курьеру, когда проверил заказ. Переводы на карту собирать не нужно.</dd></div>
-          <div><dt>Курьер забирает и привозит</dt><dd>Вы подтверждаете заказ звонком, курьер забирает его из лавки и привозит в выбранное время.</dd></div>
-          <div><dt>Вход по номеру телефона</dt><dd>Кабинет без пароля: код приходит в SMS на номер, который вы укажете выше.</dd></div>
+          <div><dt>{{ 'Посты становятся товарами' | t }}</dt><dd>{{ 'Импортируйте посты в кабинете и отметьте «На витрине» — товар появится у покупателей.' | t }}</dd></div>
+          <div><dt>{{ 'Без предоплаты' | t }}</dt><dd>{{ 'Покупатель платит наличными курьеру, когда проверил заказ. Переводы на карту собирать не нужно.' | t }}</dd></div>
+          <div><dt>{{ 'Курьер забирает и привозит' | t }}</dt><dd>{{ 'Вы подтверждаете заказ звонком, курьер забирает его из лавки и привозит в выбранное время.' | t }}</dd></div>
+          <div><dt>{{ 'Вход по номеру телефона' | t }}</dt><dd>{{ 'Кабинет без пароля: код приходит в SMS на номер, который вы укажете выше.' | t }}</dd></div>
         </dl>
       </section>
     </div>
@@ -111,6 +112,12 @@ import { PHONE_PATTERN, phone9 } from '../../core/phone';
 })
 export class SellComponent {
   private readonly api = inject(MarketApi);
+  private readonly i18n = inject(I18n);
+  /** Заголовок: название неразрывно, а где оно стоит во фразе — решает перевод ({brand}). */
+  readonly title = (() => {
+    const [before, after = ''] = this.i18n.t('Посты из вашего Instagram станут товарами на {brand}').split('{brand}');
+    return { before, brand: this.i18n.t('Хариде'), after };
+  })();
   readonly cabinetUrl = environment.cabinetUrl;
   /** Последняя успешная отправка кода и обратный отсчёт повтора. */
   readonly resend = new CodeResend();
@@ -144,7 +151,7 @@ export class SellComponent {
     this.busy.set(true); this.error.set('');
     this.api.sellerSendCode(p).subscribe({
       next: () => { this.busy.set(false); this.resend.markSent(p); this.step.set('code'); },
-      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
+      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e, this.i18n)); },
     });
   }
   apply(): void {
@@ -152,7 +159,7 @@ export class SellComponent {
     this.busy.set(true); this.error.set('');
     this.api.sellerApply({ handle: v.handle.trim(), owner_name: v.owner_name.trim(), phone: phone9(v.phone), code: this.code() }).subscribe({
       next: (r) => { this.busy.set(false); this.handle.set(r.handle); this.step.set('done'); },
-      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
+      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e, this.i18n)); },
     });
   }
 }

@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { ChatApi } from '../../core/chat-api.service';
 import { ChatSocket } from '../../core/chat-socket.service';
 import { AuthService } from '../../core/auth.service';
+import { I18n, TPipe } from '../../core/i18n';
 import { ChatSummary } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
@@ -17,22 +18,22 @@ import { chatListTime } from './chat-time';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chats',
   standalone: true,
-  imports: [RouterLink, IconComponent, ShopAvatarComponent],
+  imports: [RouterLink, IconComponent, ShopAvatarComponent, TPipe],
   template: `
     <section class="wrap box">
-      <h1 class="title">Сообщения</h1>
+      <h1 class="title">{{ 'Сообщения' | t }}</h1>
       @if (loaded() && !chats().length) {
         <div class="empty">
           <span class="empty-ico"><app-icon name="message-circle" [size]="28" [stroke]="1.8" /></span>
-          <p class="empty-title">Пока нет сообщений</p>
-          <p class="empty-note">Вопрос о размере или наличии задайте лавке прямо со страницы товара — кнопка «Написать продавцу».</p>
-          <a class="btn" routerLink="/catalog">В каталог</a>
+          <p class="empty-title">{{ 'Пока нет сообщений' | t }}</p>
+          <p class="empty-note">{{ 'Вопрос о размере или наличии задайте лавке прямо со страницы товара — кнопка «Написать продавцу».' | t }}</p>
+          <a class="btn" routerLink="/catalog">{{ 'В каталог' | t }}</a>
         </div>
       }
       @if (!loaded()) {
         <!-- Заглушка списка: кружок лавки, имя со временем и строка последнего сообщения -->
         <div role="status" data-test="skel-chats">
-          <span class="sr-only">Загрузка…</span>
+          <span class="sr-only">{{ 'Загрузка…' | t }}</span>
           <ul class="list" aria-hidden="true">
             @for (w of skeleton; track $index) {
               <li class="row">
@@ -59,10 +60,10 @@ import { chatListTime } from './chat-time';
                 <span class="bottom">
                   <span class="last">
                     @if (c.last_message; as m) {
-                      @if (m.sender === 'buyer') { <span class="you">Вы: </span> }{{ m.text }}
+                      @if (m.sender === 'buyer') { <span class="you">{{ 'Вы:' | t }} </span> }{{ m.text }}
                     } @else { &#64;{{ c.shop.handle }} }
                   </span>
-                  @if (c.unread) { <span class="badge" data-test="unread" [attr.aria-label]="'Непрочитанных: ' + c.unread">{{ c.unread }}</span> }
+                  @if (c.unread) { <span class="badge" data-test="unread" [attr.aria-label]="'Непрочитанных: {n}' | t: { n: c.unread }">{{ c.unread }}</span> }
                 </span>
               </span>
             </a>
@@ -108,9 +109,10 @@ export class ChatsComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly i18n = inject(I18n);
   readonly chats = signal<ChatSummary[]>([]);
   readonly loaded = signal(false);
-  readonly when = chatListTime;
+  when(iso: string): string { return chatListTime(iso, new Date(), this.i18n); }
   /** Ширины имён в строках заглушки — чтобы список не выглядел штампованным. */
   readonly skeleton = [42, 30, 50, 36, 26];
 

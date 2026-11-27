@@ -4,6 +4,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { SellComponent } from './sell.component';
 import { MarketApi } from '../../core/market-api.service';
+import { LANG_COOKIE, LANG_DICT } from '../../core/i18n';
+import { TG } from '../../i18n/tg';
 
 async function setup(api: Partial<Record<'sellerSendCode' | 'sellerApply', jest.Mock>>) {
   await TestBed.configureTestingModule({ imports: [SellComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: api }] }).compileComponents();
@@ -88,5 +90,16 @@ describe('SellComponent', () => {
     const el: HTMLElement = f.nativeElement;
     expect(el.querySelector('input[formControlName="handle"]')?.getAttribute('maxlength')).toBe('31');
     expect(el.querySelector('input[formControlName="owner_name"]')?.getAttribute('maxlength')).toBe('150');
+  });
+
+  it('по-таджикски название в заголовке стоит, где велит перевод, и не переносится', async () => {
+    document.cookie = `${LANG_COOKIE}=tg; path=/`;
+    try {
+      await TestBed.configureTestingModule({ imports: [SellComponent], providers: [provideRouter([]), { provide: MarketApi, useValue: {} }, { provide: LANG_DICT, useValue: TG }] }).compileComponents();
+      const f = TestBed.createComponent(SellComponent); f.detectChanges();
+      const h1 = (f.nativeElement as HTMLElement).querySelector('h1')!;
+      expect(h1.textContent).toBe('Постҳои Instagram-и шумо дар Харид ба мол табдил меёбанд');
+      expect(h1.querySelector('.nowrap')?.textContent).toBe('Харид');
+    } finally { document.cookie = `${LANG_COOKIE}=; path=/; max-age=0`; }
   });
 });

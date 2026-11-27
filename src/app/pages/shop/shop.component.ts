@@ -5,6 +5,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { dayMonth } from '../../core/checkout-options';
+import { I18n, TPipe } from '../../core/i18n';
 import { MarketApi } from '../../core/market-api.service';
 import { FeedFilters, Review, Shop } from '../../core/models';
 import { activeFilterCount, parseFeedFilters } from '../../shared/feed-filters';
@@ -31,11 +32,11 @@ const FILTERS_FROM = 8;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-shop',
   standalone: true,
-  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent, ShareComponent, SkelProductsComponent, PullRefreshComponent],
+  imports: [ProductCardComponent, NotFoundComponent, IconComponent, ShopAvatarComponent, ReviewsComponent, FeedFiltersComponent, FeedMoreComponent, ShareComponent, SkelProductsComponent, PullRefreshComponent, TPipe],
   template: `
     <app-pull-refresh [busy]="feed.refreshing()" (refresh)="feed.refresh()" />
     @if (missing()) { <app-not-found /> }
-    @else if (failed()) { <div class="wrap page-top"><p class="muted">Не удалось загрузить. Попробуйте обновить страницу.</p></div> }
+    @else if (failed()) { <div class="wrap page-top"><p class="muted">{{ 'Не удалось загрузить. Попробуйте обновить страницу.' | t }}</p></div> }
     @else {
       @if (shop(); as s) {
         <div class="wrap page-top">
@@ -44,41 +45,41 @@ const FILTERS_FROM = 8;
             <div class="who">
               <h1 class="name">{{ s.name || s.handle }}</h1>
               <a class="ig" [href]="'https://instagram.com/' + s.handle" target="_blank" rel="noopener">
-                <app-icon name="instagram" [size]="16" [stroke]="1.8" />&#64;{{ s.handle }}<span class="sr-only">(откроется Instagram)</span>
+                <app-icon name="instagram" [size]="16" [stroke]="1.8" />&#64;{{ s.handle }}<span class="sr-only">{{ '(откроется Instagram)' | t }}</span>
               </a>
               @if (s.bio) { <p class="bio">{{ s.bio }}</p> }
-              <app-share class="share" [path]="shopPath(s.handle)" [text]="'Лавка @' + s.handle + ' на Хариде'" />
+              <app-share class="share" [path]="shopPath(s.handle)" [text]="'Лавка @{handle} на Хариде' | t: { handle: s.handle }" />
             </div>
             <dl class="stats">
               <!-- Пункт «Оценка» есть всегда: без оценок пустое место выглядело бы как скрытый плохой рейтинг -->
               <div data-test="shop-rating">
-                <dt>Оценка</dt>
+                <dt>{{ 'Оценка' | t }}</dt>
                 @let r = rate();
                 @if (r.kind === 'rated') {
                   <dd class="rating"><app-icon class="star" name="star" [size]="17" [filled]="true" />{{ r.value }}</dd>
                   <dd class="count"><button type="button" class="to-reviews" data-test="to-reviews" (click)="setTab('reviews')">{{ r.count }}</button></dd>
-                } @else if (r.kind === 'direct') { <dd class="quiet">Нет</dd><dd class="count">заказы в Direct</dd> }
-                @else { <dd class="quiet">Пока без оценок</dd> }
+                } @else if (r.kind === 'direct') { <dd class="quiet">{{ 'Нет' | t }}</dd><dd class="count">{{ 'заказы в Direct' | t }}</dd> }
+                @else { <dd class="quiet">{{ 'Пока без оценок' | t }}</dd> }
               </div>
               <!-- Лавка в Direct не возит через Харид — «0 доставлено» выглядело бы как плохой показатель -->
-              @if (s.verified !== false) { <div><dt>Доставлено</dt><dd>{{ s.delivered_orders }}</dd></div> }
-              @if (s.followers > 0) { <div data-test="followers"><dt>В Instagram</dt><dd>{{ followersCount(s.followers) }} {{ followersLabel(s.followers) }}</dd></div> }
+              @if (s.verified !== false) { <div><dt>{{ 'Доставлено' | t }}</dt><dd>{{ s.delivered_orders }}</dd></div> }
+              @if (s.followers > 0) { <div data-test="followers"><dt>{{ 'В Instagram' | t }}</dt><dd>{{ followersCount(s.followers, i18n) }} {{ followersLabel(s.followers, i18n) }}</dd></div> }
             </dl>
           </header>
           <p class="meta">
-            @if (s.district) { <span class="pin"><app-icon name="map-pin" [size]="15" />Лавка в районе {{ s.district }}</span> }
-            @if (joined()) { <span>На Хариде с {{ joined() }}</span> }
-            <span>Оценка и заказы — только по доставкам через Харид</span>
+            @if (s.district) { <span class="pin"><app-icon name="map-pin" [size]="15" />{{ 'Лавка в районе {district}' | t: { district: s.district } }}</span> }
+            @if (joined()) { <span>{{ 'На Хариде с {date}' | t: { date: joined() } }}</span> }
+            <span>{{ 'Оценка и заказы — только по доставкам через Харид' | t }}</span>
           </p>
           <!-- Товары и отзывы — вкладки: длинная лента больше не прячет отзывы в самый низ. Вкладка — в адресе (?tab=reviews) -->
-          <div class="tabs" role="tablist" aria-label="Разделы лавки" (keydown)="onTabKey($event)">
+          <div class="tabs" role="tablist" [attr.aria-label]="'Разделы лавки' | t" (keydown)="onTabKey($event)">
             <button type="button" role="tab" id="tab-goods" class="tab" data-test="tab-goods" aria-controls="panel-goods"
               [attr.aria-selected]="tab() === 'goods'" [attr.tabindex]="tab() === 'goods' ? 0 : -1" (click)="setTab('goods')">
-              Товары @if (goodsCount() !== null) { <span class="tab-n">{{ goodsCount() }}</span> }
+              {{ 'Товары' | t }} @if (goodsCount() !== null) { <span class="tab-n">{{ goodsCount() }}</span> }
             </button>
             <button type="button" role="tab" id="tab-reviews" class="tab" data-test="tab-reviews" aria-controls="panel-reviews"
               [attr.aria-selected]="tab() === 'reviews'" [attr.tabindex]="tab() === 'reviews' ? 0 : -1" (click)="setTab('reviews')">
-              Отзывы @if (reviewsCount()) { <span class="tab-n">{{ reviewsCount() }}</span> }
+              {{ 'Отзывы' | t }} @if (reviewsCount()) { <span class="tab-n">{{ reviewsCount() }}</span> }
             </button>
           </div>
           @if (tab() === 'goods') {
@@ -86,7 +87,7 @@ const FILTERS_FROM = 8;
               @if (showFilters()) { <app-feed-filters class="filters" [base]="base()" [value]="filters()" /> }
               @if (products().length) { <div class="products">@for (p of products(); track p.id) { <app-product-card [product]="p" /> }</div> }
               @else if (feed.loading()) { <app-skel-products /> }
-              @else { <p class="muted">{{ filtered() ? 'По этим фильтрам ничего нет' : 'Пока пусто' }}</p> }
+              @else { <p class="muted">{{ filtered() ? ('По этим фильтрам ничего нет' | t) : ('Пока пусто' | t) }}</p> }
               @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
             </section>
           } @else {
@@ -167,6 +168,7 @@ export class ShopComponent {
   private readonly api = inject(MarketApi);
   private readonly seo = inject(SeoService);
   private readonly title = inject(Title);
+  protected readonly i18n = inject(I18n);
   readonly followersCount = followersCount;
   readonly followersLabel = followersLabel;
   readonly shopPath = shopPath;
@@ -189,21 +191,21 @@ export class ShopComponent {
   private readonly router = inject(Router);
   readonly missing = signal(false);
   readonly failed = signal(false);
-  readonly joined = computed(() => dayMonth(this.shop()?.joined_at ?? ''));
+  readonly joined = computed(() => dayMonth(this.shop()?.joined_at ?? '', this.i18n));
   /** Отзывы о товарах лавки; null — не загрузились, раздел скрыт. */
   readonly reviews = signal<Review[] | null>(null);
-  readonly rate = computed<ShopRating>(() => { const s = this.shop(); return s ? shopRating(s) : { kind: 'none' }; });
+  readonly rate = computed<ShopRating>(() => { const s = this.shop(); return s ? shopRating(s, this.i18n) : { kind: 'none' }; });
   constructor() {
     effect((onCleanup) => {
       const h = this.handle();
       this.missing.set(false); this.failed.set(false); this.shop.set(null); this.reviews.set(null);
       const subs = untracked(() => [
         this.api.shop(h).subscribe({
-          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || `Лавка @${s.handle} на Хариде`, image: s.avatar_url || undefined, jsonLd: shopLd(s, this.seo.origin()), keepParams: ['tab'], path: shopPath(s.handle) }); },
+          next: (s) => { this.shop.set(s); this.seo.set({ title: `@${s.handle} — Харид`, description: s.bio || this.i18n.t('Лавка @{handle} на Хариде', { handle: s.handle }), image: s.avatar_url || undefined, jsonLd: shopLd(s, this.seo.origin()), keepParams: ['tab'], path: shopPath(s.handle) }); },
           error: (e) => {
             // Теги прошлой страницы SeoService убрал при переходе; заголовок вкладки — свой
-            if (e instanceof HttpErrorResponse && e.status === 404) { this.missing.set(true); this.title.setTitle('Лавка не найдена — Харид'); }
-            else { this.failed.set(true); this.title.setTitle('Лавка не загрузилась — Харид'); }
+            if (e instanceof HttpErrorResponse && e.status === 404) { this.missing.set(true); this.title.setTitle(this.i18n.t('Лавка не найдена — Харид')); }
+            else { this.failed.set(true); this.title.setTitle(this.i18n.t('Лавка не загрузилась — Харид')); }
           },
         }),
         this.api.reviews({ shop: h }).pipe(catchError(() => of(null))).subscribe((r) => this.reviews.set(r)),

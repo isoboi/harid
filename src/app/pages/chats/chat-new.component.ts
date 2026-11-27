@@ -5,6 +5,7 @@ import { ChatApi } from '../../core/chat-api.service';
 import { MarketApi } from '../../core/market-api.service';
 import { AuthService } from '../../core/auth.service';
 import { apiErrorMessage } from '../../core/api-error';
+import { I18n, TPipe } from '../../core/i18n';
 import { Product, Shop } from '../../core/models';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
@@ -14,15 +15,15 @@ import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chat-new',
   standalone: true,
-  imports: [FormsModule, MoneyPipe, ShopAvatarComponent],
+  imports: [FormsModule, MoneyPipe, ShopAvatarComponent, TPipe],
   template: `
     <section class="wrap box">
-      <h1 class="title">Вопрос продавцу</h1>
+      <h1 class="title">{{ 'Вопрос продавцу' | t }}</h1>
       <div class="to" data-test="new-shop">
         <app-shop-avatar [name]="shopInfo()?.name || shop()" [color]="shopInfo()?.avatar_color || ''" [avatarUrl]="shopInfo()?.avatar_url" [handle]="shop()" [size]="48" />
         <span class="to-text">
           <span class="to-name">{{ shopInfo()?.name || ('@' + shop()) }}</span>
-          <span class="to-note">Ответ придёт в «Сообщения»</span>
+          <span class="to-note">{{ 'Ответ придёт в «Сообщения»' | t }}</span>
         </span>
       </div>
       @if (item(); as p) {
@@ -32,10 +33,10 @@ import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
         </div>
       }
       <form (ngSubmit)="submit()">
-        <label class="lbl" for="chat-first">Ваш вопрос</label>
-        <textarea id="chat-first" name="text" class="field-control" rows="4" maxlength="2000" placeholder="Например: есть ли размер M?"
+        <label class="lbl" for="chat-first">{{ 'Ваш вопрос' | t }}</label>
+        <textarea id="chat-first" name="text" class="field-control" rows="4" maxlength="2000" [placeholder]="'Например: есть ли размер M?' | t"
           [ngModel]="draft()" (ngModelChange)="draft.set($event)"></textarea>
-        <button class="btn btn--block go" type="submit" [disabled]="busy() || !draft().trim()">Отправить</button>
+        <button class="btn btn--block go" type="submit" [disabled]="busy() || !draft().trim()">{{ 'Отправить' | t }}</button>
       </form>
       @if (error()) { <p class="field-error" role="alert">{{ error() }}</p> }
     </section>
@@ -57,6 +58,7 @@ import { ShopAvatarComponent } from '../../shared/shop-avatar.component';
   `,
 })
 export class ChatNewComponent implements OnInit {
+  private readonly i18n = inject(I18n);
   private readonly api = inject(ChatApi);
   private readonly market = inject(MarketApi);
   private readonly auth = inject(AuthService);
@@ -90,7 +92,7 @@ export class ChatNewComponent implements OnInit {
     const productId = Number(this.product());
     this.api.start({ shop_handle: this.shop(), text, ...(productId ? { product_id: productId } : {}) }).subscribe({
       next: (r) => { this.busy.set(false); this.router.navigateByUrl(`/chats/${r.chat_id}`); },
-      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e)); },
+      error: (e) => { this.busy.set(false); this.error.set(apiErrorMessage(e, this.i18n)); },
     });
   }
 }

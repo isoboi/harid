@@ -4,11 +4,11 @@ import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { MarketApi } from '../../core/market-api.service';
 import { Category, Shop } from '../../core/models';
+import { I18n, TPipe } from '../../core/i18n';
 import { SeoService } from '../../core/seo.service';
 import { websiteLd } from '../../core/structured-data';
 import { PriceTagComponent } from '../../shared/price-tag.component';
 import { ProductCardComponent } from '../../shared/product-card.component';
-import { plural } from '../../shared/plural';
 import { FeedMoreComponent, ProductFeed } from '../../shared/product-feed';
 import { PullRefreshComponent } from '../../shared/pull-refresh.component';
 import { ShopStripComponent } from '../../shared/shop-strip.component';
@@ -30,20 +30,20 @@ const CASH_STEPS = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent, RecentStripComponent, SkelProductsComponent, PullRefreshComponent],
+  imports: [RouterLink, ProductCardComponent, ShopStripComponent, PriceTagComponent, FeedMoreComponent, RecentStripComponent, SkelProductsComponent, PullRefreshComponent, TPipe],
   template: `
     <app-pull-refresh [busy]="feed.refreshing()" (refresh)="feed.refresh()" />
     <div class="wrap">
       <app-shop-strip [shops]="shops()" />
       <section class="hero" [class.solo]="!collage().length && !collageWait()">
         <div>
-          <h1 class="hero-title">Покупайте в Instagram-магазинах Таджикистана без предоплаты на чужую карту</h1>
+          <h1 class="hero-title">{{ 'Покупайте в Instagram-магазинах Таджикистана без предоплаты на чужую карту' | t }}</h1>
           @if (shops(); as list) {
-            <p class="hero-lead">{{ list.length }} {{ plural(list.length, shopForms) }} уже здесь. Платите наличными курьеру, когда заказ у вас в руках.</p>
+            <p class="hero-lead">{{ '{n} {shops} уже здесь. Платите наличными курьеру, когда заказ у вас в руках.' | t: { n: list.length, shops: i18n.plural(list.length, shopForms) } }}</p>
           } @else {
-            <p class="hero-lead">Платите наличными курьеру, когда заказ у вас в руках.</p>
+            <p class="hero-lead">{{ 'Платите наличными курьеру, когда заказ у вас в руках.' | t }}</p>
           }
-          <div class="cta"><a class="btn" href="#fresh">Смотреть товары</a><a class="btn btn--ghost" routerLink="/sell">У меня Instagram-магазин</a></div>
+          <div class="cta"><a class="btn" href="#fresh">{{ 'Смотреть товары' | t }}</a><a class="btn btn--ghost" routerLink="/sell">{{ 'У меня Instagram-магазин' | t }}</a></div>
         </div>
         <!-- Коллаж из реальных товаров: большое фото и до двух квадратных. Большое — первый экран (LCP): грузится сразу и первым -->
         @if (collage().length) {
@@ -68,9 +68,9 @@ const CASH_STEPS = [
            на телефоне героя нет, и полоса над лентой сдвинула бы первый экран — там она ниже, после первых товаров -->
       <app-recent-strip class="recent-d" />
       <section id="fresh" class="fresh">
-        <div class="fresh-head"><h2 class="fresh-title">Новое в лавках</h2></div>
-        <nav class="chips" aria-label="Категории">
-          <a class="chip chip--on" routerLink="/" aria-current="page">Всё</a>
+        <div class="fresh-head"><h2 class="fresh-title">{{ 'Новое в лавках' | t }}</h2></div>
+        <nav class="chips" [attr.aria-label]="'Категории' | t">
+          <a class="chip chip--on" routerLink="/" aria-current="page">{{ 'Всё' | t }}</a>
           @if (categories(); as list) {
             @for (c of list; track c.slug) { <a class="chip" [routerLink]="['/c', c.slug]">{{ c.name }}</a> }
           } @else {
@@ -80,7 +80,7 @@ const CASH_STEPS = [
         <div class="list">
           @if (products().length) { <div class="products">@for (p of head(); track p.id) { <app-product-card [product]="p" /> }</div> }
           @else if (feed.loading()) { <app-skel-products /> }
-          @else { <p class="muted">Пока пусто</p> }
+          @else { <p class="muted">{{ 'Пока пусто' | t }}</p> }
           <app-recent-strip class="recent-m" />
           @if (tail().length) { <div class="products tail">@for (p of tail(); track p.id) { <app-product-card [product]="p" /> }</div> }
           @if (!feed.done()) { <app-feed-more [feed]="feed" /> }
@@ -90,12 +90,12 @@ const CASH_STEPS = [
     <section id="cash" class="how">
       <div class="wrap how-grid">
         <div>
-          <h2 class="how-title">Оплата наличными курьеру</h2>
-          <p class="how-lead">Не нужно переводить предоплату на карту незнакомому человеку из директа.</p>
+          <h2 class="how-title">{{ 'Оплата наличными курьеру' | t }}</h2>
+          <p class="how-lead">{{ 'Не нужно переводить предоплату на карту незнакомому человеку из директа.' | t }}</p>
         </div>
         <ol class="steps">
           @for (s of steps; track s.title; let i = $index) {
-            <li><span class="num" aria-hidden="true">{{ i + 1 }}</span><h3>{{ s.title }}</h3><p>{{ s.text }}</p></li>
+            <li><span class="num" aria-hidden="true">{{ i + 1 }}</span><h3>{{ s.title | t }}</h3><p>{{ s.text | t }}</p></li>
           }
         </ol>
       </div>
@@ -150,7 +150,7 @@ const CASH_STEPS = [
   `,
 })
 export class HomeComponent {
-  readonly plural = plural;
+  protected readonly i18n = inject(I18n);
   readonly shopForms: [string, string, string] = ['лавка', 'лавки', 'лавок'];
   readonly steps = CASH_STEPS;
   private readonly api = inject(MarketApi);
@@ -171,7 +171,7 @@ export class HomeComponent {
   readonly collageWait = computed(() => this.feed.loading() && !this.products().length);
   constructor() {
     const seo = inject(SeoService);
-    seo.set({ title: 'Харид — Instagram-магазины Таджикистана', description: 'Товары Instagram-лавок Таджикистана с оплатой наличными курьеру.', jsonLd: websiteLd(seo.origin()) });
+    seo.set({ title: this.i18n.t('Харид — Instagram-магазины Таджикистана'), description: this.i18n.t('Товары Instagram-лавок Таджикистана с оплатой наличными курьеру.'), jsonLd: websiteLd(seo.origin()) });
     this.feed.reset({});
   }
 }

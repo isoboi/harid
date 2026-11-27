@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { TPipe } from '../core/i18n';
 
 /**
  * Заглушка ленты товаров на время загрузки: та же сетка .products и те же метрики,
@@ -8,9 +9,10 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-skel-products',
   standalone: true,
+  imports: [TPipe],
   template: `
     <div class="products" role="status" data-test="skel-products">
-      <span class="sr-only">Загрузка…</span>
+      <span class="sr-only">{{ 'Загрузка…' | t }}</span>
       @for (n of cards(); track n) {
         <div class="card" aria-hidden="true">
           <div class="skel img"></div>
